@@ -23,7 +23,13 @@
 | [docs/07-campaign-missions.md](docs/07-campaign-missions.md) | 全 10 ミッション設計・拡張メカニクス |
 | [docs/08-content-specs.md](docs/08-content-specs.md) | 実装コントラクト（スキーマ・シグナル・数値表） |
 | [docs/09-ui-spec.md](docs/09-ui-spec.md) | UI / 画面 / HUD / カットシーン画風仕様 |
+| [docs/10-quality-gates.md](docs/10-quality-gates.md) | 品質ゲート（G1〜G5: 判定者・合否基準・記録） |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 開発規約（コーディング / PR / DoD / 指示書・分割ルール） |
+| [docs/instructions/](docs/instructions/) | Issue 実行指示書（マイルストーン着手時に作成。M0 分作成済み） |
+| [docs/maps/](docs/maps/) | ミッションのマップ図面（座標・配置の正本。見本: m02） |
 
 ## 開発の進め方
 
-作業は GitHub Issues（Milestone M0〜M7）で管理する。分割方針は [docs/05-milestones.md](docs/05-milestones.md) を参照。
+作業は GitHub Issues（Milestone M0〜M12）で管理する。分割方針は [docs/05-milestones.md](docs/05-milestones.md) を参照。
+
+実装者は着手前に必ず: ① [CONTRIBUTING.md](CONTRIBUTING.md) を読む → ② 担当 Issue の指示書（`docs/instructions/`）に従う → ③ 完了時に [品質ゲート](docs/10-quality-gates.md) の判定を受ける。

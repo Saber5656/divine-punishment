@@ -39,6 +39,10 @@ Phase 2:  M7 ─→ M8 ─→ M9 ─→ M10 ─→ M11 ─→ M12
 ## Issue 分割方針
 
 - 1 Issue = 1 PR 相当の縦切りスコープ（レビュー可能サイズ、目安 0.5〜3 日）
+- **例外（エピック）**: ミッション制作のゲームプレイ実装 Issue（#60/#62/#64/#66/#68/#70/#72/#75）は着手時に 4 サブ Issue へ分割する（CONTRIBUTING.md §6 の分割ルール）。分割前の実装着手は禁止
+- 各 Issue の**実行指示書**はマイルストーン着手時に `docs/instructions/M<x>/` へ作成する（Just-in-Time 方式、CONTRIBUTING.md §5）。M0 分は作成済みで粒度の基準
+- レベル実装はマップ図面（`docs/maps/`、見本: [m02-yashiki.md](maps/m02-yashiki.md)）を先に作成・合意してから着手する
+- 品質判定は [10-quality-gates.md](10-quality-gates.md) のゲート（G1〜G5）に従う
 - 各 Issue に: 目的 / 対象ドキュメント参照 / 受け入れ条件（チェックリスト）/ 依存 Issue を記載
 - ラベル: `milestone:M0`〜`M7` は GitHub Milestone で管理し、ラベルは領域（`area:player` `area:ai` `area:stealth` `area:level` `area:ui` `area:audio` `area:infra` `area:design`）+ `type:feature` `type:tuning` `type:test` を付与
 - チューニング・プレイテスト系 Issue は「数値確定」を成果物とし、`data/tuning/` への反映と docs 更新を完了条件に含める
