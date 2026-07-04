@@ -18,6 +18,11 @@ config/icon="res://icon.svg"
 [autoload]
 
 Tuning="*res://src/autoload/tuning.gd"
+EventBus="*res://src/autoload/event_bus.gd"
+GameState="*res://src/autoload/game_state.gd"
+SaveManager="*res://src/autoload/save_manager.gd"
+MissionDirector="*res://src/autoload/mission_director.gd"
+AudioDirector="*res://src/autoload/audio_director.gd"
 
 [editor_plugins]
 
