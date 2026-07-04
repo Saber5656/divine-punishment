@@ -8,6 +8,13 @@
 - 視点: 三人称 3D、箱庭ミッション構造
 - スコープ: フルゲーム（全 10 ミッション + ストーリーエンドまで）。Phase 1 = Vertical Slice / Phase 2 = キャンペーン
 
+## Environment
+
+- Godot: `4.3-stable` 固定
+- Git LFS: `*.png`, `*.jpg`, `*.glb`, `*.ogg`, `*.wav`, `*.ttf`, `*.otf`
+
+ローカルで `godot` が PATH にない場合は、検証時に `GODOT_BIN=/path/to/Godot` を指定する。
+
 ## ドキュメント（実装エージェントは 00-vision の「読み順」に従うこと）
 
 | ドキュメント | 内容 |

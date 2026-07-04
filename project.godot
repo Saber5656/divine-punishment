@@ -1,0 +1,38 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section]
+;   param=value
+
+config_version=5
+
+[application]
+
+config/name="Divine Punishment"
+run/main_scene="res://src/ui/main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="player_body"
+3d_physics/layer_3="enemy_body"
+3d_physics/layer_4="civilian_body"
+3d_physics/layer_5="vision_blocker"
+3d_physics/layer_6="sound_blocker"
+3d_physics/layer_7="interactable"
+3d_physics/layer_8="hidespot"
+3d_physics/layer_9="corpse"
+3d_physics/layer_10="projectile"
+3d_physics/layer_11="assassinate_target"
+3d_physics/layer_12="climb_marker"
+3d_physics/layer_13="water"
+3d_physics/layer_14="（予約: detection 拡張）"
+3d_physics/layer_15="mission_trigger"
