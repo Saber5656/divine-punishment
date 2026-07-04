@@ -1,7 +1,7 @@
 # Issue #4: チューニング Resource 基盤（data/tuning + デバッグリロード）
 
 - Milestone: M0 / ラベル: area:infra, type:feature
-- 依存: #1（#2 完了後の着手を推奨 — Resource クラスにテストを書くため）
+- 依存: #1, #2
 - ゲート: G1
 
 ## 目的

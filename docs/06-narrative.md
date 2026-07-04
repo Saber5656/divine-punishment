@@ -157,8 +157,9 @@
 | 変数 | 型 | 更新 | 用途 |
 |---|---|---|---|
 | `total_nontarget_kills` | int | ミッションリザルト時に加算 | 隠れ家台詞分岐・お甲の報告文・エピローグ判定 |
+| `total_civilian_kills` | int | ミッションリザルト時に加算 | 民間人殺害の重ペナルティを修羅値へ反映 |
 | `total_detections` | int | 同上（戦闘遷移回数） | 隠れ家台詞分岐 |
-| `shura` (修羅値) | int | `total_nontarget_kills + floor(total_detections / 2)` | 分岐閾値の単一ソース |
+| `shura` (修羅値) | int | `total_nontarget_kills + total_civilian_kills * 3 + floor(total_detections / 2)` | 分岐閾値の単一ソース |
 | 影の道判定 | bool | M10 リザルト時 `shura <= 12` かつ M9 殺害 0（M9 は殺害時点で任務失敗のため常に 0） | エピローグ A/B |
 | 隠れ家分岐 | enum | シーンごとに `shura <= その話の閾値`（08-content-specs.md の表） | 台詞 静/血 バリアント |
 
