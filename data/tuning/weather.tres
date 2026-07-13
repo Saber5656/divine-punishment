@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WeatherConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/tuning/weather_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+player_noise_mult = {
+&"clear": 1.0,
+&"rain": 0.5,
+&"snow": 1.0
+}
+enemy_view_mult = {
+&"clear": 1.0,
+&"rain": 0.8,
+&"snow": 1.0
+}
+snow_footprint_interval_m = 0.8
+snow_footprint_lifetime_sec = 90.0
+rain_extinguishes_fragile_lights = true
