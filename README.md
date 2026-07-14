@@ -11,6 +11,7 @@
 ## Environment
 
 - Godot: `4.3-stable` 固定
+- GUT: `v9.4.0`
 - Git LFS: `*.png`, `*.jpg`, `*.glb`, `*.ogg`, `*.wav`, `*.ttf`, `*.otf`
 
 ローカルで `godot` が PATH にない場合は、検証時に `GODOT_BIN=/path/to/Godot` を指定する。

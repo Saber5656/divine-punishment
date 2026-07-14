@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PerceptionConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/tuning/perception_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+fov_degrees = 130.0
+view_distance_m = 18.0
+meter_gain_base = 3.0
+meter_decay = 0.3
+suspicious_threshold = 1.0
+search_threshold = 2.0
+combat_threshold = 3.0
+hearing_multiplier = 1.5
+return_vigilance_mult = 1.5
+return_vigilance_duration = 120.0
+can_climb = true
+dart_immune = true
