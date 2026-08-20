@@ -256,7 +256,24 @@ func test_controller_applies_project_gravity_while_airborne() -> void:
 	assert_lt(player.position.y, initial_height)
 
 
+func test_controller_processes_mouse_motion_for_camera_look() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	var camera_rig := player.get_node("CameraRig") as Node3D
+	var mouse_motion := InputEventMouseMotion.new()
+	mouse_motion.screen_relative = Vector2(20.0, -10.0)
+
+	player._unhandled_input(mouse_motion)
+
+	assert_false(is_equal_approx(player.rotation.y, 0.0))
+	assert_false(is_equal_approx(camera_rig.rotation.x, 0.0))
+
+
 func test_input_map_defines_kbm_and_gamepad_bindings() -> void:
+	var profile := load(DEFAULT_PROFILE_PATH) as PlayerProfile
+	for action: StringName in profile.allowed_actions:
+		assert_true(InputMap.has_action(action), "%s must be registered in InputMap" % action)
+
 	assert_true(_has_physical_key(&"move_forward", KEY_W))
 	assert_true(_has_joy_motion(&"move_forward", JOY_AXIS_LEFT_Y, -1.0))
 	assert_true(_has_physical_key(&"move_backward", KEY_S))
@@ -269,6 +286,34 @@ func test_input_map_defines_kbm_and_gamepad_bindings() -> void:
 	assert_true(_has_joy_button(&"stance_toggle", JOY_BUTTON_B))
 	assert_true(_has_physical_key(&"sprint", KEY_SHIFT))
 	assert_true(_has_joy_button(&"sprint", JOY_BUTTON_LEFT_STICK))
+	assert_true(_has_joy_motion(&"camera_up", JOY_AXIS_RIGHT_Y, -1.0))
+	assert_true(_has_joy_motion(&"camera_down", JOY_AXIS_RIGHT_Y, 1.0))
+	assert_true(_has_joy_motion(&"camera_left", JOY_AXIS_RIGHT_X, -1.0))
+	assert_true(_has_joy_motion(&"camera_right", JOY_AXIS_RIGHT_X, 1.0))
+	assert_true(_has_physical_key(&"interact", KEY_E))
+	assert_true(_has_joy_button(&"interact", JOY_BUTTON_A))
+	assert_true(_has_physical_key(&"assassinate", KEY_F))
+	assert_true(_has_joy_button(&"assassinate", JOY_BUTTON_X))
+	assert_true(_has_mouse_button(&"tool_use", MOUSE_BUTTON_LEFT))
+	assert_true(_has_joy_motion(&"tool_use", JOY_AXIS_TRIGGER_RIGHT, 1.0))
+	assert_true(_has_physical_key(&"tool_cycle", KEY_Q))
+	assert_true(_has_mouse_button(&"tool_cycle", MOUSE_BUTTON_WHEEL_UP))
+	assert_true(_has_mouse_button(&"tool_cycle", MOUSE_BUTTON_WHEEL_DOWN))
+	assert_true(_has_joy_button(&"tool_cycle", JOY_BUTTON_RIGHT_SHOULDER))
+	assert_true(_has_mouse_button(&"aim", MOUSE_BUTTON_RIGHT))
+	assert_true(_has_joy_motion(&"aim", JOY_AXIS_TRIGGER_LEFT, 1.0))
+	assert_true(_has_physical_key(&"peek", KEY_A))
+	assert_true(_has_physical_key(&"peek", KEY_D))
+	assert_true(_has_joy_motion(&"peek", JOY_AXIS_LEFT_X, -1.0))
+	assert_true(_has_joy_motion(&"peek", JOY_AXIS_LEFT_X, 1.0))
+	assert_true(_has_mouse_button(&"attack", MOUSE_BUTTON_LEFT))
+	assert_true(_has_joy_button(&"attack", JOY_BUTTON_X))
+	assert_true(_has_mouse_button(&"parry", MOUSE_BUTTON_RIGHT))
+	assert_true(_has_joy_button(&"parry", JOY_BUTTON_LEFT_SHOULDER))
+	assert_true(_has_physical_key(&"dodge", KEY_SPACE))
+	assert_true(_has_joy_button(&"dodge", JOY_BUTTON_A))
+	assert_true(_has_physical_key(&"pause", KEY_ESCAPE))
+	assert_true(_has_joy_button(&"pause", JOY_BUTTON_START))
 
 
 func _has_physical_key(action: StringName, keycode: int) -> bool:
@@ -290,6 +335,13 @@ func _has_joy_motion(action: StringName, axis: int, value: float) -> bool:
 func _has_joy_button(action: StringName, button: int) -> bool:
 	for event: InputEvent in InputMap.action_get_events(action):
 		if event is InputEventJoypadButton and (event as InputEventJoypadButton).button_index == button:
+			return true
+	return false
+
+
+func _has_mouse_button(action: StringName, button: int) -> bool:
+	for event: InputEvent in InputMap.action_get_events(action):
+		if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == button:
 			return true
 	return false
 

@@ -4,12 +4,18 @@ extends CharacterBody3D
 
 @export var player_profile: PlayerProfile
 @export_range(0.7, 1.8, 0.05) var crouch_capsule_height: float = 1.1
+@export_range(0.0001, 0.02, 0.0001) var mouse_look_sensitivity: float = 0.0025
+@export_range(0.1, 10.0, 0.1) var gamepad_look_speed: float = 2.5
+@export_range(-89.0, 0.0, 1.0) var camera_pitch_min: float = -75.0
+@export_range(0.0, 89.0, 1.0) var camera_pitch_max: float = 75.0
 
 @onready var state_machine: PlayerStateMachine = $StateMachine as PlayerStateMachine
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D as CollisionShape3D
+@onready var camera_rig: Node3D = $CameraRig as Node3D
 
 var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
+var _camera_pitch: float
 
 
 func _ready() -> void:
@@ -20,6 +26,19 @@ func _ready() -> void:
 	if not state_machine.state_changed.is_connected(_on_state_changed):
 		state_machine.state_changed.connect(_on_state_changed)
 	_apply_collision_shape_for_state(state_machine.current_state())
+	_camera_pitch = camera_rig.rotation.x
+
+
+func _process(delta: float) -> void:
+	var gamepad_look := Input.get_vector(&"camera_left", &"camera_right", &"camera_up", &"camera_down")
+	if gamepad_look.length_squared() > 0.0:
+		_apply_camera_look(gamepad_look * gamepad_look_speed * delta)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		_apply_camera_look(mouse_motion.screen_relative * mouse_look_sensitivity)
 
 
 func _physics_process(delta: float) -> void:
@@ -104,6 +123,16 @@ func _has_standing_clearance() -> bool:
 	query.collide_with_bodies = true
 	query.margin = 0.001
 	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+func _apply_camera_look(look_delta: Vector2) -> void:
+	rotate_y(-look_delta.x)
+	_camera_pitch = clampf(
+		_camera_pitch - look_delta.y,
+		deg_to_rad(camera_pitch_min),
+		deg_to_rad(camera_pitch_max),
+	)
+	camera_rig.rotation.x = _camera_pitch
 
 
 func _apply_gravity(delta: float) -> void:
