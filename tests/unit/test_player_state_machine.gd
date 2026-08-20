@@ -200,6 +200,47 @@ func test_controller_drives_crouch_and_sprint_from_input() -> void:
 	assert_eq(player_state_machine.current_state(), &"Crouch")
 
 
+func test_controller_resizes_collision_shape_for_crouch() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	var player_state_machine := player.get_node("StateMachine") as PlayerStateMachine
+	var collision_shape := player.get_node("CollisionShape3D") as CollisionShape3D
+	var capsule := collision_shape.shape as CapsuleShape3D
+	var standing_height := capsule.height
+	var standing_y := collision_shape.position.y
+
+	assert_true(player_state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_almost_eq(capsule.height, player.crouch_capsule_height, 0.0001)
+	assert_lt(collision_shape.position.y, standing_y)
+
+	assert_true(player._try_enter_standing_state(PlayerStateMachine.STATE_GROUND))
+	assert_eq(capsule.height, standing_height)
+	assert_eq(collision_shape.position.y, standing_y)
+
+
+func test_controller_blocks_standing_when_ceiling_has_no_clearance() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	var player_state_machine := player.get_node("StateMachine") as PlayerStateMachine
+	var collision_shape := player.get_node("CollisionShape3D") as CollisionShape3D
+	var capsule := collision_shape.shape as CapsuleShape3D
+	assert_true(player_state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+
+	var ceiling := StaticBody3D.new()
+	var ceiling_shape := CollisionShape3D.new()
+	var ceiling_box := BoxShape3D.new()
+	ceiling_box.size = Vector3(2.0, 0.2, 2.0)
+	ceiling_shape.shape = ceiling_box
+	ceiling.add_child(ceiling_shape)
+	ceiling.position = Vector3(0.0, 0.75, 0.0)
+	add_child_autofree(ceiling)
+	await get_tree().physics_frame
+
+	assert_false(player._try_enter_standing_state(PlayerStateMachine.STATE_GROUND))
+	assert_eq(player_state_machine.current_state(), PlayerStateMachine.STATE_CROUCH)
+	assert_almost_eq(capsule.height, player.crouch_capsule_height, 0.0001)
+
+
 func test_controller_applies_project_gravity_while_airborne() -> void:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	player.position = Vector3(0.0, 2.0, 0.0)
