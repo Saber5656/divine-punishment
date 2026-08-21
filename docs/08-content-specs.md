@@ -139,6 +139,15 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 | M10 特例 | 「疾風」項目なし（配点を影 walker へ +15 振替） |
 | epilogue_a_condition | 累計 shura ≤ 12（M10 リザルト時に判定） |
 
+### 2.9 CameraConfig（data/tuning/camera.tres）
+
+| フィールド | 型 | default | 備考 |
+|---|---|---|---|
+| mouse_look_sensitivity | float | 0.0025 | マウスの `screen_relative` に乗算する rad/pixel 基準値 |
+| gamepad_look_speed | float | 2.5 | 右スティック入力に乗算する rad/s 基準値 |
+
+カメラ感度の基準値は `CameraConfig` を正本とし、`PlayerCameraRig` は `Tuning.reloaded` 後の値を即時参照する。pitch 制限、SpringArm 長、衝突形状、peek 上限は scene / rig contract とし、感度 tuning へ混在させない。
+
 ## 3. プレイヤー状態機械 遷移表（契約）
 
 | From \ 入力 | 移動 | しゃがみ | 走り | 壁際+張付 | 登攀縁 | 梁端 | 床下口 | 水面 | HideSpot | 必殺成立+入力 | 被弾0 |
@@ -266,6 +275,20 @@ func change_state(next: StringName, ctx: Dictionary = {}) -> bool  # 不正遷�
 func stance() -> Enums.Stance                         # Ground=WALK, Crouch/Hidden=SNEAK 等の写像
 func movement_params() -> Dictionary                  # PlayerProfile から現状態の {speed, noise_radius, visibility_mod}
 
+# ── src/player/player_camera_rig.gd  (Node3D, player.tscn 直下 "CameraRig")
+class_name PlayerCameraRig
+func apply_mouse_look(screen_relative: Vector2) -> float       # tuning 適用後の player yaw delta を返し、rig pitch を更新
+func apply_gamepad_look(input_vector: Vector2, delta: float) -> float
+func set_peek_offset(requested_offset: Vector3) -> void        # max_peek_offset へ成分別 clamp。player body は動かさない
+func reset_peek_offset() -> void
+func peek_offset() -> Vector3
+func camera_config() -> CameraConfig
+
+# ── src/player/player_controller.gd  (CharacterBody3D, player.tscn root)
+func set_camera_peek_offset(offset: Vector3) -> void           # CameraRig API への公開 forwarding
+func reset_camera_peek_offset() -> void
+func camera_peek_offset() -> Vector3
+
 # ── src/stealth/player_visibility.gd  (Node, player.tscn 直下 "Visibility")
 class_name PlayerVisibility
 signal visibility_changed(v: float)
@@ -363,8 +386,8 @@ Player (CharacterBody3D)                 layer=2 player_body / mask=1 world
 ├─ NoiseEmitter (Node)                   # 足音・着地を EventBus.noise_emitted へ
 ├─ ToolRig (Node3D)
 │   └─ AimArc (Node3D)                   # 投射軌道表示
-├─ CameraRig (Node3D)
-│   └─ SpringArm3D ─ Camera3D
+├─ CameraRig (PlayerCameraRig, y=1.5, pitch −75°..75°, peek clamp x=±0.75/y=±0.3)
+│   └─ SpringArm3D (length=3.5, Sphere r=0.2, margin=0.1, mask=1 world) ─ Camera3D (current)
 └─ DetectPoints (Node3D)                 # group "player_detect_points"
     ├─ Head / Chest / Hips (Marker3D)    # 敵視覚レイの終点 3 点（§03 4.2）
 
