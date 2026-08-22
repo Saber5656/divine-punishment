@@ -29,6 +29,7 @@ var _interact_was_pressed: bool = false
 var _active_climb_edge: ClimbEdge
 var _active_beam_path: BeamPath
 var _traversal_distance := 0.0
+var _beam_axis_direction := 1.0
 
 
 func _ready() -> void:
@@ -235,6 +236,7 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 		_active_climb_edge = null
 	if to != PlayerStateMachine.STATE_BEAM:
 		_active_beam_path = null
+		_beam_axis_direction = 1.0
 	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
 		_traversal_distance = 0.0
 	_apply_collision_shape_for_state(to)
@@ -347,22 +349,30 @@ func _enter_beam_with_sample(path: BeamPath, distance: float, supplied_sample: D
 	_active_beam_path = path
 	_active_climb_edge = null
 	_traversal_distance = ClimbRules.bounded_distance(distance, path.path_length())
+	_beam_axis_direction = (
+		-1.0
+		if path.path_length() - _traversal_distance <= TRAVERSAL_ENDPOINT_EPSILON
+		else 1.0
+	)
 	var destination_sample := supplied_sample
 	if not bool(destination_sample.get(&"valid", false)):
 		destination_sample = path.world_sample_at_distance(_traversal_distance)
 	if not bool(destination_sample.get(&"valid", false)):
 		_active_beam_path = null
 		_traversal_distance = 0.0
+		_beam_axis_direction = 1.0
 		return false
 	var destination: Vector3 = destination_sample[&"position"]
 	if not ClimbRules.is_safe_world_position(destination):
 		_active_beam_path = null
 		_traversal_distance = 0.0
+		_beam_axis_direction = 1.0
 		return false
 	velocity = Vector3.ZERO
 	if not state_machine.change_state(PlayerStateMachine.STATE_BEAM):
 		_active_beam_path = null
 		_traversal_distance = 0.0
+		_beam_axis_direction = 1.0
 		return false
 	global_position = destination
 	return true
@@ -415,7 +425,7 @@ func _advance_beam(axis: float, delta: float) -> void:
 	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
 	var next_distance := ClimbRules.advance_distance(
 		_traversal_distance,
-		axis,
+		axis * _beam_axis_direction,
 		speed,
 		delta,
 		path.path_length(),
@@ -438,6 +448,7 @@ func _leave_traversal() -> void:
 	_active_climb_edge = null
 	_active_beam_path = null
 	_traversal_distance = 0.0
+	_beam_axis_direction = 1.0
 	velocity = Vector3.ZERO
 
 

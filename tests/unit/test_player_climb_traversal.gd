@@ -69,6 +69,26 @@ func test_beam_endpoint_descends_through_linked_climb_edge() -> void:
 	assert_eq(player.global_position, descent.bottom_world_position())
 
 
+func test_beam_end_entry_maps_forward_input_into_path() -> void:
+	var route := _add_route()
+	var beam := _add_beam(route, &"Beam", Vector3(0.0, 2.0, 0.0), Vector3(4.0, 0.0, 0.0))
+	var edge := _add_edge(route, &"EndAscent", Vector3(4.0, 0.0, 0.0))
+	edge.connected_beam_path = NodePath("../Beam")
+	edge.connected_beam_endpoint = 1
+	var player := _add_player(edge.bottom_world_position())
+
+	assert_true(player.try_enter_climb(edge))
+	player.advance_traversal(1.0, 2.0)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_BEAM)
+	assert_almost_eq(player.traversal_distance(), beam.path_length(), 0.0001)
+
+	var expected_distance := beam.path_length() - 1.5
+	var expected_position := beam.world_position_at_distance(expected_distance)
+	player.advance_traversal(1.0, 1.0)
+	assert_almost_eq(player.traversal_distance(), expected_distance, 0.0001)
+	assert_eq(player.global_position, expected_position)
+
+
 func test_invalid_marker_aborts_traversal_safely() -> void:
 	var route := _add_route()
 	var edge := _add_edge(route, &"Ascent", Vector3.ZERO)
