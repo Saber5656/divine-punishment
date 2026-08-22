@@ -297,6 +297,25 @@ func test_marker_links_require_world_space_endpoint_alignment() -> void:
 	assert_null(path.connected_climb_at_start())
 
 
+func test_overlapping_descent_ranges_choose_the_nearest_endpoint() -> void:
+	var path := _add_beam(Vector3(BeamPath.MIN_PATH_LENGTH, 0.0, 0.0))
+	path.name = &"ShortBeam"
+	path.path_curve.bake_interval = 0.5
+	var start_edge := _add_edge()
+	start_edge.name = &"StartEdge"
+	start_edge.position = Vector3(0.0, -2.0, 0.0)
+	var end_edge := _add_edge()
+	end_edge.name = &"EndEdge"
+	end_edge.position = Vector3(BeamPath.MIN_PATH_LENGTH, -2.0, 0.0)
+	path.start_climb_edge = NodePath("../StartEdge")
+	path.end_climb_edge = NodePath("../EndEdge")
+
+	assert_almost_eq(path.endpoint_interaction_distance(), path.path_length(), 0.0001)
+	assert_eq(path.descent_edge_for_distance(0.1), start_edge)
+	assert_eq(path.descent_edge_for_distance(0.4), end_edge)
+	assert_eq(path.descent_edge_for_distance(path.path_length()), end_edge)
+
+
 func test_marker_links_reject_forged_group_nodes_before_method_calls() -> void:
 	var edge := _add_edge()
 	edge.name = &"TypedEdge"

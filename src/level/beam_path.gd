@@ -296,11 +296,14 @@ func descent_edge_for_distance(distance: float) -> ClimbEdge:
 	if not is_geometry_valid() or length <= 0.0:
 		return null
 	var bounded := PlayerClimbRules.bounded_distance(distance, length)
-	if bounded <= endpoint_interaction_distance():
-		return connected_climb_at_start()
-	if length - bounded <= endpoint_interaction_distance():
+	var distance_to_start := bounded
+	var distance_to_end := length - bounded
+	var interaction_distance := endpoint_interaction_distance()
+	if distance_to_start > interaction_distance and distance_to_end > interaction_distance:
+		return null
+	if distance_to_end < distance_to_start:
 		return connected_climb_at_end()
-	return null
+	return connected_climb_at_start()
 
 
 func endpoint_interaction_distance() -> float:
