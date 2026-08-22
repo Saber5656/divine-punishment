@@ -543,11 +543,6 @@ func _abort_invalid_crawlspace() -> bool:
 			return true
 		global_position = original_position
 
-	if _has_capsule_clearance_at(crouch_capsule_height, original_position):
-		velocity = Vector3.ZERO
-		if state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
-			return true
-
 	# Do not enlarge the body into world geometry. Restore the last validated
 	# crawl posture, drop the stale marker reference, and require another valid
 	# nearby entrance for a normal exit.

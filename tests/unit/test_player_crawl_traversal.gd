@@ -155,6 +155,31 @@ func test_mid_passage_blocker_rejects_entry_and_exit_with_clear_endpoints() -> v
 	blocker.free()
 
 
+func test_invalid_active_entrance_keeps_crawl_posture_when_recovery_path_is_blocked() -> void:
+	var entrance := _add_entrance(Vector3.ZERO, Vector3(0.0, 0.0, -2.0))
+	var player := _add_player(entrance.outside_world_position())
+	player.set_physics_process(false)
+	assert_true(player.try_enter_crawlspace(entrance))
+	var collision := player.collision_shape.shape as CapsuleShape3D
+	var crawl_position := player.global_position
+	var blocker := _add_world_blocker(
+		Vector3(0.0, -0.55, -1.0),
+		Vector3(1.0, 0.7, 0.2),
+	)
+	await get_tree().physics_frame
+	assert_true(player._has_capsule_clearance_at(player.crouch_capsule_height, crawl_position))
+
+	entrance.collision_layer = 0
+	assert_false(player._maintain_crawlspace_contract())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CRAWLSPACE)
+	assert_eq(player.global_position, crawl_position)
+	assert_null(player.active_crawl_entrance())
+	assert_eq(player.velocity, Vector3.ZERO)
+	assert_almost_eq(collision.height, player.crawl_capsule_height, 0.0001)
+	assert_almost_eq(player.camera_rig.posture_drop(), player.crawl_camera_drop, 0.0001)
+	blocker.free()
+
+
 func test_deleted_active_crawl_entrance_recovers_to_crouch() -> void:
 	var entrance := _add_entrance(Vector3.ZERO, Vector3(0.0, 0.0, -1.0))
 	var player := _add_player(entrance.outside_world_position())
