@@ -7,12 +7,14 @@ signal state_changed(from: StringName, to: StringName)
 const STATE_GROUND: StringName = &"Ground"
 const STATE_CROUCH: StringName = &"Crouch"
 const STATE_SPRINT: StringName = &"Sprint"
+const STATE_WALL_CLING: StringName = &"WallCling"
 const DEFAULT_PROFILE_PATH := "res://data/profiles/default.tres"
 
 const TRANSITIONS: Dictionary = {
-	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT],
-	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT],
+	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING],
+	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING],
 	STATE_SPRINT: [STATE_GROUND, STATE_CROUCH],
+	STATE_WALL_CLING: [STATE_GROUND],
 }
 
 @export var player_profile: PlayerProfile
@@ -64,7 +66,7 @@ func resume_from_sprint() -> bool:
 
 func stance() -> Enums.Stance:
 	match _state:
-		STATE_CROUCH:
+		STATE_CROUCH, STATE_WALL_CLING:
 			return Enums.Stance.SNEAK
 		STATE_SPRINT:
 			return Enums.Stance.SPRINT
