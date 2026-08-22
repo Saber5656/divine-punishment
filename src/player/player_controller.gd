@@ -10,6 +10,7 @@ const MAX_WALL_PROBE_DISTANCE := 2.0
 const MIN_WALL_PROBE_HEIGHT := 0.0
 const MAX_WALL_PROBE_HEIGHT := 2.0
 const MAX_CLIMB_EDGE_CANDIDATES := 64
+const MAX_CLIMB_EDGE_SPATIAL_RESULTS := 256
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 
 
@@ -453,19 +454,32 @@ func _leave_traversal() -> void:
 
 
 func _nearest_climb_edge() -> ClimbEdge:
-	if not is_inside_tree():
+	if not is_inside_tree() or not ClimbRules.is_safe_world_position(global_position):
 		return null
-	var candidates := get_tree().get_nodes_in_group(&"climb_edges")
-	if candidates.size() > MAX_CLIMB_EDGE_CANDIDATES:
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = ClimbEdge.CLIMB_MARKER_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_CLIMB_EDGE_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_CLIMB_EDGE_SPATIAL_RESULTS:
 		return null
 	var nearest: ClimbEdge
 	var nearest_distance_squared := INF
-	for candidate: Node in candidates:
+	var nearby_candidate_count := 0
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
 		if candidate is not ClimbEdge:
 			continue
 		var edge := candidate as ClimbEdge
 		if not edge.can_accept_body(self) or not edge.is_near_bottom(global_position):
 			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_CLIMB_EDGE_CANDIDATES:
+			return null
 		var distance_squared := global_position.distance_squared_to(edge.bottom_world_position())
 		if distance_squared < nearest_distance_squared:
 			nearest = edge

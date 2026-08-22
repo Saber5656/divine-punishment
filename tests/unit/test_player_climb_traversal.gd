@@ -234,7 +234,7 @@ func test_beam_entry_rejects_unsafe_supplied_sample() -> void:
 	assert_true(PlayerClimbRules.is_safe_world_position(player.global_position))
 
 
-func test_climb_candidate_search_fails_closed_above_budget() -> void:
+func test_climb_candidate_search_fails_closed_above_nearby_budget() -> void:
 	var route := _add_route()
 	for index: int in PlayerController.MAX_CLIMB_EDGE_CANDIDATES + 1:
 		_add_edge(route, StringName("Edge%d" % index), Vector3.ZERO)
@@ -244,7 +244,7 @@ func test_climb_candidate_search_fails_closed_above_budget() -> void:
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
 
 
-func test_climb_candidate_search_accepts_exact_budget() -> void:
+func test_climb_candidate_search_accepts_exact_nearby_budget() -> void:
 	var route := _add_route()
 	for index: int in PlayerController.MAX_CLIMB_EDGE_CANDIDATES:
 		_add_edge(route, StringName("Edge%d" % index), Vector3.ZERO)
@@ -252,6 +252,47 @@ func test_climb_candidate_search_accepts_exact_budget() -> void:
 
 	assert_true(player.try_enter_climb())
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CLIMB)
+
+
+func test_distant_edges_do_not_consume_nearby_candidate_budget() -> void:
+	var route := _add_route()
+	for index: int in PlayerController.MAX_CLIMB_EDGE_CANDIDATES + 1:
+		_add_edge(
+			route,
+			StringName("DistantEdge%d" % index),
+			Vector3(100.0 + float(index) * 3.0, 0.0, 0.0),
+		)
+	var nearby_edge := _add_edge(route, &"NearbyEdge", Vector3.ZERO)
+	var player := _add_player(Vector3.ZERO)
+
+	assert_true(player.try_enter_climb())
+	assert_eq(player.active_climb_edge(), nearby_edge)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CLIMB)
+
+
+func test_invalid_nearby_edges_do_not_consume_candidate_budget() -> void:
+	var route := _add_route()
+	for index: int in PlayerController.MAX_CLIMB_EDGE_CANDIDATES + 1:
+		var invalid_edge := _add_edge(route, StringName("InvalidEdge%d" % index), Vector3.ZERO)
+		invalid_edge.top_offset = Vector3.ZERO
+	var nearby_edge := _add_edge(route, &"NearbyEdge", Vector3.ZERO)
+	var player := _add_player(Vector3.ZERO)
+
+	assert_true(player.try_enter_climb())
+	assert_eq(player.active_climb_edge(), nearby_edge)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CLIMB)
+
+
+func test_climb_spatial_query_fails_closed_above_raw_result_budget() -> void:
+	var route := _add_route()
+	for index: int in PlayerController.MAX_CLIMB_EDGE_SPATIAL_RESULTS + 1:
+		var invalid_edge := _add_edge(route, StringName("OverflowEdge%d" % index), Vector3.ZERO)
+		invalid_edge.top_offset = Vector3.ZERO
+	_add_edge(route, &"NearbyEdge", Vector3.ZERO)
+	var player := _add_player(Vector3.ZERO)
+
+	assert_false(player.try_enter_climb())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
 
 
 func _add_player(world_position: Vector3) -> PlayerController:

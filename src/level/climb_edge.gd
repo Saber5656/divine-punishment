@@ -11,6 +11,10 @@ const MAX_SPAN := 8.0
 const MIN_VERTICAL_RISE := 0.25
 const MIN_ENTRY_RADIUS := 0.1
 const MAX_ENTRY_RADIUS := 2.0
+const UNIT_SCALE_TOLERANCE := 0.001
+const ENTRY_COLLISION_SHAPE_NODE_NAME := &"_EntryInteractionShape"
+
+var _entry_collision_shape: CollisionShape3D
 
 @export var top_offset := Vector3(0.0, 2.0, 0.0):
 	set(value):
@@ -19,6 +23,7 @@ const MAX_ENTRY_RADIUS := 2.0
 @export_range(MIN_ENTRY_RADIUS, MAX_ENTRY_RADIUS, 0.05) var entry_radius := 1.0:
 	set(value):
 		entry_radius = value
+		_sync_entry_collision_shape()
 		_update_editor_state()
 @export_node_path("Area3D") var connected_beam_path: NodePath
 @export_enum("Start", "End") var connected_beam_endpoint := 0
@@ -29,9 +34,34 @@ func _enter_tree() -> void:
 	collision_mask = PLAYER_BODY_LAYER
 	monitoring = true
 	monitorable = true
+	_ensure_entry_collision_shape()
 	if not is_in_group(&"climb_edges"):
 		add_to_group(&"climb_edges")
 	_update_editor_state()
+
+
+func _ensure_entry_collision_shape() -> void:
+	if not is_instance_valid(_entry_collision_shape):
+		_entry_collision_shape = get_node_or_null(
+			NodePath(String(ENTRY_COLLISION_SHAPE_NODE_NAME))
+		) as CollisionShape3D
+	if _entry_collision_shape == null:
+		_entry_collision_shape = CollisionShape3D.new()
+		_entry_collision_shape.name = ENTRY_COLLISION_SHAPE_NODE_NAME
+		add_child(_entry_collision_shape, false, Node.INTERNAL_MODE_BACK)
+	if _entry_collision_shape.shape is not SphereShape3D:
+		_entry_collision_shape.shape = SphereShape3D.new()
+	_sync_entry_collision_shape()
+
+
+func _sync_entry_collision_shape() -> void:
+	if not is_instance_valid(_entry_collision_shape):
+		return
+	var sphere := _entry_collision_shape.shape as SphereShape3D
+	if sphere == null:
+		return
+	var safe_radius := entry_radius if is_finite(entry_radius) else MIN_ENTRY_RADIUS
+	sphere.radius = clampf(safe_radius, MIN_ENTRY_RADIUS, MAX_ENTRY_RADIUS)
 
 
 func bottom_world_position() -> Vector3:
@@ -53,6 +83,8 @@ func span_length() -> float:
 func is_geometry_valid() -> bool:
 	if not is_inside_tree():
 		return false
+	if not is_world_transform_within_contract(global_transform):
+		return false
 	if not PlayerClimbRules.is_finite_vector(top_offset):
 		return false
 	if not is_finite(entry_radius) or entry_radius < MIN_ENTRY_RADIUS or entry_radius > MAX_ENTRY_RADIUS:
@@ -65,6 +97,24 @@ func is_geometry_valid() -> bool:
 	if not is_finite(span) or span < MIN_SPAN or span > MAX_SPAN:
 		return false
 	return top.y - bottom.y >= MIN_VERTICAL_RISE
+
+
+static func is_world_transform_within_contract(world_transform: Transform3D) -> bool:
+	if not PlayerClimbRules.is_safe_world_position(world_transform.origin):
+		return false
+	var axes: Array[Vector3] = [world_transform.basis.x, world_transform.basis.y, world_transform.basis.z]
+	for axis: Vector3 in axes:
+		if (
+			not PlayerClimbRules.is_finite_vector(axis)
+			or absf(axis.length() - 1.0) > UNIT_SCALE_TOLERANCE
+		):
+			return false
+	return (
+		absf(axes[0].dot(axes[1])) <= UNIT_SCALE_TOLERANCE
+		and absf(axes[0].dot(axes[2])) <= UNIT_SCALE_TOLERANCE
+		and absf(axes[1].dot(axes[2])) <= UNIT_SCALE_TOLERANCE
+		and absf(absf(world_transform.basis.determinant()) - 1.0) <= UNIT_SCALE_TOLERANCE
+	)
 
 
 func can_accept_body(body: CollisionObject3D) -> bool:

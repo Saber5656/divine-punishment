@@ -37,11 +37,18 @@ func test_climb_edge_enforces_span_rise_radius_and_collision_contract() -> void:
 	assert_eq(edge.collision_layer, ClimbEdge.CLIMB_MARKER_LAYER)
 	assert_eq(edge.collision_mask, ClimbEdge.PLAYER_BODY_LAYER)
 	assert_true(edge.is_in_group(&"climb_edges"))
+	var entry_collision := edge.get_node_or_null(
+		NodePath(String(ClimbEdge.ENTRY_COLLISION_SHAPE_NODE_NAME))
+	) as CollisionShape3D
+	assert_not_null(entry_collision)
+	assert_true(entry_collision.shape is SphereShape3D)
+	assert_almost_eq((entry_collision.shape as SphereShape3D).radius, edge.entry_radius, 0.0001)
 	assert_almost_eq(edge.span_length(), ClimbEdge.MIN_SPAN, 0.0001)
 	assert_eq(edge.world_position_at_distance(INF), edge.bottom_world_position())
 
 	edge.top_offset = Vector3(0.0, ClimbEdge.MAX_SPAN, 0.0)
 	edge.entry_radius = ClimbEdge.MAX_ENTRY_RADIUS
+	assert_almost_eq((entry_collision.shape as SphereShape3D).radius, edge.entry_radius, 0.0001)
 	assert_true(edge.is_geometry_valid())
 	edge.top_offset = Vector3(0.0, ClimbEdge.MAX_SPAN + 0.01, 0.0)
 	assert_false(edge.is_geometry_valid())
@@ -83,6 +90,23 @@ func test_climb_edge_accepts_only_player_bodies() -> void:
 	assert_false(edge.can_accept_body(player))
 	assert_true(edge.is_near_bottom(edge.bottom_world_position()))
 	assert_false(edge.is_near_bottom(edge.bottom_world_position() + Vector3.RIGHT * (edge.entry_radius + 0.01)))
+
+
+func test_climb_edge_rejects_scaled_world_transforms() -> void:
+	assert_true(ClimbEdge.is_world_transform_within_contract(Transform3D.IDENTITY))
+	assert_false(ClimbEdge.is_world_transform_within_contract(
+		Transform3D(Basis.IDENTITY.scaled(Vector3(0.5, 0.5, 0.5)), Vector3.ZERO)
+	))
+
+	var parent := Node3D.new()
+	add_child_autofree(parent)
+	var edge := ClimbEdge.new()
+	edge.top_offset = Vector3(0.0, 4.0, 0.0)
+	parent.add_child(edge)
+	parent.scale = Vector3(0.5, 0.5, 0.5)
+
+	assert_almost_eq(edge.span_length(), 2.0, 0.0001)
+	assert_false(edge.is_geometry_valid())
 
 
 func test_beam_path_enforces_point_length_bake_and_tangent_bounds() -> void:

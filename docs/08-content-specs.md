@@ -170,7 +170,7 @@ WallCling は Ground/Crouch 中に world layer=1 の壁・柱へ近接して `in
 
 張り付き中は前後移動 axis を正規化済み wall normal から求めた接線へ直接対応付け、player の向きや壁面方向に依存せず壁沿いに移動する。`sprint` または wall probe 消失で Ground へ解除し、wall normal と peek offset を必ず clear する。InputMap の `peek` action が有効な間は、同じ physical input に割り当てられた左右移動 axis を body movement から除外して signed peek 値として既存 `PlayerCameraRig` の local X offset へ渡す。前後 axis による wall tangent movement は維持するが、peek axis は Player 本体と `DetectPoints/Head|Chest|Hips` の transform を変更しない。
 
-ClimbEdge は `Area3D`（layer=12、mask=2）の有限な下端→上端区間として配置し、`interact` で Ground/Crouch/WallCling から Climb へ入る。区間長は 0.5–8.0 m、上向き成分は 0.25 m 以上、下端の進入半径は 0.1–2.0 m、world 座標は各軸 ±10,000 m 以内とし、範囲外・非有限値・候補 64 件超は進入不可とする。前進/後退で区間距離を 0–全長へ clamp し、下端では Ground、上端では接続 BeamPath、未接続なら Ground へ遷移する。
+ClimbEdge は `Area3D`（layer=12、mask=2）の有限な下端→上端区間として配置し、`interact` で Ground/Crouch/WallCling から Climb へ入る。区間長は 0.5–8.0 m、上向き成分は 0.25 m 以上、下端の進入半径は 0.1–2.0 m、world 座標は各軸 ±10,000 m 以内とし、global transform は unit-scale orthogonal basis（誤差 0.001 以内）に限定する。進入検索は下端の球形 collision を使う player 位置の physics point query に限定し、raw hit 256 件超または進入範囲内の有効候補 64 件超では fail-closed とする。前進/後退で区間距離を 0–全長へ clamp し、下端では Ground、上端では接続 BeamPath、未接続なら Ground へ遷移する。
 
 BeamPath は `Curve3D` を持つ `Area3D`（layer=12、mask=2）で、2–64 点、全長 0.5–100 m、各点/ハンドルの local 距離 100 m 以下、`bake_interval` 0.1–1.0 m、有限かつ非ゼロの端点 tangent を必須とする。global transform は各軸 ±10,000 m 以内の finite origin と unit-scale orthogonal basis（誤差 0.001 以内）に限定し、親 transform を含む scale で local 上限を迂回させない。bake 前に control polygon 全長 400 m、推定 4,000 segments を上限として拒否し、実際の baked-length 評価は1回だけ行う。curve 変更時の検証は最大 64 点・4 samples、各移動更新は cached 検証と位置 1 sample、editor gizmo は最大 128 線分に制限する。
 
