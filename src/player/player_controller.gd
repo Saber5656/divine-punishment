@@ -4,6 +4,7 @@ extends CharacterBody3D
 
 const WallClingRules := preload("res://src/player/player_wall_cling.gd")
 const ClimbRules := preload("res://src/player/player_climb.gd")
+const CrawlRules := preload("res://src/player/player_crawl.gd")
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
@@ -11,11 +12,19 @@ const MIN_WALL_PROBE_HEIGHT := 0.0
 const MAX_WALL_PROBE_HEIGHT := 2.0
 const MAX_CLIMB_EDGE_CANDIDATES := 64
 const MAX_CLIMB_EDGE_SPATIAL_RESULTS := 256
+const MAX_CRAWL_ENTRANCE_CANDIDATES := 64
+const MAX_CRAWL_ENTRANCE_SPATIAL_RESULTS := 256
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
+const MAX_CRAWL_SWEEP_DISTANCE := (
+	CrawlEntrance.MAX_PASSAGE_LENGTH + CrawlEntrance.MAX_ENTRY_RADIUS
+)
+const CRAWL_MOTION_SAFE_FRACTION := 0.9999
 
 
 @export var player_profile: PlayerProfile
 @export_range(0.7, 1.8, 0.05) var crouch_capsule_height: float = 1.1
+@export_range(0.7, 1.1, 0.05) var crawl_capsule_height: float = 0.7
+@export_range(0.0, 1.1, 0.05) var crawl_camera_drop: float = 0.9
 @export_range(0.1, 2.0, 0.05) var wall_probe_distance: float = 0.75
 @export_range(0.0, 2.0, 0.05) var wall_probe_height: float = 0.5
 
@@ -29,6 +38,15 @@ var _wall_normal: Vector3 = Vector3.ZERO
 var _interact_was_pressed: bool = false
 var _active_climb_edge: ClimbEdge
 var _active_beam_path: BeamPath
+var _active_crawl_entrance: CrawlEntrance
+var _crawl_contract_outside_position := Vector3.ZERO
+var _crawl_contract_inside_position := Vector3.ZERO
+var _crawl_contract_transform := Transform3D.IDENTITY
+var _crawl_contract_entry_radius := 0.0
+var _crawl_contract_capsule_height := 0.0
+var _crawl_contract_camera_drop := 0.0
+var _crawl_contract_valid := false
+var _crawl_contract_invalidated := false
 var _traversal_distance := 0.0
 var _beam_axis_direction := 1.0
 
@@ -41,6 +59,7 @@ func _ready() -> void:
 	if not state_machine.state_changed.is_connected(_on_state_changed):
 		state_machine.state_changed.connect(_on_state_changed)
 	_apply_collision_shape_for_state(state_machine.current_state())
+	_apply_camera_posture_for_state(state_machine.current_state())
 
 
 func _process(delta: float) -> void:
@@ -93,8 +112,85 @@ func active_beam_path() -> BeamPath:
 	return _active_beam_path if is_instance_valid(_active_beam_path) else null
 
 
+func active_crawl_entrance() -> CrawlEntrance:
+	return _active_crawl_entrance if is_instance_valid(_active_crawl_entrance) else null
+
+
 func traversal_distance() -> float:
 	return _traversal_distance
+
+
+func try_enter_crawlspace(entrance: CrawlEntrance = null) -> bool:
+	var current := state_machine.current_state()
+	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+		return false
+	if not _is_crawl_configuration_valid():
+		return false
+	var candidate := entrance if entrance != null else _nearest_crawl_entrance(true)
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.can_accept_body(self)
+		or not candidate.is_near_outside(global_position)
+	):
+		return false
+	var source := global_position
+	var destination := candidate.inside_world_position()
+	if (
+		not CrawlRules.is_safe_world_position(source)
+		or not CrawlRules.is_safe_world_position(destination)
+		or not _has_capsule_clearance_at(crawl_capsule_height, source)
+		or not _has_capsule_path_clear(crawl_capsule_height, source, destination)
+		or not _has_capsule_clearance_at(crawl_capsule_height, destination)
+	):
+		return false
+	var source_velocity := velocity
+	_capture_crawl_contract(candidate)
+	velocity = Vector3.ZERO
+	if not state_machine.change_state(PlayerStateMachine.STATE_CRAWLSPACE):
+		_clear_crawl_contract()
+		velocity = source_velocity
+		return false
+	global_position = destination
+	return true
+
+
+func try_exit_crawlspace(entrance: CrawlEntrance = null) -> bool:
+	if state_machine.current_state() != PlayerStateMachine.STATE_CRAWLSPACE:
+		return false
+	if (
+		not _maintain_crawlspace_contract()
+		or state_machine.current_state() != PlayerStateMachine.STATE_CRAWLSPACE
+	):
+		return false
+	var candidate := entrance if entrance != null else _nearest_crawl_entrance(false)
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.can_accept_body(self)
+		or not candidate.is_near_inside(global_position)
+	):
+		return false
+	var source := global_position
+	var destination := candidate.outside_world_position()
+	if (
+		not CrawlRules.is_safe_world_position(source)
+		or not CrawlRules.is_safe_world_position(destination)
+		or not _has_capsule_clearance_at(crawl_capsule_height, source)
+		or not _has_capsule_path_clear(crawl_capsule_height, source, destination)
+		or not _has_capsule_clearance_at(crawl_capsule_height, destination)
+		or not _has_capsule_clearance_at(crouch_capsule_height, destination)
+	):
+		return false
+	var crawl_position := source
+	var crawl_velocity := velocity
+	global_position = destination
+	velocity = Vector3.ZERO
+	if not state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
+		global_position = crawl_position
+		velocity = crawl_velocity
+		return false
+	return true
 
 
 func try_enter_climb(edge: ClimbEdge = null) -> bool:
@@ -170,6 +266,16 @@ func _update_state_from_input() -> void:
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
 	_interact_was_pressed = interact_pressed
 
+	if state_machine.current_state() == PlayerStateMachine.STATE_CRAWLSPACE:
+		if not _maintain_crawlspace_contract():
+			return
+		if interact_just_pressed:
+			try_exit_crawlspace()
+		return
+
+	if interact_just_pressed and try_enter_crawlspace():
+		return
+
 	if interact_just_pressed and try_enter_climb():
 		return
 
@@ -238,9 +344,12 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 	if to != PlayerStateMachine.STATE_BEAM:
 		_active_beam_path = null
 		_beam_axis_direction = 1.0
+	if to != PlayerStateMachine.STATE_CRAWLSPACE:
+		_clear_crawl_contract()
 	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
 		_traversal_distance = 0.0
 	_apply_collision_shape_for_state(to)
+	_apply_camera_posture_for_state(to)
 
 
 func _apply_collision_shape_for_state(state: StringName) -> void:
@@ -248,15 +357,32 @@ func _apply_collision_shape_for_state(state: StringName) -> void:
 	if capsule == null or _standing_capsule_height <= 0.0:
 		return
 
-	collision_shape.transform = _standing_collision_transform
-	if state != PlayerStateMachine.STATE_CROUCH:
-		capsule.height = _standing_capsule_height
-		return
+	var requested_height := _standing_capsule_height
+	match state:
+		PlayerStateMachine.STATE_CROUCH:
+			requested_height = crouch_capsule_height
+		PlayerStateMachine.STATE_CRAWLSPACE:
+			requested_height = crawl_capsule_height
+	if not CrawlRules.is_capsule_height_valid(
+		requested_height,
+		capsule.radius,
+		_standing_capsule_height,
+	):
+		requested_height = _standing_capsule_height
+	_apply_capsule_height(capsule, requested_height)
 
-	var minimum_height := capsule.radius * 2.0
-	var resolved_crouch_height := clampf(crouch_capsule_height, minimum_height, _standing_capsule_height)
-	capsule.height = resolved_crouch_height
-	collision_shape.position.y -= (_standing_capsule_height - resolved_crouch_height) * 0.5
+
+func _apply_capsule_height(capsule: CapsuleShape3D, height: float) -> void:
+	collision_shape.transform = _standing_collision_transform
+	capsule.height = height
+	collision_shape.position.y -= (_standing_capsule_height - height) * 0.5
+
+
+func _apply_camera_posture_for_state(state: StringName) -> void:
+	if state == PlayerStateMachine.STATE_CRAWLSPACE:
+		camera_rig.set_posture_drop(crawl_camera_drop)
+	else:
+		camera_rig.reset_posture_drop()
 
 
 func _has_standing_clearance() -> bool:
@@ -266,17 +392,214 @@ func _has_standing_clearance() -> bool:
 	if is_equal_approx(capsule.height, _standing_capsule_height):
 		return true
 
-	var standing_capsule := capsule.duplicate() as CapsuleShape3D
-	standing_capsule.height = _standing_capsule_height
+	return _has_capsule_clearance_at(_standing_capsule_height, global_position)
+
+
+func _has_capsule_clearance_at(height: float, world_position: Vector3) -> bool:
+	var capsule := collision_shape.shape as CapsuleShape3D
+	if (
+		capsule == null
+		or _standing_capsule_height <= 0.0
+		or not CrawlRules.is_safe_world_position(world_position)
+		or not CrawlRules.is_capsule_height_valid(height, capsule.radius, _standing_capsule_height)
+		or not is_inside_tree()
+		or get_world_3d() == null
+	):
+		return false
+	var requested_capsule := capsule.duplicate() as CapsuleShape3D
+	requested_capsule.height = height
+	var local_collision_transform := _standing_collision_transform
+	local_collision_transform.origin.y -= (_standing_capsule_height - height) * 0.5
+	var target_body_transform := global_transform
+	target_body_transform.origin = world_position
 	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = standing_capsule
-	query.transform = global_transform * _standing_collision_transform
-	query.collision_mask = collision_mask
+	query.shape = requested_capsule
+	query.transform = target_body_transform * local_collision_transform
+	query.collision_mask = WORLD_COLLISION_MASK
 	query.exclude = [get_rid()]
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	query.margin = 0.001
 	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+func _has_capsule_path_clear(height: float, from: Vector3, to: Vector3) -> bool:
+	var capsule := collision_shape.shape as CapsuleShape3D
+	if (
+		capsule == null
+		or _standing_capsule_height <= 0.0
+		or not CrawlRules.is_safe_world_position(from)
+		or not CrawlRules.is_safe_world_position(to)
+		or not CrawlRules.is_capsule_height_valid(height, capsule.radius, _standing_capsule_height)
+		or not is_inside_tree()
+		or get_world_3d() == null
+	):
+		return false
+	var motion := to - from
+	if not CrawlRules.is_finite_vector(motion):
+		return false
+	if motion.length_squared() > MAX_CRAWL_SWEEP_DISTANCE * MAX_CRAWL_SWEEP_DISTANCE:
+		return false
+	if motion.length_squared() <= CrawlRules.EPSILON_SQUARED:
+		return true
+	var requested_capsule := capsule.duplicate() as CapsuleShape3D
+	requested_capsule.height = height
+	var local_collision_transform := _standing_collision_transform
+	local_collision_transform.origin.y -= (_standing_capsule_height - height) * 0.5
+	var source_body_transform := global_transform
+	source_body_transform.origin = from
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = requested_capsule
+	query.transform = source_body_transform * local_collision_transform
+	query.motion = motion
+	query.collision_mask = WORLD_COLLISION_MASK
+	query.exclude = [get_rid()]
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.margin = 0.001
+	var result := get_world_3d().direct_space_state.cast_motion(query)
+	return result.size() >= 2 and result[0] >= CRAWL_MOTION_SAFE_FRACTION
+
+
+func _capture_crawl_contract(entrance: CrawlEntrance) -> void:
+	_clear_crawl_contract()
+	_active_crawl_entrance = entrance
+	_crawl_contract_outside_position = entrance.outside_world_position()
+	_crawl_contract_inside_position = entrance.inside_world_position()
+	_crawl_contract_transform = entrance.global_transform
+	_crawl_contract_entry_radius = entrance.entry_radius
+	_crawl_contract_capsule_height = crawl_capsule_height
+	_crawl_contract_camera_drop = crawl_camera_drop
+	_crawl_contract_valid = true
+	_crawl_contract_invalidated = false
+	if not entrance.tree_exiting.is_connected(_on_active_crawl_entrance_tree_exiting):
+		entrance.tree_exiting.connect(_on_active_crawl_entrance_tree_exiting)
+
+
+func _maintain_crawlspace_contract() -> bool:
+	if state_machine.current_state() != PlayerStateMachine.STATE_CRAWLSPACE:
+		return true
+	if not _crawl_contract_valid:
+		return _abort_invalid_crawlspace()
+
+	# Once the player has crawled away from the entry endpoint, the marker is no
+	# longer an active transition dependency. A later exit is discovered locally.
+	if (
+		CrawlRules.is_safe_world_position(global_position)
+		and global_position.distance_squared_to(_crawl_contract_inside_position)
+			> _crawl_contract_entry_radius * _crawl_contract_entry_radius
+	):
+		_release_active_crawl_entrance()
+
+	if not _is_crawl_configuration_snapshot_current():
+		return _abort_invalid_crawlspace()
+	var entrance := active_crawl_entrance()
+	if entrance == null:
+		return (
+			_abort_invalid_crawlspace()
+			if _crawl_contract_invalidated
+			else true
+		)
+	if (
+		_crawl_contract_invalidated
+		or not entrance.can_accept_body(self)
+		or not entrance.global_transform.is_equal_approx(_crawl_contract_transform)
+		or not entrance.outside_world_position().is_equal_approx(_crawl_contract_outside_position)
+		or not entrance.inside_world_position().is_equal_approx(_crawl_contract_inside_position)
+		or not is_equal_approx(entrance.entry_radius, _crawl_contract_entry_radius)
+	):
+		return _abort_invalid_crawlspace()
+	return true
+
+
+func _is_crawl_configuration_snapshot_current() -> bool:
+	return (
+		_is_crawl_configuration_valid()
+		and is_equal_approx(crawl_capsule_height, _crawl_contract_capsule_height)
+		and is_equal_approx(crawl_camera_drop, _crawl_contract_camera_drop)
+	)
+
+
+func _abort_invalid_crawlspace() -> bool:
+	var original_position := global_position
+	var recovery_height := _crawl_contract_capsule_height
+	var can_recover_at_entrance := (
+		_crawl_contract_valid
+		and CrawlRules.is_safe_world_position(original_position)
+		and CrawlRules.is_safe_world_position(_crawl_contract_outside_position)
+		and _has_capsule_clearance_at(recovery_height, original_position)
+		and _has_capsule_path_clear(
+			recovery_height,
+			original_position,
+			_crawl_contract_outside_position,
+		)
+		and _has_capsule_clearance_at(recovery_height, _crawl_contract_outside_position)
+		and _has_capsule_clearance_at(crouch_capsule_height, _crawl_contract_outside_position)
+	)
+	if can_recover_at_entrance:
+		global_position = _crawl_contract_outside_position
+		velocity = Vector3.ZERO
+		if state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
+			return true
+		global_position = original_position
+
+	if _has_capsule_clearance_at(crouch_capsule_height, original_position):
+		velocity = Vector3.ZERO
+		if state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
+			return true
+
+	# Do not enlarge the body into world geometry. Restore the last validated
+	# crawl posture, drop the stale marker reference, and require another valid
+	# nearby entrance for a normal exit.
+	crawl_capsule_height = _crawl_contract_capsule_height
+	crawl_camera_drop = _crawl_contract_camera_drop
+	_apply_collision_shape_for_state(PlayerStateMachine.STATE_CRAWLSPACE)
+	_apply_camera_posture_for_state(PlayerStateMachine.STATE_CRAWLSPACE)
+	_release_active_crawl_entrance()
+	velocity = Vector3.ZERO
+	return false
+
+
+func _on_active_crawl_entrance_tree_exiting() -> void:
+	_crawl_contract_invalidated = true
+
+
+func _release_active_crawl_entrance() -> void:
+	if (
+		is_instance_valid(_active_crawl_entrance)
+		and _active_crawl_entrance.tree_exiting.is_connected(
+			_on_active_crawl_entrance_tree_exiting,
+		)
+	):
+		_active_crawl_entrance.tree_exiting.disconnect(_on_active_crawl_entrance_tree_exiting)
+	_active_crawl_entrance = null
+	_crawl_contract_invalidated = false
+
+
+func _clear_crawl_contract() -> void:
+	_release_active_crawl_entrance()
+	_crawl_contract_outside_position = Vector3.ZERO
+	_crawl_contract_inside_position = Vector3.ZERO
+	_crawl_contract_transform = Transform3D.IDENTITY
+	_crawl_contract_entry_radius = 0.0
+	_crawl_contract_capsule_height = 0.0
+	_crawl_contract_camera_drop = 0.0
+	_crawl_contract_valid = false
+
+
+func _is_crawl_configuration_valid() -> bool:
+	var capsule := collision_shape.shape as CapsuleShape3D
+	return (
+		capsule != null
+		and CrawlRules.is_capsule_height_valid(
+			crawl_capsule_height,
+			capsule.radius,
+			_standing_capsule_height,
+		)
+		and is_finite(crawl_camera_drop)
+		and crawl_camera_drop >= 0.0
+		and crawl_camera_drop <= camera_rig.max_posture_drop
+	)
 
 
 func _apply_gravity(delta: float) -> void:
@@ -483,6 +806,57 @@ func _nearest_climb_edge() -> ClimbEdge:
 		var distance_squared := global_position.distance_squared_to(edge.bottom_world_position())
 		if distance_squared < nearest_distance_squared:
 			nearest = edge
+			nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_crawl_entrance(for_entry: bool) -> CrawlEntrance:
+	if not is_inside_tree() or not CrawlRules.is_safe_world_position(global_position):
+		return null
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = CrawlEntrance.CRAWL_MARKER_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_CRAWL_ENTRANCE_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_CRAWL_ENTRANCE_SPATIAL_RESULTS:
+		return null
+	var nearest: CrawlEntrance
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	var seen_instance_ids: Dictionary = {}
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
+		if candidate is not CrawlEntrance:
+			continue
+		var entrance := candidate as CrawlEntrance
+		var instance_id := entrance.get_instance_id()
+		if seen_instance_ids.has(instance_id):
+			continue
+		seen_instance_ids[instance_id] = true
+		if not entrance.can_accept_body(self):
+			continue
+		var endpoint := (
+			entrance.outside_world_position()
+			if for_entry
+			else entrance.inside_world_position()
+		)
+		var is_near := (
+			entrance.is_near_outside(global_position)
+			if for_entry
+			else entrance.is_near_inside(global_position)
+		)
+		if not is_near:
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_CRAWL_ENTRANCE_CANDIDATES:
+			return null
+		var distance_squared := global_position.distance_squared_to(endpoint)
+		if distance_squared < nearest_distance_squared:
+			nearest = entrance
 			nearest_distance_squared = distance_squared
 	return nearest
 

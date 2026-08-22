@@ -99,6 +99,37 @@ func test_peek_offset_rejects_non_finite_components() -> void:
 	assert_eq(player.camera_peek_offset(), Vector3.ZERO)
 
 
+func test_crawl_posture_drop_composes_with_peek_and_resets_independently() -> void:
+	var player := _add_player()
+	var camera_rig := player.get_node("CameraRig") as PlayerCameraRig
+	var base_position := camera_rig.position
+
+	camera_rig.set_posture_drop(0.9)
+	camera_rig.set_peek_offset(Vector3(0.5, 0.2, 0.0))
+	assert_almost_eq(camera_rig.posture_drop(), 0.9, 0.0001)
+	assert_eq(camera_rig.peek_offset(), Vector3(0.5, 0.2, 0.0))
+	var composed_position := base_position + Vector3(0.5, -0.7, 0.0)
+	assert_almost_eq(camera_rig.position.x, composed_position.x, 0.0001)
+	assert_almost_eq(camera_rig.position.y, composed_position.y, 0.0001)
+	assert_almost_eq(camera_rig.position.z, composed_position.z, 0.0001)
+
+	camera_rig.reset_peek_offset()
+	assert_almost_eq(camera_rig.position.y, base_position.y - 0.9, 0.0001)
+	assert_almost_eq(camera_rig.posture_drop(), 0.9, 0.0001)
+	camera_rig.reset_posture_drop()
+	assert_eq(camera_rig.position, base_position)
+
+
+func test_crawl_posture_drop_clamps_and_rejects_non_finite_values() -> void:
+	var player := _add_player()
+	var camera_rig := player.get_node("CameraRig") as PlayerCameraRig
+
+	camera_rig.set_posture_drop(99.0)
+	assert_almost_eq(camera_rig.posture_drop(), camera_rig.max_posture_drop, 0.0001)
+	camera_rig.set_posture_drop(NAN)
+	assert_almost_eq(camera_rig.posture_drop(), 0.0, 0.0001)
+
+
 func _add_player() -> PlayerController:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
