@@ -60,6 +60,33 @@ func test_crawl_entrance_world_transform_must_be_unit_scale() -> void:
 	assert_false(entrance.is_geometry_valid())
 
 
+func test_crawl_entrance_rejects_endpoint_node_mutations() -> void:
+	for node_name: StringName in _endpoint_node_names():
+		for mutation: String in ["free", "disable", "move", "rotate"]:
+			_assert_endpoint_mutation_invalid(node_name, mutation)
+
+
+func test_crawl_entrance_rejects_endpoint_sphere_mutations() -> void:
+	for node_name: StringName in _endpoint_node_names():
+		for mutation: String in ["replace", "resize"]:
+			_assert_endpoint_mutation_invalid(node_name, mutation)
+
+
+func test_freed_endpoint_shapes_rebuild_after_tree_reentry() -> void:
+	for node_name: StringName in _endpoint_node_names():
+		var entrance := _add_entrance(Vector3(0.0, 0.0, -1.0))
+		var interaction_shape := entrance.get_node(NodePath(String(node_name))) as CollisionShape3D
+		interaction_shape.free()
+		assert_false(entrance.is_geometry_valid(), "%s free invalidates marker" % [node_name])
+
+		remove_child(entrance)
+		add_child(entrance)
+		var rebuilt_shape := entrance.get_node(NodePath(String(node_name))) as CollisionShape3D
+		assert_not_null(rebuilt_shape, "%s is rebuilt on tree re-entry" % [node_name])
+		assert_true(rebuilt_shape.shape is SphereShape3D)
+		assert_true(entrance.is_geometry_valid(), "%s rebuild restores marker" % [node_name])
+
+
 func test_crawl_entrance_accepts_only_player_bodies_in_same_tree() -> void:
 	var entrance := _add_entrance(Vector3(0.0, 0.0, -1.0))
 	var player := CharacterBody3D.new()
@@ -106,3 +133,37 @@ func _add_entrance(offset: Vector3) -> CrawlEntrance:
 	entrance.inside_offset = offset
 	add_child_autofree(entrance)
 	return entrance
+
+
+func _endpoint_node_names() -> Array[StringName]:
+	return [
+		CrawlEntrance.OUTSIDE_COLLISION_SHAPE_NODE_NAME,
+		CrawlEntrance.INSIDE_COLLISION_SHAPE_NODE_NAME,
+	]
+
+
+func _assert_endpoint_mutation_invalid(node_name: StringName, mutation: String) -> void:
+	var entrance := _add_entrance(Vector3(0.0, 0.0, -1.0))
+	var interaction_shape := entrance.get_node(NodePath(String(node_name))) as CollisionShape3D
+	assert_true(entrance.is_geometry_valid(), "%s starts valid" % [node_name])
+	match mutation:
+		"free":
+			interaction_shape.free()
+		"disable":
+			interaction_shape.disabled = true
+		"move":
+			interaction_shape.position += Vector3.RIGHT * 0.1
+		"rotate":
+			interaction_shape.rotate_y(0.1)
+		"replace":
+			var replacement := SphereShape3D.new()
+			replacement.radius = entrance.entry_radius
+			interaction_shape.shape = replacement
+		"resize":
+			(interaction_shape.shape as SphereShape3D).radius += 0.1
+		_:
+			fail_test("Unknown endpoint mutation: %s" % [mutation])
+	assert_false(
+		entrance.is_geometry_valid(),
+		"%s endpoint mutation %s must invalidate the entrance" % [node_name, mutation],
+	)

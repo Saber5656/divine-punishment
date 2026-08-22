@@ -242,6 +242,22 @@ func test_active_crawl_entrance_geometry_and_layer_mutations_recover() -> void:
 	_assert_crawl_recovered(player, outside_position)
 
 
+func test_active_crawl_entrance_endpoint_shape_mutation_recovers_to_crouch() -> void:
+	var entrance := _add_entrance(Vector3.ZERO, Vector3(0.0, 0.0, -1.0))
+	var player := _add_player(entrance.outside_world_position())
+	var outside_position := entrance.outside_world_position()
+	assert_true(player.try_enter_crawlspace(entrance))
+	var inside_shape := entrance.get_node(
+		NodePath(String(CrawlEntrance.INSIDE_COLLISION_SHAPE_NODE_NAME))
+	) as CollisionShape3D
+	var replacement := SphereShape3D.new()
+	replacement.radius = entrance.entry_radius
+	inside_shape.shape = replacement
+
+	assert_true(player._maintain_crawlspace_contract())
+	_assert_crawl_recovered(player, outside_position)
+
+
 func test_active_crawl_configuration_mutation_recovers_to_crouch() -> void:
 	var entrance := _add_entrance(Vector3.ZERO, Vector3(0.0, 0.0, -1.0))
 	var player := _add_player(entrance.outside_world_position())

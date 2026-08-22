@@ -17,6 +17,8 @@ const INSIDE_COLLISION_SHAPE_NODE_NAME := &"_InsideInteractionShape"
 
 var _outside_collision_shape: CollisionShape3D
 var _inside_collision_shape: CollisionShape3D
+var _outside_interaction_sphere: SphereShape3D
+var _inside_interaction_sphere: SphereShape3D
 
 @export var inside_offset := Vector3(0.0, 0.0, -1.0):
 	set(value):
@@ -50,22 +52,27 @@ func _ensure_interaction_shapes() -> void:
 		_inside_collision_shape,
 		INSIDE_COLLISION_SHAPE_NODE_NAME,
 	)
+	_outside_interaction_sphere = _outside_collision_shape.shape as SphereShape3D
+	_inside_interaction_sphere = _inside_collision_shape.shape as SphereShape3D
 	_sync_interaction_shapes()
 
 
 func _resolved_or_new_shape(
-	current: CollisionShape3D,
+	current: Variant,
 	node_name: StringName,
 ) -> CollisionShape3D:
-	if not is_instance_valid(current):
-		current = get_node_or_null(NodePath(String(node_name))) as CollisionShape3D
-	if current == null:
-		current = CollisionShape3D.new()
-		current.name = node_name
-		add_child(current, false, Node.INTERNAL_MODE_BACK)
-	if current.shape is not SphereShape3D:
-		current.shape = SphereShape3D.new()
-	return current
+	var resolved_shape: CollisionShape3D
+	if is_instance_valid(current) and current is CollisionShape3D:
+		resolved_shape = current as CollisionShape3D
+	else:
+		resolved_shape = get_node_or_null(NodePath(String(node_name))) as CollisionShape3D
+	if resolved_shape == null:
+		resolved_shape = CollisionShape3D.new()
+		resolved_shape.name = node_name
+		add_child(resolved_shape, false, Node.INTERNAL_MODE_BACK)
+	if resolved_shape.shape is not SphereShape3D:
+		resolved_shape.shape = SphereShape3D.new()
+	return resolved_shape
 
 
 func _sync_interaction_shapes() -> void:
@@ -105,9 +112,57 @@ func is_geometry_valid() -> bool:
 	var length := passage_length()
 	if not is_finite(length) or length < MIN_PASSAGE_LENGTH or length > MAX_PASSAGE_LENGTH:
 		return false
+	if not _are_interaction_shapes_valid():
+		return false
 	return (
 		CrawlRules.is_safe_world_position(outside_world_position())
 		and CrawlRules.is_safe_world_position(inside_world_position())
+	)
+
+
+func _are_interaction_shapes_valid() -> bool:
+	return (
+		_is_interaction_shape_valid(
+			_outside_collision_shape,
+			_outside_interaction_sphere,
+			Vector3.ZERO,
+		)
+		and _is_interaction_shape_valid(
+			_inside_collision_shape,
+			_inside_interaction_sphere,
+			inside_offset,
+		)
+	)
+
+
+func _is_interaction_shape_valid(
+	interaction_shape: Variant,
+	expected_sphere: Variant,
+	expected_position: Vector3,
+) -> bool:
+	if (
+		not is_instance_valid(interaction_shape)
+		or not is_instance_valid(expected_sphere)
+		or interaction_shape is not CollisionShape3D
+		or expected_sphere is not SphereShape3D
+	):
+		return false
+	var collision_shape := interaction_shape as CollisionShape3D
+	var sphere := expected_sphere as SphereShape3D
+	if (
+		collision_shape.get_parent() != self
+		or not collision_shape.is_inside_tree()
+		or collision_shape.get_tree() != get_tree()
+		or collision_shape.disabled
+		or collision_shape.shape != sphere
+	):
+		return false
+	return (
+		collision_shape.transform.is_equal_approx(
+			Transform3D(Basis.IDENTITY, expected_position),
+		)
+		and is_finite(sphere.radius)
+		and is_equal_approx(sphere.radius, entry_radius)
 	)
 
 
