@@ -20,6 +20,24 @@ func test_player_switches_between_surface_and_underwater_swim_states() -> void:
 	var capsule := player.collision_shape.shape as CapsuleShape3D
 	var camera_rotation := player.camera_rig.rotation
 	var camera_peek := player.camera_peek_offset()
+	var inner_ripple := player.surface_ripples.get_node("InnerRing") as MeshInstance3D
+	var outer_ripple := player.surface_ripples.get_node("OuterRing") as MeshInstance3D
+	assert_not_null(inner_ripple)
+	assert_not_null(outer_ripple)
+	var ripple_mesh := inner_ripple.mesh as TorusMesh
+	assert_not_null(ripple_mesh)
+	var ripple_material := ripple_mesh.material as StandardMaterial3D
+	assert_gt(ripple_mesh.get_surface_count(), 0)
+	assert_gt(ripple_mesh.get_aabb().size.x, 0.0)
+	assert_not_null(ripple_material)
+	assert_eq(ripple_material.transparency, BaseMaterial3D.TRANSPARENCY_ALPHA)
+	assert_eq(ripple_material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED)
+	assert_gt(ripple_material.albedo_color.a, 0.0)
+	assert_lt(ripple_material.albedo_color.a, 1.0)
+	assert_eq(inner_ripple.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	assert_eq(outer_ripple.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	assert_false(inner_ripple.is_visible_in_tree())
+	assert_false(outer_ripple.is_visible_in_tree())
 
 	assert_true(player.try_enter_water(volume))
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_SURFACE)
@@ -44,6 +62,15 @@ func test_player_switches_between_surface_and_underwater_swim_states() -> void:
 	assert_eq(player.global_position, volume.underwater_body_position_for(player.global_position))
 	assert_false(player.player_model.visible)
 	assert_true(player.surface_ripples.visible)
+	assert_true(inner_ripple.is_visible_in_tree())
+	assert_true(outer_ripple.is_visible_in_tree())
+	assert_almost_eq(player.surface_ripples.global_position.x, player.global_position.x, 0.0001)
+	assert_almost_eq(player.surface_ripples.global_position.z, player.global_position.z, 0.0001)
+	assert_almost_eq(
+		player.surface_ripples.global_position.y,
+		volume.surface_world_y() + 0.02,
+		0.0001,
+	)
 	assert_true(player.swim_hud.is_breath_gauge_visible())
 	assert_true(player.swim_hud.is_ripple_cue_visible())
 	assert_almost_eq(player.swim_hud.breath_ratio(), 1.0, 0.0001)
@@ -60,6 +87,8 @@ func test_player_switches_between_surface_and_underwater_swim_states() -> void:
 	assert_almost_eq(player.breath_remaining(), 20.0, 0.0001)
 	assert_true(player.player_model.visible)
 	assert_false(player.surface_ripples.visible)
+	assert_false(inner_ripple.is_visible_in_tree())
+	assert_false(outer_ripple.is_visible_in_tree())
 	assert_false(player.swim_hud.is_breath_gauge_visible())
 	assert_false(player.swim_hud.is_ripple_cue_visible())
 	assert_eq(player.camera_rig.rotation, camera_rotation)

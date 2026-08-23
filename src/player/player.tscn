@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -12,6 +12,19 @@ height = 1.8
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_camera"]
 radius = 0.2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_surface_ripple"]
+transparency = 1
+shading_mode = 0
+cull_mode = 2
+albedo_color = Color(0.18, 0.78, 1, 0.72)
+
+[sub_resource type="TorusMesh" id="TorusMesh_surface_ripple"]
+material = SubResource("StandardMaterial3D_surface_ripple")
+inner_radius = 0.55
+outer_radius = 0.7
+rings = 32
+ring_segments = 12
 
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
@@ -27,6 +40,15 @@ shape = SubResource("CapsuleShape3D_player")
 
 [node name="SurfaceRipples" type="Node3D" parent="Visual"]
 visible = false
+
+[node name="InnerRing" type="MeshInstance3D" parent="Visual/SurfaceRipples"]
+cast_shadow = 0
+mesh = SubResource("TorusMesh_surface_ripple")
+
+[node name="OuterRing" type="MeshInstance3D" parent="Visual/SurfaceRipples"]
+cast_shadow = 0
+scale = Vector3(1.6, 0.7, 1.6)
+mesh = SubResource("TorusMesh_surface_ripple")
 
 [node name="StateMachine" type="Node" parent="."]
 script = ExtResource("2_state_machine")
