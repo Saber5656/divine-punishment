@@ -74,6 +74,7 @@ var _water_recovery_pending := false
 var _breath_remaining := 0.0
 var _forced_surface_pending := false
 var _exhaustion_noise_emitted := false
+var _stance_toggle_queued := false
 var _stance_was_pressed := false
 
 
@@ -97,6 +98,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"stance_toggle"):
+		_stance_toggle_queued = true
 	if event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		rotate_y(camera_rig.apply_mouse_look(mouse_motion.screen_relative))
@@ -411,7 +414,10 @@ func _update_state_from_input() -> void:
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
 	_interact_was_pressed = interact_pressed
 	var stance_pressed := Input.is_action_pressed(&"stance_toggle")
-	var stance_just_pressed := stance_pressed and not _stance_was_pressed
+	var stance_just_pressed := (
+		_stance_toggle_queued or (stance_pressed and not _stance_was_pressed)
+	)
+	_stance_toggle_queued = false
 	_stance_was_pressed = stance_pressed
 
 	if state_machine.current_state() == PlayerStateMachine.STATE_SWIM_SURFACE:

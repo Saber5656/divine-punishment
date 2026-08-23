@@ -72,14 +72,27 @@ func test_stance_toggle_drives_dive_and_manual_surface() -> void:
 	player.set_physics_process(false)
 	assert_true(player.try_enter_water(volume))
 
-	Input.action_press(&"stance_toggle")
+	_send_action_event(player, &"stance_toggle", true)
 	player._update_state_from_input()
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
-	Input.action_release(&"stance_toggle")
+	_send_action_event(player, &"stance_toggle", false)
 	player._update_state_from_input()
-	Input.action_press(&"stance_toggle")
+	_send_action_event(player, &"stance_toggle", true)
 	player._update_state_from_input()
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_SURFACE)
+
+
+func test_stance_tap_between_physics_ticks_is_not_dropped() -> void:
+	var volume := _add_volume()
+	var player := _add_player(_surface_start(volume))
+	player.set_physics_process(false)
+	assert_true(player.try_enter_water(volume))
+
+	_send_action_event(player, &"stance_toggle", true)
+	_send_action_event(player, &"stance_toggle", false)
+	player._update_state_from_input()
+
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
 
 
 func test_breath_exhaustion_forces_surface_and_emits_one_larger_noise() -> void:
@@ -552,6 +565,14 @@ func _add_volume() -> WaterVolume:
 	volume.position = Vector3(0.0, 2.0, 0.0)
 	add_child_autofree(volume)
 	return volume
+
+
+func _send_action_event(player: PlayerController, action: StringName, pressed: bool) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = pressed
+	event.strength = 1.0 if pressed else 0.0
+	player._unhandled_input(event)
 
 
 func _surface_start(volume: WaterVolume) -> Vector3:
