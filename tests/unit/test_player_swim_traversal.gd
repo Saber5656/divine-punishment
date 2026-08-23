@@ -237,6 +237,186 @@ func test_water_membership_enters_automatically_and_exits_at_the_boundary() -> v
 	assert_null(player.active_water_volume())
 
 
+func test_underwater_swimmer_transfers_between_overlapping_water_volumes() -> void:
+	var first_volume := _add_volume()
+	var second_volume := _add_volume()
+	second_volume.position.x = 4.0
+	var player := _add_player(_surface_start(first_volume))
+	player.set_physics_process(false)
+	await get_tree().physics_frame
+	assert_true(player.try_enter_water(first_volume))
+	assert_true(player.try_dive_underwater())
+	player._update_breath(5.0)
+	player.velocity = Vector3(0.75, 0.0, 0.0)
+	player.global_position.x = 4.5
+	assert_false(first_volume.contains_world_position(player.global_position))
+	assert_true(second_volume.contains_world_position(player.global_position))
+
+	player._refresh_water_membership()
+
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_eq(player.active_water_volume(), second_volume)
+	assert_false(player.is_water_recovery_pending())
+	assert_almost_eq(player.breath_remaining(), 15.0, 0.0001)
+	assert_eq(player.velocity, Vector3(0.75, 0.0, 0.0))
+	assert_eq(
+		player.global_position,
+		second_volume.underwater_body_position_for(player.global_position),
+	)
+	assert_true(player.surface_ripples.visible)
+	assert_true(player.swim_hud.is_breath_gauge_visible())
+
+	first_volume.free()
+	await get_tree().physics_frame
+	player._refresh_water_membership()
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_eq(player.active_water_volume(), second_volume)
+
+	second_volume.free()
+	await get_tree().physics_frame
+	player._refresh_water_membership()
+	_assert_water_recovered_to_ground(player)
+
+
+func test_surface_swimmer_transfers_without_reentry_or_freeze() -> void:
+	var first_volume := _add_volume()
+	var second_volume := _add_volume()
+	second_volume.position.x = 4.0
+	var player := _add_player(_surface_start(first_volume))
+	player.set_physics_process(false)
+	await get_tree().physics_frame
+	assert_true(player.try_enter_water(first_volume))
+	player.velocity = Vector3(0.75, 0.0, 0.0)
+	player.global_position.x = 4.5
+
+	player._refresh_water_membership()
+
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_SURFACE)
+	assert_eq(player.active_water_volume(), second_volume)
+	assert_false(player.is_water_recovery_pending())
+	assert_almost_eq(player.breath_remaining(), 20.0, 0.0001)
+	assert_eq(player.velocity, Vector3(0.75, 0.0, 0.0))
+	assert_eq(
+		player.global_position,
+		second_volume.surface_body_position_for(player.global_position),
+	)
+	assert_true(player.player_model.visible)
+	assert_false(player.surface_ripples.visible)
+	assert_false(player.swim_hud.is_breath_gauge_visible())
+
+
+func test_overlap_transfer_preserves_forced_surface_and_noise_state() -> void:
+	var first_volume := _add_volume()
+	var second_volume := _add_volume()
+	second_volume.position.x = 4.0
+	var profile := (load(DEFAULT_PROFILE_PATH) as PlayerProfile).duplicate(true) as PlayerProfile
+	profile.breath_seconds = 0.1
+	var player := _add_player(_surface_start(first_volume), profile)
+	player.set_physics_process(false)
+	var events: Array[NoiseEvent] = []
+	var capture := func(event: NoiseEvent) -> void: events.append(event)
+	EventBus.noise_emitted.connect(capture)
+	await get_tree().physics_frame
+	assert_true(player.try_enter_water(first_volume))
+	assert_true(player.try_dive_underwater())
+	var underwater_position := player.global_position
+	var surface_position := first_volume.surface_body_position_for(underwater_position)
+	_add_world_blocker(
+		Vector3(
+			2.25,
+			(underwater_position.y + surface_position.y - player.swim_capsule_height) * 0.5,
+			0.0,
+		),
+		Vector3(8.0, 0.2, 2.0),
+	)
+	await get_tree().physics_frame
+
+	player._update_breath(0.1)
+	assert_true(player.is_forced_surfacing())
+	assert_almost_eq(player.breath_remaining(), 0.0, 0.0001)
+	assert_eq(events.size(), 1)
+	player.global_position.x = 4.5
+	player._refresh_water_membership()
+
+	assert_eq(player.active_water_volume(), second_volume)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_true(player.is_forced_surfacing())
+	assert_almost_eq(player.breath_remaining(), 0.0, 0.0001)
+	assert_eq(events.size(), 1)
+	player._update_breath(0.1)
+	EventBus.noise_emitted.disconnect(capture)
+	assert_true(player.is_forced_surfacing())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_eq(events.size(), 1)
+
+
+func test_underwater_transfer_uses_current_depth_instead_of_surface_entry_band() -> void:
+	var first_volume := _add_volume()
+	first_volume.size = Vector3(8.0, 10.0, 8.0)
+	first_volume.underwater_body_depth = 8.75
+	var second_volume := _add_volume()
+	second_volume.position = Vector3(4.0, 2.25, 0.0)
+	second_volume.size = Vector3(8.0, 10.0, 8.0)
+	second_volume.underwater_body_depth = 8.75
+	var player := _add_player(_surface_start(first_volume))
+	player.set_physics_process(false)
+	await get_tree().physics_frame
+	assert_true(player.try_enter_water(first_volume))
+	assert_true(player.try_dive_underwater())
+	player.global_position.x = 4.5
+	var source := player.global_position
+	var destination := second_volume.underwater_body_position_for(source)
+	assert_false(first_volume.contains_world_position(source))
+	assert_true(second_volume.contains_world_position(source))
+	assert_false(second_volume.can_enter_from_position(source))
+	assert_lt(source.distance_to(destination), PlayerController.MAX_WATER_SWEEP_DISTANCE)
+	assert_true(player._is_safe_swim_reposition(source, destination))
+
+	player._refresh_water_membership()
+
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_eq(player.active_water_volume(), second_volume)
+	assert_eq(player.global_position, destination)
+	assert_false(player.is_water_recovery_pending())
+
+
+func test_underwater_transfer_skips_blocked_candidate_for_safe_alternate() -> void:
+	var first_volume := _add_volume()
+	var blocked_volume := _add_volume()
+	blocked_volume.position.x = 4.0
+	blocked_volume.underwater_body_depth = 1.25
+	var safe_volume := _add_volume()
+	safe_volume.position = Vector3(4.0, 1.0, 0.0)
+	safe_volume.size = Vector3(8.0, 10.0, 8.0)
+	safe_volume.underwater_body_depth = 8.25
+	var player := _add_player(_surface_start(first_volume))
+	player.set_physics_process(false)
+	await get_tree().physics_frame
+	assert_true(player.try_enter_water(first_volume))
+	assert_true(player.try_dive_underwater())
+	player.global_position.x = 4.5
+	var source := player.global_position
+	var blocked_destination := blocked_volume.underwater_body_position_for(source)
+	var safe_destination := safe_volume.underwater_body_position_for(source)
+	_add_world_blocker(blocked_destination, Vector3(1.0, 0.2, 1.0))
+	await get_tree().physics_frame
+	assert_true(blocked_volume.contains_world_position(source))
+	assert_true(safe_volume.contains_world_position(source))
+	assert_lt(
+		source.distance_squared_to(blocked_destination),
+		source.distance_squared_to(safe_destination),
+	)
+	assert_false(player._is_safe_swim_reposition(source, blocked_destination))
+	assert_true(player._is_safe_swim_reposition(source, safe_destination))
+
+	player._refresh_water_membership()
+
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_eq(player.active_water_volume(), safe_volume)
+	assert_eq(player.global_position, safe_destination)
+	assert_false(player.is_water_recovery_pending())
+
+
 func test_crouch_and_sprint_auto_enter_but_crawl_and_climb_do_not() -> void:
 	for entry_state: StringName in [
 		PlayerStateMachine.STATE_CROUCH,

@@ -886,10 +886,14 @@ func _refresh_water_membership() -> void:
 			not _maintain_water_contract()
 			or not _is_swim_configuration_valid()
 			or active == null
-			or not active.contains_world_position(global_position)
 		):
 			_begin_water_recovery()
-		return
+			return
+		if not active.contains_world_position(global_position):
+			if _try_transfer_water_volume():
+				return
+			_begin_water_recovery()
+			return
 	if state_machine.current_state() in [
 		PlayerStateMachine.STATE_GROUND,
 		PlayerStateMachine.STATE_CROUCH,
@@ -898,6 +902,93 @@ func _refresh_water_membership() -> void:
 		var candidate := _nearest_water_volume()
 		if candidate != null:
 			try_enter_water(candidate)
+
+
+func _try_transfer_water_volume() -> bool:
+	var state := state_machine.current_state()
+	if not _is_water_state_name(state) or not _maintain_water_contract():
+		return false
+	var previous_volume := active_water_volume()
+	var candidate := _nearest_safe_water_transfer_volume(state, previous_volume)
+	if candidate == null or candidate == previous_volume:
+		return false
+	var source := global_position
+	var destination := (
+		candidate.underwater_body_position_for(source)
+		if state == PlayerStateMachine.STATE_SWIM_UNDERWATER
+		else candidate.surface_body_position_for(source)
+	)
+	if not _is_safe_swim_reposition(source, destination):
+		return false
+	var previous_breath := _breath_remaining
+	var previous_forced_surface := _forced_surface_pending
+	var previous_exhaustion_noise := _exhaustion_noise_emitted
+	_capture_water_contract(candidate)
+	global_position = destination
+	_breath_remaining = previous_breath
+	_forced_surface_pending = previous_forced_surface
+	_exhaustion_noise_emitted = previous_exhaustion_noise
+	_apply_swim_presentation(state)
+	return true
+
+
+func _nearest_safe_water_transfer_volume(
+	state: StringName,
+	previous_volume: WaterVolume,
+) -> WaterVolume:
+	if (
+		not _is_water_state_name(state)
+		or not is_inside_tree()
+		or get_world_3d() == null
+		or not SwimRules.is_safe_world_position(global_position)
+	):
+		return null
+	var source := global_position
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = source
+	query.collision_mask = WaterVolume.WATER_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_WATER_VOLUME_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_WATER_VOLUME_SPATIAL_RESULTS:
+		return null
+	var nearest: WaterVolume
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	var seen_instance_ids: Dictionary = {}
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
+		if candidate is not WaterVolume:
+			continue
+		var volume := candidate as WaterVolume
+		var instance_id := volume.get_instance_id()
+		if seen_instance_ids.has(instance_id):
+			continue
+		seen_instance_ids[instance_id] = true
+		if (
+			volume == previous_volume
+			or not volume.can_accept_body(self)
+			or not volume.contains_world_position(source)
+		):
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_WATER_VOLUME_CANDIDATES:
+			return null
+		var destination := (
+			volume.underwater_body_position_for(source)
+			if state == PlayerStateMachine.STATE_SWIM_UNDERWATER
+			else volume.surface_body_position_for(source)
+		)
+		if not _is_safe_swim_reposition(source, destination):
+			continue
+		var distance_squared := source.distance_squared_to(destination)
+		if distance_squared < nearest_distance_squared:
+			nearest = volume
+			nearest_distance_squared = distance_squared
+	return nearest
 
 
 func _capture_water_contract(volume: WaterVolume) -> void:
