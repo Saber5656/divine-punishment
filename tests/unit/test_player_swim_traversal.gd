@@ -176,16 +176,71 @@ func test_blocked_forced_surface_stays_underwater_and_retries_without_duplicate_
 	var capture := func(event: NoiseEvent) -> void: events.append(event)
 	EventBus.noise_emitted.connect(capture)
 
+	player.velocity = Vector3(1.0, 0.0, 0.0)
 	player._update_breath(0.1)
 	player._update_breath(1.0)
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
 	assert_true(player.is_forced_surfacing())
 	assert_eq(player.global_position, underwater_position)
+	assert_eq(player.velocity, Vector3.ZERO)
 	assert_eq(events.size(), 1)
 
 	blocker.free()
 	await get_tree().physics_frame
 	player._update_breath(0.1)
+	EventBus.noise_emitted.disconnect(capture)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_SURFACE)
+	assert_false(player.is_forced_surfacing())
+	assert_eq(events.size(), 1)
+
+
+func test_blocked_forced_surface_stops_movement_until_retry_succeeds() -> void:
+	var volume := _add_volume()
+	var profile := (load(DEFAULT_PROFILE_PATH) as PlayerProfile).duplicate(true) as PlayerProfile
+	profile.breath_seconds = 0.1
+	var player := _add_player(_surface_start(volume), profile)
+	player.set_physics_process(false)
+	assert_true(player.try_enter_water(volume))
+	assert_true(player.try_dive_underwater())
+	var underwater_position := player.global_position
+	var surface_position := volume.surface_body_position_for(underwater_position)
+	var blocker := _add_world_blocker(
+		Vector3(
+			underwater_position.x,
+			(underwater_position.y + surface_position.y - player.swim_capsule_height) * 0.5,
+			underwater_position.z,
+		),
+		Vector3(2.0, 0.2, 2.0),
+	)
+	var events: Array[NoiseEvent] = []
+	var capture := func(event: NoiseEvent) -> void: events.append(event)
+	EventBus.noise_emitted.connect(capture)
+	await get_tree().physics_frame
+	Input.action_press(&"move_forward")
+
+	player._physics_process(0.1)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_UNDERWATER)
+	assert_true(player.is_forced_surfacing())
+	assert_almost_eq(player.breath_remaining(), 0.0, 0.0001)
+	assert_eq(player.global_position, underwater_position)
+	assert_eq(player.velocity, Vector3.ZERO)
+	assert_eq(events.size(), 1)
+
+	player._apply_movement()
+	assert_eq(player.velocity, Vector3.ZERO)
+	player.velocity = Vector3(1.0, 0.0, 0.0)
+	player._move_swimming(1.0)
+	assert_eq(player.global_position, underwater_position)
+	assert_eq(player.velocity, Vector3.ZERO)
+	player._physics_process(1.0)
+	assert_eq(player.global_position, underwater_position)
+	assert_eq(player.velocity, Vector3.ZERO)
+	assert_eq(events.size(), 1)
+
+	blocker.free()
+	await get_tree().physics_frame
+	player._physics_process(0.1)
+	Input.action_release(&"move_forward")
 	EventBus.noise_emitted.disconnect(capture)
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_SWIM_SURFACE)
 	assert_false(player.is_forced_surfacing())

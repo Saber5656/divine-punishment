@@ -116,6 +116,9 @@ func _physics_process(delta: float) -> void:
 		if _water_recovery_pending:
 			velocity = Vector3.ZERO
 			return
+		if _is_forced_surface_movement_blocked():
+			velocity = Vector3.ZERO
+			return
 		_apply_movement()
 		_move_swimming(delta)
 		_refresh_water_membership()
@@ -833,7 +836,8 @@ func _update_breath(delta: float) -> void:
 	if _breath_remaining <= 0.0:
 		_forced_surface_pending = true
 		_emit_exhaustion_noise_once()
-		try_surface_from_underwater(true)
+		if not try_surface_from_underwater(true):
+			velocity = Vector3.ZERO
 	_apply_swim_presentation(state_machine.current_state())
 
 
@@ -1108,6 +1112,13 @@ func _is_water_state() -> bool:
 	return _is_water_state_name(state_machine.current_state())
 
 
+func _is_forced_surface_movement_blocked() -> bool:
+	return (
+		_forced_surface_pending
+		and state_machine.current_state() == PlayerStateMachine.STATE_SWIM_UNDERWATER
+	)
+
+
 func _is_water_state_name(state: StringName) -> bool:
 	return (
 		state == PlayerStateMachine.STATE_SWIM_SURFACE
@@ -1127,7 +1138,7 @@ func _apply_gravity(delta: float) -> void:
 
 
 func _apply_movement() -> void:
-	if _is_traversing():
+	if _is_traversing() or _is_forced_surface_movement_blocked():
 		velocity = Vector3.ZERO
 		return
 	var wall_clinging := state_machine.current_state() == PlayerStateMachine.STATE_WALL_CLING
@@ -1156,6 +1167,7 @@ func _move_swimming(delta: float) -> void:
 	velocity.y = 0.0
 	if (
 		_water_recovery_pending
+		or _is_forced_surface_movement_blocked()
 		or not _is_swim_configuration_valid()
 		or not SwimRules.is_physics_delta_valid(delta)
 		or not SwimRules.is_finite_vector(velocity)
