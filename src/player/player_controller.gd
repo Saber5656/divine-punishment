@@ -5,6 +5,7 @@ extends CharacterBody3D
 const WallClingRules := preload("res://src/player/player_wall_cling.gd")
 const ClimbRules := preload("res://src/player/player_climb.gd")
 const CrawlRules := preload("res://src/player/player_crawl.gd")
+const SwimRules := preload("res://src/player/player_swim.gd")
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
@@ -14,16 +15,21 @@ const MAX_CLIMB_EDGE_CANDIDATES := 64
 const MAX_CLIMB_EDGE_SPATIAL_RESULTS := 256
 const MAX_CRAWL_ENTRANCE_CANDIDATES := 64
 const MAX_CRAWL_ENTRANCE_SPATIAL_RESULTS := 256
+const MAX_WATER_VOLUME_CANDIDATES := 64
+const MAX_WATER_VOLUME_SPATIAL_RESULTS := 256
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 const MAX_CRAWL_SWEEP_DISTANCE := (
 	CrawlEntrance.MAX_PASSAGE_LENGTH + CrawlEntrance.MAX_ENTRY_RADIUS
 )
 const CRAWL_MOTION_SAFE_FRACTION := 0.9999
+const MAX_WATER_SWEEP_DISTANCE := SwimRules.MAX_TRANSITION_DISTANCE
+const SWIM_DEPTH_EPSILON := 0.001
 
 
 @export var player_profile: PlayerProfile
 @export_range(0.7, 1.8, 0.05) var crouch_capsule_height: float = 1.1
 @export_range(0.7, 1.1, 0.05) var crawl_capsule_height: float = 0.7
+@export_range(0.7, 1.2, 0.05) var swim_capsule_height: float = 0.9
 @export_range(0.0, 1.1, 0.05) var crawl_camera_drop: float = 0.9
 @export_range(0.1, 2.0, 0.05) var wall_probe_distance: float = 0.75
 @export_range(0.0, 2.0, 0.05) var wall_probe_height: float = 0.5
@@ -31,6 +37,9 @@ const CRAWL_MOTION_SAFE_FRACTION := 0.9999
 @onready var state_machine: PlayerStateMachine = $StateMachine as PlayerStateMachine
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D as CollisionShape3D
 @onready var camera_rig: PlayerCameraRig = $CameraRig as PlayerCameraRig
+@onready var player_model: Node3D = $Visual/Model as Node3D
+@onready var surface_ripples: Node3D = $Visual/SurfaceRipples as Node3D
+@onready var swim_hud: SwimHud = $Visibility/SwimHud as SwimHud
 
 var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
@@ -39,6 +48,7 @@ var _interact_was_pressed: bool = false
 var _active_climb_edge: ClimbEdge
 var _active_beam_path: BeamPath
 var _active_crawl_entrance: CrawlEntrance
+var _active_water_volume: WaterVolume
 var _crawl_contract_outside_position := Vector3.ZERO
 var _crawl_contract_inside_position := Vector3.ZERO
 var _crawl_contract_transform := Transform3D.IDENTITY
@@ -49,6 +59,22 @@ var _crawl_contract_valid := false
 var _crawl_contract_invalidated := false
 var _traversal_distance := 0.0
 var _beam_axis_direction := 1.0
+var _water_contract_transform := Transform3D.IDENTITY
+var _water_contract_size := Vector3.ZERO
+var _water_contract_surface_body_depth := 0.0
+var _water_contract_underwater_body_depth := 0.0
+var _water_contract_capsule_height := 0.0
+var _water_contract_breath_capacity := 0.0
+var _water_contract_swim_speed := 0.0
+var _water_contract_swim_noise_radius := 0.0
+var _water_contract_exhaustion_noise_radius := 0.0
+var _water_contract_valid := false
+var _water_contract_invalidated := false
+var _water_recovery_pending := false
+var _breath_remaining := 0.0
+var _forced_surface_pending := false
+var _exhaustion_noise_emitted := false
+var _stance_was_pressed := false
 
 
 func _ready() -> void:
@@ -60,6 +86,8 @@ func _ready() -> void:
 		state_machine.state_changed.connect(_on_state_changed)
 	_apply_collision_shape_for_state(state_machine.current_state())
 	_apply_camera_posture_for_state(state_machine.current_state())
+	_reset_breath()
+	_apply_swim_presentation(state_machine.current_state())
 
 
 func _process(delta: float) -> void:
@@ -75,7 +103,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_refresh_water_membership()
+	if _water_recovery_pending:
+		velocity = Vector3.ZERO
+		return
 	_update_state_from_input()
+	if _is_water_state():
+		_update_breath(delta)
+		if _water_recovery_pending:
+			velocity = Vector3.ZERO
+			return
+		_apply_movement()
+		_move_swimming(delta)
+		_refresh_water_membership()
+		return
 	if _is_traversing():
 		advance_traversal(Input.get_axis(&"move_backward", &"move_forward"), delta)
 		return
@@ -116,8 +157,112 @@ func active_crawl_entrance() -> CrawlEntrance:
 	return _active_crawl_entrance if is_instance_valid(_active_crawl_entrance) else null
 
 
+func active_water_volume() -> WaterVolume:
+	return _active_water_volume if is_instance_valid(_active_water_volume) else null
+
+
+func breath_remaining() -> float:
+	return _breath_remaining
+
+
+func is_forced_surfacing() -> bool:
+	return _forced_surface_pending
+
+
+func is_water_recovery_pending() -> bool:
+	return _water_recovery_pending
+
+
 func traversal_distance() -> float:
 	return _traversal_distance
+
+
+func try_enter_water(volume: WaterVolume = null) -> bool:
+	var current := state_machine.current_state()
+	if current not in [
+		PlayerStateMachine.STATE_GROUND,
+		PlayerStateMachine.STATE_CROUCH,
+		PlayerStateMachine.STATE_SPRINT,
+	]:
+		return false
+	if not _is_swim_configuration_valid():
+		return false
+	var candidate := volume if volume != null else _nearest_water_volume()
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.can_accept_body(self)
+		or not candidate.can_enter_from_position(global_position)
+	):
+		return false
+	var source := global_position
+	var destination := candidate.surface_body_position_for(source)
+	if not _is_safe_swim_reposition(source, destination):
+		return false
+	var source_velocity := velocity
+	_capture_water_contract(candidate)
+	global_position = destination
+	velocity = Vector3.ZERO
+	_reset_breath()
+	if state_machine.change_state(PlayerStateMachine.STATE_SWIM_SURFACE):
+		return true
+	global_position = source
+	velocity = source_velocity
+	_clear_water_contract()
+	return false
+
+
+func try_dive_underwater() -> bool:
+	if (
+		state_machine.current_state() != PlayerStateMachine.STATE_SWIM_SURFACE
+		or _forced_surface_pending
+		or not _maintain_water_contract()
+		or not _is_swim_configuration_valid()
+	):
+		return false
+	var volume := active_water_volume()
+	if volume == null:
+		return false
+	var source := global_position
+	var destination := volume.underwater_body_position_for(source)
+	if not _is_safe_swim_reposition(source, destination):
+		return false
+	var previous_breath := _breath_remaining
+	global_position = destination
+	velocity = Vector3.ZERO
+	_reset_breath()
+	if state_machine.change_state(PlayerStateMachine.STATE_SWIM_UNDERWATER):
+		return true
+	global_position = source
+	_breath_remaining = previous_breath
+	return false
+
+
+func try_surface_from_underwater(forced: bool = false) -> bool:
+	if (
+		state_machine.current_state() != PlayerStateMachine.STATE_SWIM_UNDERWATER
+		or (_forced_surface_pending and not forced)
+		or not _maintain_water_contract()
+	):
+		return false
+	var volume := active_water_volume()
+	if volume == null:
+		return false
+	var source := global_position
+	var destination := volume.surface_body_position_for(source)
+	if not _is_safe_swim_reposition(source, destination):
+		return false
+	var previous_breath := _breath_remaining
+	_breath_remaining = state_machine.breath_capacity()
+	global_position = destination
+	velocity = Vector3.ZERO
+	if not state_machine.change_state(PlayerStateMachine.STATE_SWIM_SURFACE):
+		global_position = source
+		_breath_remaining = previous_breath
+		return false
+	_forced_surface_pending = false
+	_exhaustion_noise_emitted = false
+	return true
 
 
 func try_enter_crawlspace(entrance: CrawlEntrance = null) -> bool:
@@ -265,6 +410,19 @@ func _update_state_from_input() -> void:
 	var interact_pressed := Input.is_action_pressed(&"interact")
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
 	_interact_was_pressed = interact_pressed
+	var stance_pressed := Input.is_action_pressed(&"stance_toggle")
+	var stance_just_pressed := stance_pressed and not _stance_was_pressed
+	_stance_was_pressed = stance_pressed
+
+	if state_machine.current_state() == PlayerStateMachine.STATE_SWIM_SURFACE:
+		if stance_just_pressed:
+			try_dive_underwater()
+		return
+
+	if state_machine.current_state() == PlayerStateMachine.STATE_SWIM_UNDERWATER:
+		if stance_just_pressed and not _forced_surface_pending:
+			try_surface_from_underwater()
+		return
 
 	if state_machine.current_state() == PlayerStateMachine.STATE_CRAWLSPACE:
 		if not _maintain_crawlspace_contract():
@@ -303,7 +461,7 @@ func _update_state_from_input() -> void:
 	if not Input.is_action_pressed(&"sprint") and state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
 		state_machine.resume_from_sprint()
 
-	if Input.is_action_just_pressed(&"stance_toggle"):
+	if stance_just_pressed:
 		match state_machine.current_state():
 			PlayerStateMachine.STATE_GROUND:
 				state_machine.change_state(PlayerStateMachine.STATE_CROUCH)
@@ -346,10 +504,13 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 		_beam_axis_direction = 1.0
 	if to != PlayerStateMachine.STATE_CRAWLSPACE:
 		_clear_crawl_contract()
+	if not _is_water_state_name(to):
+		_clear_water_contract()
 	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
 		_traversal_distance = 0.0
 	_apply_collision_shape_for_state(to)
 	_apply_camera_posture_for_state(to)
+	_apply_swim_presentation(to)
 
 
 func _apply_collision_shape_for_state(state: StringName) -> void:
@@ -363,6 +524,8 @@ func _apply_collision_shape_for_state(state: StringName) -> void:
 			requested_height = crouch_capsule_height
 		PlayerStateMachine.STATE_CRAWLSPACE:
 			requested_height = crawl_capsule_height
+		PlayerStateMachine.STATE_SWIM_SURFACE, PlayerStateMachine.STATE_SWIM_UNDERWATER:
+			requested_height = swim_capsule_height
 	if not CrawlRules.is_capsule_height_valid(
 		requested_height,
 		capsule.radius,
@@ -423,7 +586,12 @@ func _has_capsule_clearance_at(height: float, world_position: Vector3) -> bool:
 	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
-func _has_capsule_path_clear(height: float, from: Vector3, to: Vector3) -> bool:
+func _has_capsule_path_clear(
+	height: float,
+	from: Vector3,
+	to: Vector3,
+	max_distance: float = MAX_CRAWL_SWEEP_DISTANCE,
+) -> bool:
 	var capsule := collision_shape.shape as CapsuleShape3D
 	if (
 		capsule == null
@@ -431,6 +599,9 @@ func _has_capsule_path_clear(height: float, from: Vector3, to: Vector3) -> bool:
 		or not CrawlRules.is_safe_world_position(from)
 		or not CrawlRules.is_safe_world_position(to)
 		or not CrawlRules.is_capsule_height_valid(height, capsule.radius, _standing_capsule_height)
+		or not is_finite(max_distance)
+		or max_distance <= 0.0
+		or max_distance > MAX_WATER_SWEEP_DISTANCE
 		or not is_inside_tree()
 		or get_world_3d() == null
 	):
@@ -438,7 +609,7 @@ func _has_capsule_path_clear(height: float, from: Vector3, to: Vector3) -> bool:
 	var motion := to - from
 	if not CrawlRules.is_finite_vector(motion):
 		return false
-	if motion.length_squared() > MAX_CRAWL_SWEEP_DISTANCE * MAX_CRAWL_SWEEP_DISTANCE:
+	if motion.length_squared() > max_distance * max_distance:
 		return false
 	if motion.length_squared() <= CrawlRules.EPSILON_SQUARED:
 		return true
@@ -597,8 +768,258 @@ func _is_crawl_configuration_valid() -> bool:
 	)
 
 
+func _is_swim_configuration_valid() -> bool:
+	var capsule := collision_shape.shape as CapsuleShape3D
+	var capacity := state_machine.breath_capacity()
+	var exhaustion_radius := state_machine.swim_exhaustion_noise_radius()
+	var normal_swim_radius := state_machine.swim_noise_radius()
+	var swim_speed := state_machine.swim_speed()
+	return (
+		capsule != null
+		and CrawlRules.is_capsule_height_valid(
+			swim_capsule_height,
+			capsule.radius,
+			_standing_capsule_height,
+		)
+		and SwimRules.is_breath_capacity_valid(capacity)
+		and SwimRules.is_swim_speed_valid(swim_speed)
+		and SwimRules.is_exhaustion_noise_radius_valid(exhaustion_radius)
+		and is_finite(normal_swim_radius)
+		and normal_swim_radius >= 0.0
+		and exhaustion_radius > normal_swim_radius
+	)
+
+
+func _is_safe_swim_reposition(from: Vector3, to: Vector3) -> bool:
+	return (
+		SwimRules.is_safe_world_position(from)
+		and SwimRules.is_safe_world_position(to)
+		and from.distance_squared_to(to) <= MAX_WATER_SWEEP_DISTANCE * MAX_WATER_SWEEP_DISTANCE
+		and _has_capsule_clearance_at(swim_capsule_height, from)
+		and _has_capsule_path_clear(
+			swim_capsule_height,
+			from,
+			to,
+			MAX_WATER_SWEEP_DISTANCE,
+		)
+		and _has_capsule_clearance_at(swim_capsule_height, to)
+	)
+
+
+func _reset_breath() -> void:
+	var capacity := state_machine.breath_capacity()
+	_breath_remaining = capacity if SwimRules.is_breath_capacity_valid(capacity) else 0.0
+	_forced_surface_pending = false
+	_exhaustion_noise_emitted = false
+
+
+func _update_breath(delta: float) -> void:
+	if _water_recovery_pending:
+		velocity = Vector3.ZERO
+		_apply_swim_presentation(state_machine.current_state())
+		return
+	if state_machine.current_state() != PlayerStateMachine.STATE_SWIM_UNDERWATER:
+		_reset_breath()
+		_apply_swim_presentation(state_machine.current_state())
+		return
+	var capacity := state_machine.breath_capacity()
+	_breath_remaining = SwimRules.consume_breath(_breath_remaining, delta, capacity)
+	if _breath_remaining <= 0.0:
+		_forced_surface_pending = true
+		_emit_exhaustion_noise_once()
+		try_surface_from_underwater(true)
+	_apply_swim_presentation(state_machine.current_state())
+
+
+func _emit_exhaustion_noise_once() -> void:
+	if _exhaustion_noise_emitted:
+		return
+	var radius := state_machine.swim_exhaustion_noise_radius()
+	if (
+		not SwimRules.is_exhaustion_noise_radius_valid(radius)
+		or radius <= state_machine.swim_noise_radius()
+		or not SwimRules.is_safe_world_position(global_position)
+	):
+		return
+	_exhaustion_noise_emitted = true
+	EventBus.noise_emitted.emit(
+		NoiseEvent.create(global_position, radius, Enums.NoiseKind.LANDING, self),
+	)
+
+
+func _apply_swim_presentation(state: StringName) -> void:
+	var underwater := state == PlayerStateMachine.STATE_SWIM_UNDERWATER
+	if is_instance_valid(player_model):
+		player_model.visible = not underwater
+	if is_instance_valid(surface_ripples):
+		surface_ripples.visible = underwater
+		var volume := active_water_volume()
+		if underwater and volume != null:
+			var surface_y := volume.surface_world_y()
+			if is_finite(surface_y):
+				surface_ripples.global_position = Vector3(
+					global_position.x,
+					surface_y + 0.02,
+					global_position.z,
+				)
+	if is_instance_valid(swim_hud):
+		swim_hud.set_underwater(
+			underwater,
+			_breath_remaining,
+			state_machine.breath_capacity(),
+		)
+
+
+func _refresh_water_membership() -> void:
+	if _is_water_state():
+		if _water_recovery_pending:
+			_try_finish_water_recovery()
+			return
+		var active := active_water_volume()
+		if (
+			not _maintain_water_contract()
+			or not _is_swim_configuration_valid()
+			or active == null
+			or not active.contains_world_position(global_position)
+		):
+			_begin_water_recovery()
+		return
+	if state_machine.current_state() in [
+		PlayerStateMachine.STATE_GROUND,
+		PlayerStateMachine.STATE_CROUCH,
+		PlayerStateMachine.STATE_SPRINT,
+	]:
+		var candidate := _nearest_water_volume()
+		if candidate != null:
+			try_enter_water(candidate)
+
+
+func _capture_water_contract(volume: WaterVolume) -> void:
+	_clear_water_contract()
+	_active_water_volume = volume
+	_water_contract_transform = volume.global_transform
+	_water_contract_size = volume.size
+	_water_contract_surface_body_depth = volume.surface_body_depth
+	_water_contract_underwater_body_depth = volume.underwater_body_depth
+	_water_contract_capsule_height = swim_capsule_height
+	_water_contract_breath_capacity = state_machine.breath_capacity()
+	_water_contract_swim_speed = state_machine.swim_speed()
+	_water_contract_swim_noise_radius = state_machine.swim_noise_radius()
+	_water_contract_exhaustion_noise_radius = state_machine.swim_exhaustion_noise_radius()
+	_water_contract_valid = true
+	_water_contract_invalidated = false
+	_water_recovery_pending = false
+	if not volume.tree_exiting.is_connected(_on_active_water_volume_tree_exiting):
+		volume.tree_exiting.connect(_on_active_water_volume_tree_exiting)
+
+
+func _maintain_water_contract() -> bool:
+	if not _water_contract_valid or _water_contract_invalidated:
+		return false
+	var volume := active_water_volume()
+	return (
+		volume != null
+		and _is_water_configuration_snapshot_current()
+		and volume.can_accept_body(self)
+		and volume.global_transform.is_equal_approx(_water_contract_transform)
+		and volume.size.is_equal_approx(_water_contract_size)
+		and is_equal_approx(volume.surface_body_depth, _water_contract_surface_body_depth)
+		and is_equal_approx(volume.underwater_body_depth, _water_contract_underwater_body_depth)
+	)
+
+
+func _is_water_configuration_snapshot_current() -> bool:
+	return (
+		_is_swim_configuration_valid()
+		and is_equal_approx(swim_capsule_height, _water_contract_capsule_height)
+		and is_equal_approx(state_machine.breath_capacity(), _water_contract_breath_capacity)
+		and is_equal_approx(state_machine.swim_speed(), _water_contract_swim_speed)
+		and is_equal_approx(state_machine.swim_noise_radius(), _water_contract_swim_noise_radius)
+		and is_equal_approx(
+			state_machine.swim_exhaustion_noise_radius(),
+			_water_contract_exhaustion_noise_radius,
+		)
+	)
+
+
+func _on_active_water_volume_tree_exiting() -> void:
+	_water_contract_invalidated = true
+
+
+func _release_active_water_volume() -> void:
+	if (
+		is_instance_valid(_active_water_volume)
+		and _active_water_volume.tree_exiting.is_connected(
+			_on_active_water_volume_tree_exiting,
+		)
+	):
+		_active_water_volume.tree_exiting.disconnect(_on_active_water_volume_tree_exiting)
+	_active_water_volume = null
+
+
+func _begin_water_recovery() -> bool:
+	_water_recovery_pending = true
+	_water_contract_invalidated = true
+	_release_active_water_volume()
+	velocity = Vector3.ZERO
+	_restore_captured_swim_capsule()
+	return _try_finish_water_recovery()
+
+
+func _try_finish_water_recovery() -> bool:
+	if not _is_water_state():
+		_water_recovery_pending = false
+		return true
+	velocity = Vector3.ZERO
+	if not _has_capsule_clearance_at(_standing_capsule_height, global_position):
+		_restore_captured_swim_capsule()
+		return false
+	return state_machine.change_state(PlayerStateMachine.STATE_GROUND)
+
+
+func _restore_captured_swim_capsule() -> void:
+	var capsule := collision_shape.shape as CapsuleShape3D
+	if (
+		capsule != null
+		and CrawlRules.is_capsule_height_valid(
+			_water_contract_capsule_height,
+			capsule.radius,
+			_standing_capsule_height,
+		)
+	):
+		_apply_capsule_height(capsule, _water_contract_capsule_height)
+
+
+func _clear_water_contract() -> void:
+	_release_active_water_volume()
+	_water_contract_transform = Transform3D.IDENTITY
+	_water_contract_size = Vector3.ZERO
+	_water_contract_surface_body_depth = 0.0
+	_water_contract_underwater_body_depth = 0.0
+	_water_contract_capsule_height = 0.0
+	_water_contract_breath_capacity = 0.0
+	_water_contract_swim_speed = 0.0
+	_water_contract_swim_noise_radius = 0.0
+	_water_contract_exhaustion_noise_radius = 0.0
+	_water_contract_valid = false
+	_water_contract_invalidated = false
+	_water_recovery_pending = false
+	_reset_breath()
+
+
+func _is_water_state() -> bool:
+	return _is_water_state_name(state_machine.current_state())
+
+
+func _is_water_state_name(state: StringName) -> bool:
+	return (
+		state == PlayerStateMachine.STATE_SWIM_SURFACE
+		or state == PlayerStateMachine.STATE_SWIM_UNDERWATER
+	)
+
+
 func _apply_gravity(delta: float) -> void:
-	if _is_traversing():
+	if _is_traversing() or _is_water_state():
 		velocity = Vector3.ZERO
 		return
 	if is_on_floor():
@@ -627,8 +1048,73 @@ func _apply_movement() -> void:
 			world_direction = world_direction.normalized() * input_vector.length()
 
 	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
+	if _is_water_state() and not SwimRules.is_swim_speed_valid(speed):
+		velocity = Vector3.ZERO
+		return
 	velocity.x = world_direction.x * speed
 	velocity.z = world_direction.z * speed
+
+
+func _move_swimming(delta: float) -> void:
+	velocity.y = 0.0
+	if (
+		_water_recovery_pending
+		or not _is_swim_configuration_valid()
+		or not SwimRules.is_physics_delta_valid(delta)
+		or not SwimRules.is_finite_vector(velocity)
+	):
+		velocity = Vector3.ZERO
+		if _is_water_state() and not _is_swim_configuration_valid():
+			_begin_water_recovery()
+		return
+	var volume := active_water_volume()
+	if volume == null or not _maintain_water_contract():
+		_begin_water_recovery()
+		return
+	var source := global_position
+	var depth_position := _water_depth_position_for(volume, source)
+	if not SwimRules.is_safe_world_position(depth_position):
+		_begin_water_recovery()
+		return
+	if absf(source.y - depth_position.y) > SWIM_DEPTH_EPSILON:
+		if not _is_safe_swim_reposition(source, depth_position):
+			_begin_water_recovery()
+			return
+		global_position = depth_position
+		source = depth_position
+	var motion := Vector3(velocity.x, 0.0, velocity.z) * delta
+	if (
+		not SwimRules.is_finite_vector(motion)
+		or motion.length() > SwimRules.MAX_SWIM_SPEED * SwimRules.MAX_PHYSICS_DELTA
+	):
+		velocity = Vector3.ZERO
+		return
+	move_and_collide(motion, false, 0.001, false, 1)
+	var restored_depth := _water_depth_position_for(volume, global_position)
+	if not SwimRules.is_safe_world_position(restored_depth):
+		if (
+			not SwimRules.is_safe_world_position(global_position)
+			or absf(global_position.y - source.y) > SWIM_DEPTH_EPSILON
+		):
+			global_position = source
+			velocity = Vector3.ZERO
+		return
+	if (
+		absf(global_position.y - restored_depth.y) > SWIM_DEPTH_EPSILON
+	):
+		global_position = source
+		velocity = Vector3.ZERO
+		return
+	global_position.y = restored_depth.y
+	velocity.y = 0.0
+
+
+func _water_depth_position_for(volume: WaterVolume, world_position: Vector3) -> Vector3:
+	if state_machine.current_state() == PlayerStateMachine.STATE_SWIM_SURFACE:
+		return volume.surface_body_position_for(world_position)
+	if state_machine.current_state() == PlayerStateMachine.STATE_SWIM_UNDERWATER:
+		return volume.underwater_body_position_for(world_position)
+	return Vector3(INF, INF, INF)
 
 
 func _is_traversing() -> bool:
@@ -852,6 +1338,52 @@ func _nearest_crawl_entrance(for_entry: bool) -> CrawlEntrance:
 		var distance_squared := global_position.distance_squared_to(endpoint)
 		if distance_squared < nearest_distance_squared:
 			nearest = entrance
+			nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_water_volume() -> WaterVolume:
+	if (
+		not is_inside_tree()
+		or get_world_3d() == null
+		or not SwimRules.is_safe_world_position(global_position)
+	):
+		return null
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = WaterVolume.WATER_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_WATER_VOLUME_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_WATER_VOLUME_SPATIAL_RESULTS:
+		return null
+	var nearest: WaterVolume
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	var seen_instance_ids: Dictionary = {}
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
+		if candidate is not WaterVolume:
+			continue
+		var volume := candidate as WaterVolume
+		var instance_id := volume.get_instance_id()
+		if seen_instance_ids.has(instance_id):
+			continue
+		seen_instance_ids[instance_id] = true
+		if not volume.can_accept_body(self) or not volume.can_enter_from_position(global_position):
+			continue
+		var surface_position := volume.surface_body_position_for(global_position)
+		if not SwimRules.is_safe_world_position(surface_position):
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_WATER_VOLUME_CANDIDATES:
+			return null
+		var distance_squared := global_position.distance_squared_to(surface_position)
+		if distance_squared < nearest_distance_squared:
+			nearest = volume
 			nearest_distance_squared = distance_squared
 	return nearest
 
