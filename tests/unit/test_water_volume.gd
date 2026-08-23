@@ -1,6 +1,9 @@
 extends GutTest
 
 
+const PLAYER_SCENE_PATH := "res://src/player/player.tscn"
+
+
 func test_water_volume_builds_a_bounded_player_interaction_shape() -> void:
 	var volume := _add_volume()
 
@@ -48,7 +51,7 @@ func test_water_volume_enforces_size_depth_transform_and_world_bounds() -> void:
 
 func test_water_volume_transition_distance_and_surface_entry_band_are_bounded() -> void:
 	var volume := _add_volume()
-	volume.size = Vector3(8.0, 9.5, 8.0)
+	volume.size = Vector3(8.0, 10.0, 8.0)
 	volume.surface_body_depth = 0.75
 	volume.underwater_body_depth = (
 		volume.surface_body_depth + PlayerSwimRules.MAX_TRANSITION_DISTANCE
@@ -59,6 +62,23 @@ func test_water_volume_transition_distance_and_surface_entry_band_are_bounded() 
 	var bottom_position := volume.global_position - Vector3.UP * (volume.size.y * 0.5 - 0.01)
 	assert_true(volume.contains_world_position(bottom_position))
 	assert_false(volume.can_enter_from_position(bottom_position))
+
+	volume.underwater_body_depth += 0.01
+	assert_false(volume.is_geometry_valid())
+
+
+func test_underwater_depth_reserves_the_preserved_player_capsule_bottom() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	var capsule := player.collision_shape.shape as CapsuleShape3D
+	var preserved_bottom_extent := capsule.height * 0.5
+	assert_gte(WaterVolume.MIN_BOTTOM_CLEARANCE, preserved_bottom_extent)
+	var volume := _add_volume()
+	volume.underwater_body_depth = volume.size.y - WaterVolume.MIN_BOTTOM_CLEARANCE
+	assert_true(volume.is_geometry_valid())
+	var underwater_position := volume.underwater_body_position_for(volume.global_position)
+	var volume_bottom_y := volume.global_position.y - volume.size.y * 0.5
+	assert_gte(underwater_position.y - preserved_bottom_extent, volume_bottom_y)
 
 	volume.underwater_body_depth += 0.01
 	assert_false(volume.is_geometry_valid())

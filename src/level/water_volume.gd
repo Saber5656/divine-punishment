@@ -12,7 +12,8 @@ const MIN_VERTICAL_SIZE := 3.0
 const MAX_SIZE := 100.0
 const MIN_SURFACE_BODY_DEPTH := 0.2
 const MIN_DIVE_DISTANCE := 0.5
-const MIN_BOTTOM_CLEARANCE := 0.5
+# Preserve the standing capsule's 0.9 m lower extent plus clearance for shape-query margin.
+const MIN_BOTTOM_CLEARANCE := 0.91
 const UNIT_SCALE_TOLERANCE := 0.001
 const ALIGNMENT_TOLERANCE := 0.001
 const VOLUME_SHAPE_NODE_NAME := &"_WaterVolumeShape"

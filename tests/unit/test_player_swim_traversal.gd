@@ -95,6 +95,30 @@ func test_player_switches_between_surface_and_underwater_swim_states() -> void:
 	assert_eq(player.camera_peek_offset(), camera_peek)
 
 
+func test_maximum_underwater_depth_clears_a_bottom_aligned_floor() -> void:
+	var volume := _add_volume()
+	volume.underwater_body_depth = volume.size.y - WaterVolume.MIN_BOTTOM_CLEARANCE
+	var volume_bottom_y := volume.global_position.y - volume.size.y * 0.5
+	_add_world_blocker(
+		Vector3(volume.global_position.x, volume_bottom_y - 0.1, volume.global_position.z),
+		Vector3(volume.size.x, 0.2, volume.size.z),
+	)
+	var player := _add_player(_surface_start(volume))
+	player.set_physics_process(false)
+	await get_tree().physics_frame
+	assert_true(volume.is_geometry_valid())
+	assert_true(player.try_enter_water(volume))
+	assert_true(player.try_dive_underwater())
+	var capsule := player.collision_shape.shape as CapsuleShape3D
+	var capsule_bottom_y := (
+		player.global_position.y
+		+ player.collision_shape.position.y
+		- capsule.height * 0.5
+	)
+	assert_gte(capsule_bottom_y, volume_bottom_y)
+	assert_true(player._has_capsule_clearance_at(player.swim_capsule_height, player.global_position))
+
+
 func test_stance_toggle_drives_dive_and_manual_surface() -> void:
 	var volume := _add_volume()
 	var player := _add_player(_surface_start(volume))
