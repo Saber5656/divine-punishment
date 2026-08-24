@@ -19,3 +19,13 @@ func test_mission_director_contract_uses_mission_resource_types() -> void:
 	assert_true(stats is MissionStats)
 	assert_true(result is MissionResult)
 	director.free()
+
+
+func test_missions_without_par_time_do_not_earn_swift_points() -> void:
+	var stats := MissionStats.new()
+	var definition := MissionDefinition.new()
+	var config := ScoringConfig.new()
+	var result: MissionResult = MissionDirectorScript.compute_score(stats, config, definition)
+
+	assert_false(result.flags[&"swift"])
+	assert_eq(result.score, config.shadow_walker_points + config.no_traces_points + config.one_strike_points)

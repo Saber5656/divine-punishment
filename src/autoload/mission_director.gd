@@ -55,7 +55,7 @@ static func compute_score(stats: MissionStats, cfg: ScoringConfig, def: MissionD
 		&"shadow_walker": stats.detections == 0,
 		&"no_traces": stats.bodies_found == 0,
 		&"one_strike": stats.one_strike,
-		&"swift": def.par_time_minutes <= 0.0 or stats.elapsed_sec <= def.par_time_minutes * 60.0,
+		&"swift": def.par_time_minutes > 0.0 and stats.elapsed_sec <= def.par_time_minutes * 60.0,
 	}
 	if flags[&"shadow_walker"]:
 		score += cfg.shadow_walker_points
