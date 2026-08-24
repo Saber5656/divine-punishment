@@ -19,11 +19,11 @@ The scene uses only Godot primitives and the existing player/marker scripts. No 
 
 The root keeps the level-template containers from `docs/08-content-specs.md` §10.2 (`Geometry`, `NavigationRegion3D`, `Lights`, `Enemies`, `Civilians`, `Markers`, `Objectives`, `PlayerSpawn`, and `WeatherController`). The scene uses the world collision layer (`1`) for the graybox floor, wall, and crawl roof. Player and marker nodes use the layers defined in `docs/08-content-specs.md` §10.3; the scene does not introduce a new collision layer.
 
-The main floor is deliberately bounded to the central stance/climb area. The crawlspace and water stations sit beyond its edge so transition clearance probes are not confused with a grounded floor contact; both routes are entered at their explicit marker positions.
+The graybox uses one continuous world-support floor under the stance, climb, crawl, water, and walkway routes. The sample walkway overlaps the main floor and each material panel by a small margin so a live physics walk cannot fall through a seam. Crawl and water are separated along `Z`; the crawl endpoint remains outside the water volume.
 
 - The climb entry edge is at `(-3.5, 0, -3)`. Its top connects to the start of the 6 m beam at `(-3.5, 2.5, -3)`.
 - The beam end connects to the exit edge at `(2.5, 2.5, -3)`, whose ground endpoint is `(2.5, 0, -3)`.
-- The crawl entrance is at `(6, 0, 0)` and its floor-under endpoint is 2.5 m toward `-Z`.
+- The crawl entrance is at `(6, 0, -3)` and its floor-under endpoint is 2.5 m toward `-Z`; both endpoints are outside the water volume.
 - The water volume is centered at `(8, 0, 3)`. Its body positions are bounded by the existing WaterVolume contract; underwater depth is 1.5 m so the supplied graybox floor remains clear of the player capsule.
 - The hide spot is at `(0, 0, 4)` on the open floor.
 
