@@ -2,6 +2,7 @@ class_name PlayerVisibility
 extends Node
 
 
+const PerceptionFormulasScript := preload("res://src/core/perception_formulas.gd")
 const UPDATE_INTERVAL := 0.1
 const MAX_LIGHTS := 3
 const DETECTION_POINT_NAMES: Array[StringName] = [&"Head", &"Chest", &"Hips"]
@@ -98,16 +99,11 @@ func recompute() -> float:
 
 
 static func light_contribution(dist: float, gameplay_radius: float, occluded: bool) -> float:
-	if gameplay_radius <= 0.0 or dist >= gameplay_radius:
-		return 0.0
-	if occluded:
-		return 0.0
-	var attenuation := clampf(1.0 - dist / gameplay_radius, 0.0, 1.0)
-	return attenuation
+	return PerceptionFormulasScript.light_contribution(dist, gameplay_radius, occluded)
 
 
 static func combine(light_sum: float, stance_mod: float, move_mod: float, cover_mod: float) -> float:
-	return clampf(light_sum * stance_mod * move_mod * cover_mod, 0.0, 1.0)
+	return PerceptionFormulasScript.combine(light_sum, stance_mod, move_mod, cover_mod)
 
 
 func _stationary_modifier(state_machine: PlayerStateMachine) -> float:
