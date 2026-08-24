@@ -60,11 +60,21 @@ static func radius_at_listener(
 		return base_radius
 	var query := PhysicsRayQueryParameters3D.create(origin, listener_position)
 	query.collision_mask = HEARING_OCCLUSION_MASK
-	if source != null:
-		query.exclude = [source]
+	query.exclude = _source_exclusion_rids(source)
 	if world.direct_space_state.intersect_ray(query).is_empty():
 		return base_radius
 	return base_radius * OCCLUDED_RADIUS_MULTIPLIER
+
+
+static func _source_exclusion_rids(source: Node) -> Array[RID]:
+	var result: Array[RID] = []
+	var cursor := source
+	while cursor != null:
+		if cursor is CollisionObject3D:
+			result.append((cursor as CollisionObject3D).get_rid())
+			break
+		cursor = cursor.get_parent()
+	return result
 
 
 static func _listener_position(listener: Node) -> Vector3:
