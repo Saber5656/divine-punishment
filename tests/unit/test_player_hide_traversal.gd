@@ -51,6 +51,23 @@ func test_close_range_seen_invalidates_an_active_hidden_player() -> void:
 	assert_false(player.is_visibility_excluded())
 
 
+func test_same_radius_entry_shape_replacement_invalidates_hidden_contract() -> void:
+	var hide_spot := HideSpot.new()
+	add_child_autofree(hide_spot)
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	assert_true(player.try_enter_hide_spot(hide_spot))
+	var collision := hide_spot.get_node(
+		NodePath(String(HideSpot.ENTRY_COLLISION_SHAPE_NODE_NAME)),
+	) as CollisionShape3D
+	var replacement := SphereShape3D.new()
+	replacement.radius = hide_spot.entry_radius
+	collision.shape = replacement
+	assert_false(player._maintain_hide_contract())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CROUCH)
+	assert_false(player.is_visibility_excluded())
+
+
 func test_close_range_seen_blocks_entry_before_hidden_state() -> void:
 	var hide_spot := HideSpot.new()
 	add_child_autofree(hide_spot)

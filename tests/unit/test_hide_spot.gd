@@ -30,6 +30,20 @@ func test_hide_spot_rejects_invalid_radius_and_non_unit_world_transform() -> voi
 	assert_false(hide_spot.is_geometry_valid())
 
 
+func test_hide_spot_rejects_same_radius_shape_replacement() -> void:
+	var hide_spot := _add_hide_spot()
+	var collision := hide_spot.get_node(
+		NodePath(String(HideSpot.ENTRY_COLLISION_SHAPE_NODE_NAME)),
+	) as CollisionShape3D
+	var original_id := hide_spot.entry_shape_identity()
+	var replacement := SphereShape3D.new()
+	replacement.radius = hide_spot.entry_radius
+	collision.shape = replacement
+	assert_eq(hide_spot.entry_shape_identity(), original_id)
+	assert_ne(hide_spot.entry_shape_identity(), replacement.get_instance_id())
+	assert_false(hide_spot.is_geometry_valid())
+
+
 func test_hide_spot_accepts_only_player_bodies_in_the_same_tree() -> void:
 	var hide_spot := _add_hide_spot()
 	var player := CharacterBody3D.new()
@@ -70,6 +84,18 @@ func test_hide_spot_entry_proximity_is_world_space_and_bounded() -> void:
 			hide_spot.global_position + Vector3.RIGHT * (hide_spot.entry_radius + 0.01),
 		)
 	)
+
+
+func test_hide_spot_gizmo_segments_follow_geometry_contract() -> void:
+	var hide_spot := _add_hide_spot()
+	assert_eq(hide_spot.gizmo_segments().size(), 6)
+	hide_spot.scale = Vector3(2.0, 1.0, 1.0)
+	assert_true(hide_spot.gizmo_segments().is_empty())
+
+
+func test_hide_spot_candidate_budgets_are_bounded() -> void:
+	assert_eq(PlayerController.MAX_HIDE_SPOT_CANDIDATES, 64)
+	assert_eq(PlayerController.MAX_HIDE_SPOT_SPATIAL_RESULTS, 256)
 
 
 func _add_hide_spot() -> HideSpot:

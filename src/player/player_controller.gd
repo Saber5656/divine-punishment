@@ -63,6 +63,7 @@ var _crawl_contract_valid := false
 var _crawl_contract_invalidated := false
 var _hide_contract_transform := Transform3D.IDENTITY
 var _hide_contract_entry_radius := 0.0
+var _hide_contract_shape_id := 0
 var _hide_contract_valid := false
 var _hide_contract_invalidated := false
 var _traversal_distance := 0.0
@@ -853,6 +854,7 @@ func _capture_hide_contract(hide_spot: HideSpot) -> void:
 	_active_hide_spot = hide_spot
 	_hide_contract_transform = hide_spot.global_transform
 	_hide_contract_entry_radius = hide_spot.entry_radius
+	_hide_contract_shape_id = hide_spot.entry_shape_identity()
 	_hide_contract_valid = true
 	_hide_contract_invalidated = false
 	if not hide_spot.tree_exiting.is_connected(_on_active_hide_spot_tree_exiting):
@@ -870,6 +872,7 @@ func _maintain_hide_contract() -> bool:
 		or not hide_spot.can_accept_body(self)
 		or not hide_spot.global_transform.is_equal_approx(_hide_contract_transform)
 		or not is_equal_approx(hide_spot.entry_radius, _hide_contract_entry_radius)
+		or hide_spot.entry_shape_identity() != _hide_contract_shape_id
 		or not hide_spot.is_near_entry(global_position)
 	):
 		return _abort_invalid_hide_spot()
@@ -901,6 +904,7 @@ func _clear_hide_contract() -> void:
 	_release_active_hide_spot()
 	_hide_contract_transform = Transform3D.IDENTITY
 	_hide_contract_entry_radius = 0.0
+	_hide_contract_shape_id = 0
 	_hide_contract_valid = false
 
 

@@ -14,6 +14,7 @@ const UNIT_SCALE_TOLERANCE := 0.001
 const ENTRY_COLLISION_SHAPE_NODE_NAME := &"_EntryInteractionShape"
 
 var _entry_collision_shape: CollisionShape3D
+var _expected_entry_shape: SphereShape3D
 
 @export_range(MIN_ENTRY_RADIUS, MAX_ENTRY_RADIUS, 0.05) var entry_radius := 0.75:
 	set(value):
@@ -44,6 +45,7 @@ func _ensure_entry_collision_shape() -> void:
 		add_child(_entry_collision_shape, false, Node.INTERNAL_MODE_BACK)
 	if _entry_collision_shape.shape is not SphereShape3D:
 		_entry_collision_shape.shape = SphereShape3D.new()
+	_expected_entry_shape = _entry_collision_shape.shape as SphereShape3D
 	_sync_entry_collision_shape()
 
 
@@ -60,6 +62,12 @@ func _sync_entry_collision_shape() -> void:
 
 func entry_world_position() -> Vector3:
 	return global_position
+
+
+func entry_shape_identity() -> int:
+	if not is_instance_valid(_expected_entry_shape):
+		return 0
+	return _expected_entry_shape.get_instance_id()
 
 
 func is_geometry_valid() -> bool:
@@ -85,6 +93,7 @@ func _is_entry_collision_shape_valid() -> bool:
 		and _entry_collision_shape.get_tree() == get_tree()
 		and not _entry_collision_shape.disabled
 		and _entry_collision_shape.shape == sphere
+		and sphere == _expected_entry_shape
 		and _entry_collision_shape.transform.is_equal_approx(Transform3D.IDENTITY)
 		and is_finite(sphere.radius)
 		and is_equal_approx(sphere.radius, entry_radius)
