@@ -87,13 +87,13 @@ func test_relight_request_is_typed_and_does_not_change_state_until_accepted() ->
 	await get_tree().physics_frame
 	light.set_extinguished(true)
 
-	var captured: RelightRequest
-	var capture := func(request: RelightRequest) -> void:
-		captured = request
-	EventBus.light_relight_requested.connect(capture)
+	watch_signals(EventBus)
 	assert_true(light.request_relight(requester))
-	EventBus.light_relight_requested.disconnect(capture)
 
+	var request_parameters: Array = get_signal_parameters(EventBus, "light_relight_requested", 0)
+	assert_not_null(request_parameters)
+	assert_eq(request_parameters.size(), 1)
+	var captured := request_parameters[0] as RelightRequest
 	assert_not_null(captured)
 	assert_eq(captured.light, light)
 	assert_eq(captured.requester, requester)
