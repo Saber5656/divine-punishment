@@ -20,6 +20,7 @@ const MAX_HIDE_SPOT_CANDIDATES := 64
 const MAX_HIDE_SPOT_SPATIAL_RESULTS := 256
 const MAX_WATER_VOLUME_CANDIDATES := 64
 const MAX_WATER_VOLUME_SPATIAL_RESULTS := 256
+const MAX_LIGHT_SOURCE_CANDIDATES := 64
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 const MAX_CRAWL_SWEEP_DISTANCE := (
 	CrawlEntrance.MAX_PASSAGE_LENGTH + CrawlEntrance.MAX_ENTRY_RADIUS
@@ -570,6 +571,9 @@ func _update_state_from_input() -> void:
 		_update_wall_cling_peek()
 		return
 
+	if interact_just_pressed and try_extinguish_adjacent_light():
+		return
+
 	if not Input.is_action_pressed(&"sprint") and state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
 		state_machine.resume_from_sprint()
 
@@ -588,6 +592,14 @@ func _update_state_from_input() -> void:
 
 	if interact_just_pressed:
 		try_enter_wall_cling()
+
+
+func try_extinguish_adjacent_light() -> bool:
+	var current := state_machine.current_state()
+	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+		return false
+	var candidate := _nearest_light_source()
+	return candidate != null and candidate.try_extinguish(self)
 
 
 func _try_enter_standing_state(next_state: StringName) -> bool:
@@ -1654,6 +1666,33 @@ func _nearest_hide_spot() -> HideSpot:
 		var distance_squared := global_position.distance_squared_to(hide_spot.entry_world_position())
 		if distance_squared < nearest_distance_squared:
 			nearest = hide_spot
+			nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_light_source() -> LightSource:
+	if not is_inside_tree() or get_world_3d() == null:
+		return null
+	var nearest: LightSource
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	var seen_instance_ids: Dictionary = {}
+	for candidate: Node in get_tree().get_nodes_in_group(&"lights"):
+		if candidate is not LightSource:
+			continue
+		var light := candidate as LightSource
+		var instance_id := light.get_instance_id()
+		if seen_instance_ids.has(instance_id):
+			continue
+		seen_instance_ids[instance_id] = true
+		if not light.can_interact(self):
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_LIGHT_SOURCE_CANDIDATES:
+			return null
+		var distance_squared := global_position.distance_squared_to(light.global_position)
+		if distance_squared < nearest_distance_squared:
+			nearest = light
 			nearest_distance_squared = distance_squared
 	return nearest
 
