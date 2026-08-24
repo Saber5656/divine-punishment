@@ -166,6 +166,8 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 
 Combat への遷移: いずれかの敵が Combat 状態でプレイヤーを攻撃対象にした時、抜刀入力で。M9 は Combat 遷移なし（逃走のみ）。
 
+HideSpot は entry radius 内の Ground/Crouch から `interact` で Hidden へ入り、Hidden 中は `is_visibility_excluded()` により敵の視覚検知対象から除外し、移動を停止する。`interact` は Crouch への退出に使う。近距離で進入を見られた場合は `close_range_seen` を true にして進入を拒否し、Hidden 中に同じ視認が成立した場合は Hidden を無効化して Crouch へ戻す。
+
 WallCling は Ground/Crouch 中に world layer=1 の壁・柱へ近接して `interact` を押したときだけ成立する。判定は player 自身を除外した水平 probe とし、floor/ceiling、非有限または退化した法線、world 以外の collider は採用しない。Crouch からの遷移は standing clearance を必須とする。
 
 張り付き中は前後移動 axis を正規化済み wall normal から求めた接線へ直接対応付け、player の向きや壁面方向に依存せず壁沿いに移動する。`sprint` または wall probe 消失で Ground へ解除し、wall normal と peek offset を必ず clear する。InputMap の `peek` action が有効な間は、同じ physical input に割り当てられた左右移動 axis を body movement から除外して signed peek 値として既存 `PlayerCameraRig` の local X offset へ渡す。前後 axis による wall tangent movement は維持するが、peek axis は Player 本体と `DetectPoints/Head|Chest|Hips` の transform を変更しない。

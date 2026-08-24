@@ -116,6 +116,8 @@ signal alert_changed(enemy: Enemy, from: AlertState, to: AlertState)
 
 レベル用カスタムノード: `LightSource`, `HideSpot`, `CrawlEntrance`, `ClimbEdge`, `BeamPath`, `SearchPoint`, `RoutineStop`, `PatrolPath`, `CheckpointArea`, `MissionObjective`。すべてエディタギズモ表示付き（レベルデザインの生産性）。
 
+`HideSpot` は layer=8 / mask=2 の player-only `Area3D` で、entry radius 内の Ground/Crouch プレイヤーを `PlayerStateMachine.STATE_HIDDEN` へ遷移させる。Hidden は `is_visibility_excluded()` が true で移動不可、`interact` で Crouch へ戻る。敵知覚が近距離視認を確定した場合は、`try_enter_hide_spot(..., close_range_seen=true)` で進入を拒否し、Hidden 中は `invalidate_hidden_if_close_range_seen(true)` で無効化する。
+
 ## 6. データ駆動設計
 
 ### 6.1 チューニング（NFR-04）

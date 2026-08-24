@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://src/ui/swim_hud.gd" id="4_swim_hud"]
 [ext_resource type="Script" path="res://src/ui/surface_ripple_cue.gd" id="5_ripple_cue"]
 [ext_resource type="Script" path="res://src/stealth/noise_emitter.gd" id="6_noise_emitter"]
+[ext_resource type="Script" path="res://src/stealth/player_visibility.gd" id="7_player_visibility"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -55,6 +56,7 @@ mesh = SubResource("TorusMesh_surface_ripple")
 script = ExtResource("2_state_machine")
 
 [node name="Visibility" type="Node" parent="."]
+script = ExtResource("7_player_visibility")
 
 [node name="SwimHud" type="CanvasLayer" parent="Visibility"]
 layer = 20
@@ -124,7 +126,10 @@ current = true
 [node name="DetectPoints" type="Node3D" parent="." groups=["player_detect_points"]]
 
 [node name="Head" type="Marker3D" parent="DetectPoints"]
+position = Vector3(0, 1.5, 0)
 
 [node name="Chest" type="Marker3D" parent="DetectPoints"]
+position = Vector3(0, 1, 0)
 
 [node name="Hips" type="Marker3D" parent="DetectPoints"]
+position = Vector3(0, 0.5, 0)

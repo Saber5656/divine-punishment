@@ -8,6 +8,7 @@ const CrawlRules := preload("res://src/player/player_crawl.gd")
 const SwimRules := preload("res://src/player/player_swim.gd")
 const NOISE_FOOTSTEP_DISTANCE := 1.5
 const MAX_NOISE_DELTA := 0.25
+const HideRules := preload("res://src/player/player_hide.gd")
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
@@ -17,6 +18,8 @@ const MAX_CLIMB_EDGE_CANDIDATES := 64
 const MAX_CLIMB_EDGE_SPATIAL_RESULTS := 256
 const MAX_CRAWL_ENTRANCE_CANDIDATES := 64
 const MAX_CRAWL_ENTRANCE_SPATIAL_RESULTS := 256
+const MAX_HIDE_SPOT_CANDIDATES := 64
+const MAX_HIDE_SPOT_SPATIAL_RESULTS := 256
 const MAX_WATER_VOLUME_CANDIDATES := 64
 const MAX_WATER_VOLUME_SPATIAL_RESULTS := 256
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
@@ -52,6 +55,7 @@ var _active_climb_edge: ClimbEdge
 var _active_beam_path: BeamPath
 var _active_crawl_entrance: CrawlEntrance
 var _active_water_volume: WaterVolume
+var _active_hide_spot: HideSpot
 var _crawl_contract_outside_position := Vector3.ZERO
 var _crawl_contract_inside_position := Vector3.ZERO
 var _crawl_contract_transform := Transform3D.IDENTITY
@@ -60,6 +64,11 @@ var _crawl_contract_capsule_height := 0.0
 var _crawl_contract_camera_drop := 0.0
 var _crawl_contract_valid := false
 var _crawl_contract_invalidated := false
+var _hide_contract_transform := Transform3D.IDENTITY
+var _hide_contract_entry_radius := 0.0
+var _hide_contract_shape_id := 0
+var _hide_contract_valid := false
+var _hide_contract_invalidated := false
 var _traversal_distance := 0.0
 var _beam_axis_direction := 1.0
 var _water_contract_transform := Transform3D.IDENTITY
@@ -78,6 +87,7 @@ var _breath_remaining := 0.0
 var _forced_surface_pending := false
 var _exhaustion_noise_emitted := false
 var _footstep_distance := 0.0
+var _close_range_seen := false
 var _stance_toggle_queued := false
 var _stance_was_pressed := false
 
@@ -115,6 +125,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	_update_state_from_input()
+	if state_machine.current_state() == PlayerStateMachine.STATE_HIDDEN:
+		velocity = Vector3.ZERO
+		return
 	if _is_water_state():
 		_update_breath(delta)
 		if _water_recovery_pending:
@@ -139,6 +152,10 @@ func _physics_process(delta: float) -> void:
 
 func current_movement_params() -> Dictionary:
 	return state_machine.movement_params()
+
+
+func is_traversing() -> bool:
+	return _is_traversing()
 
 
 func set_camera_peek_offset(offset: Vector3) -> void:
@@ -171,6 +188,26 @@ func active_crawl_entrance() -> CrawlEntrance:
 
 func active_water_volume() -> WaterVolume:
 	return _active_water_volume if is_instance_valid(_active_water_volume) else null
+
+
+func active_hide_spot() -> HideSpot:
+	return _active_hide_spot if is_instance_valid(_active_hide_spot) else null
+
+
+func is_visibility_excluded() -> bool:
+	return state_machine.is_visibility_excluded()
+
+
+func set_close_range_seen(seen: bool) -> void:
+	_close_range_seen = seen
+
+
+func close_range_seen() -> bool:
+	return _close_range_seen
+
+
+func is_hidden() -> bool:
+	return state_machine.is_hidden()
 
 
 func breath_remaining() -> float:
@@ -350,6 +387,59 @@ func try_exit_crawlspace(entrance: CrawlEntrance = null) -> bool:
 	return true
 
 
+func try_enter_hide_spot(
+	hide_spot: HideSpot = null,
+	close_range_seen: bool = false,
+) -> bool:
+	var current := state_machine.current_state()
+	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+		return false
+	if is_inside_tree() and not is_on_floor():
+		return false
+	var candidate := hide_spot if hide_spot != null else _nearest_hide_spot()
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.can_enter(self, close_range_seen)
+	):
+		return false
+	_capture_hide_contract(candidate)
+	var source_velocity := velocity
+	velocity = Vector3.ZERO
+	if not state_machine.change_state(PlayerStateMachine.STATE_HIDDEN):
+		_clear_hide_contract()
+		velocity = source_velocity
+		return false
+	return true
+
+
+func try_exit_hide_spot(hide_spot: HideSpot = null) -> bool:
+	if state_machine.current_state() != PlayerStateMachine.STATE_HIDDEN:
+		return false
+	if not _maintain_hide_contract():
+		return false
+	var candidate := hide_spot if hide_spot != null else active_hide_spot()
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.can_accept_body(self)
+		or not candidate.is_near_entry(global_position)
+	):
+		return false
+	var source_velocity := velocity
+	velocity = Vector3.ZERO
+	if state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
+		return true
+	velocity = source_velocity
+	return false
+
+
+func invalidate_hidden_if_close_range_seen(close_range_seen: bool) -> bool:
+	if not close_range_seen or state_machine.current_state() != PlayerStateMachine.STATE_HIDDEN:
+		return false
+	return try_exit_hide_spot()
+
+
 func try_enter_climb(edge: ClimbEdge = null) -> bool:
 	var current := state_machine.current_state()
 	if (
@@ -446,6 +536,19 @@ func _update_state_from_input() -> void:
 			try_exit_crawlspace()
 		return
 
+	if state_machine.current_state() == PlayerStateMachine.STATE_HIDDEN:
+		if not _maintain_hide_contract():
+			return
+		if interact_just_pressed:
+			try_exit_hide_spot()
+		return
+
+	if interact_just_pressed:
+		var close_range_seen := _close_range_seen
+		_close_range_seen = false
+		if try_enter_hide_spot(null, close_range_seen):
+			return
+
 	if interact_just_pressed and try_enter_crawlspace():
 		return
 
@@ -519,6 +622,8 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 		_beam_axis_direction = 1.0
 	if to != PlayerStateMachine.STATE_CRAWLSPACE:
 		_clear_crawl_contract()
+	if to != PlayerStateMachine.STATE_HIDDEN:
+		_clear_hide_contract()
 	if not _is_water_state_name(to):
 		_clear_water_contract()
 	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
@@ -535,7 +640,7 @@ func _apply_collision_shape_for_state(state: StringName) -> void:
 
 	var requested_height := _standing_capsule_height
 	match state:
-		PlayerStateMachine.STATE_CROUCH:
+		PlayerStateMachine.STATE_CROUCH, PlayerStateMachine.STATE_HIDDEN:
 			requested_height = crouch_capsule_height
 		PlayerStateMachine.STATE_CRAWLSPACE:
 			requested_height = crawl_capsule_height
@@ -766,6 +871,65 @@ func _clear_crawl_contract() -> void:
 	_crawl_contract_capsule_height = 0.0
 	_crawl_contract_camera_drop = 0.0
 	_crawl_contract_valid = false
+
+
+func _capture_hide_contract(hide_spot: HideSpot) -> void:
+	_clear_hide_contract()
+	_active_hide_spot = hide_spot
+	_hide_contract_transform = hide_spot.global_transform
+	_hide_contract_entry_radius = hide_spot.entry_radius
+	_hide_contract_shape_id = hide_spot.entry_shape_identity()
+	_hide_contract_valid = true
+	_hide_contract_invalidated = false
+	if not hide_spot.tree_exiting.is_connected(_on_active_hide_spot_tree_exiting):
+		hide_spot.tree_exiting.connect(_on_active_hide_spot_tree_exiting)
+
+
+func _maintain_hide_contract() -> bool:
+	if state_machine.current_state() != PlayerStateMachine.STATE_HIDDEN:
+		return true
+	if not _hide_contract_valid or _hide_contract_invalidated:
+		return _abort_invalid_hide_spot()
+	var hide_spot := active_hide_spot()
+	if (
+		hide_spot == null
+		or not hide_spot.can_accept_body(self)
+		or not hide_spot.global_transform.is_equal_approx(_hide_contract_transform)
+		or not is_equal_approx(hide_spot.entry_radius, _hide_contract_entry_radius)
+		or hide_spot.entry_shape_identity() != _hide_contract_shape_id
+		or not hide_spot.is_near_entry(global_position)
+	):
+		return _abort_invalid_hide_spot()
+	return true
+
+
+func _abort_invalid_hide_spot() -> bool:
+	_clear_hide_contract()
+	velocity = Vector3.ZERO
+	state_machine.change_state(PlayerStateMachine.STATE_CROUCH)
+	return false
+
+
+func _on_active_hide_spot_tree_exiting() -> void:
+	_hide_contract_invalidated = true
+
+
+func _release_active_hide_spot() -> void:
+	if (
+		is_instance_valid(_active_hide_spot)
+		and _active_hide_spot.tree_exiting.is_connected(_on_active_hide_spot_tree_exiting)
+	):
+		_active_hide_spot.tree_exiting.disconnect(_on_active_hide_spot_tree_exiting)
+	_active_hide_spot = null
+	_hide_contract_invalidated = false
+
+
+func _clear_hide_contract() -> void:
+	_release_active_hide_spot()
+	_hide_contract_transform = Transform3D.IDENTITY
+	_hide_contract_entry_radius = 0.0
+	_hide_contract_shape_id = 0
+	_hide_contract_valid = false
 
 
 func _is_crawl_configuration_valid() -> bool:
@@ -1478,6 +1642,49 @@ func _nearest_crawl_entrance(for_entry: bool) -> CrawlEntrance:
 		var distance_squared := global_position.distance_squared_to(endpoint)
 		if distance_squared < nearest_distance_squared:
 			nearest = entrance
+			nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_hide_spot() -> HideSpot:
+	if (
+		not is_inside_tree()
+		or get_world_3d() == null
+		or not HideRules.is_safe_world_position(global_position)
+	):
+		return null
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = HideSpot.HIDE_SPOT_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_HIDE_SPOT_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_HIDE_SPOT_SPATIAL_RESULTS:
+		return null
+	var nearest: HideSpot
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	var seen_instance_ids: Dictionary = {}
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
+		if candidate is not HideSpot:
+			continue
+		var hide_spot := candidate as HideSpot
+		var instance_id := hide_spot.get_instance_id()
+		if seen_instance_ids.has(instance_id):
+			continue
+		seen_instance_ids[instance_id] = true
+		if not hide_spot.can_accept_body(self) or not hide_spot.is_near_entry(global_position):
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_HIDE_SPOT_CANDIDATES:
+			return null
+		var distance_squared := global_position.distance_squared_to(hide_spot.entry_world_position())
+		if distance_squared < nearest_distance_squared:
+			nearest = hide_spot
 			nearest_distance_squared = distance_squared
 	return nearest
 
