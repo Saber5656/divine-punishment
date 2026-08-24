@@ -41,3 +41,37 @@ func test_player_detection_points_are_spatially_distinct() -> void:
 	]
 	assert_ne(points[0], points[1])
 	assert_ne(points[1], points[2])
+
+
+func test_recompute_uses_partial_three_point_occlusion() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	player.set_physics_process(false)
+	add_child_autofree(player)
+	var light := LightSource.new()
+	light.global_position = Vector3(2.0, 1.0, 0.0)
+	light.gameplay_radius = 10.0
+	add_child_autofree(light)
+	await get_tree().physics_frame
+	var visibility := player.get_node("Visibility") as PlayerVisibility
+	var clear_value := visibility.recompute()
+	var blocker := _add_occluder(Vector3(1.0, 0.75, 0.0))
+	await get_tree().physics_frame
+	var partial_value := visibility.recompute()
+	assert_gt(clear_value, 0.0)
+	assert_gt(partial_value, 0.0)
+	assert_lt(partial_value, clear_value)
+	blocker.queue_free()
+
+
+func _add_occluder(at: Vector3) -> StaticBody3D:
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = 1 << 4
+	blocker.collision_mask = 0
+	blocker.position = at
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.2, 1.0, 2.0)
+	collision.shape = shape
+	blocker.add_child(collision)
+	add_child_autofree(blocker)
+	return blocker
