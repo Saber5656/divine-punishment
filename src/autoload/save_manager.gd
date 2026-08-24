@@ -15,6 +15,8 @@ func _ready() -> void:
 
 func load_save() -> void:
 	if not FileAccess.file_exists(save_path):
+		if _recover_interrupted_save():
+			return
 		_data = default_save()
 		return
 	var file := FileAccess.open(save_path, FileAccess.READ)
@@ -158,3 +160,35 @@ func _backup_corrupt_save() -> void:
 	var error := DirAccess.rename_absolute(source_abs, backup_abs)
 	if error != OK:
 		push_warning("Could not back up corrupt save file: %s" % error_string(error))
+
+
+func _recover_interrupted_save() -> bool:
+	var final_abs := ProjectSettings.globalize_path(save_path)
+	var candidates := ["%s.tmp" % save_path, "%s.bak" % save_path]
+	for candidate_path: String in candidates:
+		if not FileAccess.file_exists(candidate_path):
+			continue
+		var file := FileAccess.open(candidate_path, FileAccess.READ)
+		if file == null:
+			continue
+		var contents := file.get_as_text()
+		file.close()
+		var json := JSON.new()
+		if json.parse(contents) != OK or typeof(json.data) != TYPE_DICTIONARY:
+			continue
+		var rename_error := DirAccess.rename_absolute(
+			ProjectSettings.globalize_path(candidate_path),
+			final_abs,
+		)
+		if rename_error != OK:
+			continue
+		_data = migrate(json.data as Dictionary)
+		if candidate_path.ends_with(".tmp"):
+			_remove_user_file("%s.bak" % save_path)
+		return true
+	return false
+
+
+func _remove_user_file(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

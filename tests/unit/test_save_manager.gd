@@ -49,6 +49,25 @@ func test_commit_and_load_round_trip() -> void:
 	assert_false(FileAccess.file_exists("%s.bak" % TEST_SAVE_PATH))
 
 
+func test_load_recovers_interrupted_temporary_save_before_defaults() -> void:
+	var file := FileAccess.open("%s.tmp" % TEST_SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify({
+		"version": 2,
+		"campaign": {"unlocked_mission": 4},
+		"settings": {"locale": "en"},
+	}))
+	file.close()
+
+	var manager := SaveManagerScript.new()
+	manager.save_path = TEST_SAVE_PATH
+	manager.load_save()
+	assert_eq(manager.campaign()["unlocked_mission"], 4)
+	assert_eq(manager.settings()["locale"], "en")
+	assert_true(FileAccess.file_exists(TEST_SAVE_PATH))
+	assert_false(FileAccess.file_exists("%s.tmp" % TEST_SAVE_PATH))
+	manager.free()
+
+
 func test_corrupt_json_initializes_default_save() -> void:
 	var file := FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
 	file.store_string("{not json")
