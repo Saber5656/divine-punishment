@@ -2,6 +2,10 @@ class_name NoiseEventSystem
 extends RefCounted
 
 
+# NoiseEventSystem is the single gameplay dispatcher: EventBus is emitted once
+# for telemetry, then eligible enemies receive one attenuated callback directly.
+# Enemy perception components must implement on_noise without subscribing to the
+# raw EventBus signal, otherwise one sound would be counted twice.
 # Collision layer 6 is represented by bit 5 in Godot's collision mask.
 const HEARING_OCCLUSION_MASK := 1 << 5
 const OCCLUDED_RADIUS_MULTIPLIER := 0.5
@@ -45,6 +49,13 @@ static func radius_at_listener(
 	var world: World3D = null
 	if scene is Node3D:
 		world = (scene as Node3D).get_world_3d()
+	if world == null and source is Node3D:
+		world = (source as Node3D).get_world_3d()
+	if world == null:
+		for listener in tree.get_nodes_in_group("enemies"):
+			if listener is Node3D:
+				world = (listener as Node3D).get_world_3d()
+				break
 	if world == null:
 		return base_radius
 	var query := PhysicsRayQueryParameters3D.create(origin, listener_position)

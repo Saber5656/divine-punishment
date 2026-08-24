@@ -6,6 +6,7 @@ const WallClingRules := preload("res://src/player/player_wall_cling.gd")
 const ClimbRules := preload("res://src/player/player_climb.gd")
 const CrawlRules := preload("res://src/player/player_crawl.gd")
 const SwimRules := preload("res://src/player/player_swim.gd")
+const NOISE_FOOTSTEP_DISTANCE := 1.5
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
@@ -40,6 +41,7 @@ const SWIM_DEPTH_EPSILON := 0.001
 @onready var player_model: Node3D = $Visual/Model as Node3D
 @onready var surface_ripples: Node3D = $Visual/SurfaceRipples as Node3D
 @onready var swim_hud: SwimHud = $Visibility/SwimHud as SwimHud
+@onready var noise_emitter: NoiseEmitter = $NoiseEmitter as NoiseEmitter
 
 var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
@@ -74,6 +76,7 @@ var _water_recovery_pending := false
 var _breath_remaining := 0.0
 var _forced_surface_pending := false
 var _exhaustion_noise_emitted := false
+var _footstep_distance := 0.0
 var _stance_toggle_queued := false
 var _stance_was_pressed := false
 
@@ -128,7 +131,9 @@ func _physics_process(delta: float) -> void:
 		return
 	_apply_gravity(delta)
 	_apply_movement()
+	var was_on_floor := is_on_floor()
 	move_and_slide()
+	_emit_ground_noise(delta, was_on_floor)
 
 
 func current_movement_params() -> Dictionary:
@@ -852,9 +857,28 @@ func _emit_exhaustion_noise_once() -> void:
 	):
 		return
 	_exhaustion_noise_emitted = true
-	EventBus.noise_emitted.emit(
+	NoiseEventSystem.emit(
 		NoiseEvent.create(global_position, radius, Enums.NoiseKind.LANDING, self),
+		get_tree(),
 	)
+
+
+func _emit_ground_noise(delta: float, was_on_floor: bool) -> void:
+	if noise_emitter == null:
+		return
+	if not is_on_floor() or _is_water_state() or _is_traversing():
+		_footstep_distance = 0.0
+		return
+	if not was_on_floor:
+		noise_emitter.emit_landing()
+		_footstep_distance = 0.0
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed <= 0.001:
+		return
+	_footstep_distance += horizontal_speed * maxf(delta, 0.0)
+	while _footstep_distance >= NOISE_FOOTSTEP_DISTANCE:
+		_footstep_distance -= NOISE_FOOTSTEP_DISTANCE
+		noise_emitter.emit_footstep(state_machine.stance())
 
 
 func _apply_swim_presentation(state: StringName) -> void:
