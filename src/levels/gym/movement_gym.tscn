@@ -54,11 +54,11 @@ shading_mode = 0
 albedo_color = Color(0.2, 0.85, 0.35, 0.32)
 
 [sub_resource type="BoxShape3D" id="BoxShape_main_floor"]
-size = Vector3(28, 0.2, 16)
+size = Vector3(9, 0.2, 8)
 
 [sub_resource type="BoxMesh" id="BoxMesh_main_floor"]
 material = SubResource("Material_main_floor")
-size = Vector3(28, 0.2, 16)
+size = Vector3(9, 0.2, 8)
 
 [sub_resource type="BoxShape3D" id="BoxShape_sample"]
 size = Vector3(4, 0.2, 4)
@@ -229,7 +229,7 @@ shape = SubResource("BoxShape_sample")
 mesh = SubResource("BoxMesh_shallow_water")
 
 [node name="ClimbWall" type="StaticBody3D" parent="Geometry"]
-position = Vector3(-8, 1.25, -7.2)
+position = Vector3(-3.5, 1.25, -3.2)
 collision_layer = 1
 collision_mask = 0
 
@@ -253,7 +253,7 @@ mesh = SubResource("BoxMesh_crawl_roof")
 [node name="ClimbBeam" type="Node3D" parent="Markers"]
 
 [node name="EntryEdge" type="Area3D" parent="Markers/ClimbBeam"]
-position = Vector3(-8, 0, -6)
+position = Vector3(-3.5, 0, -3)
 script = ExtResource("2_climb_edge")
 top_offset = Vector3(0, 2.5, 0)
 entry_radius = 1.0
@@ -261,7 +261,7 @@ connected_beam_path = NodePath("../BeamPath")
 connected_beam_endpoint = 0
 
 [node name="BeamPath" type="Area3D" parent="Markers/ClimbBeam"]
-position = Vector3(-8, 2.5, -6)
+position = Vector3(-3.5, 2.5, -3)
 script = ExtResource("3_beam_path")
 start_climb_edge = NodePath("../EntryEdge")
 end_climb_edge = NodePath("../ExitEdge")
@@ -271,7 +271,7 @@ position = Vector3(3, 0, 0)
 mesh = SubResource("BoxMesh_beam")
 
 [node name="ExitEdge" type="Area3D" parent="Markers/ClimbBeam"]
-position = Vector3(-2, 0, -6)
+position = Vector3(2.5, 0, -3)
 script = ExtResource("2_climb_edge")
 top_offset = Vector3(0, 2.5, 0)
 entry_radius = 1.0

@@ -13,6 +13,7 @@ Validate the asset-free Gym scene against the M1 movement routes and the floor-m
 - Covered routes: Ground/Crouch/Sprint, Hidden, Crawlspace, ClimbEdge → BeamPath → ClimbEdge, SwimSurface → SwimUnderwater → SwimSurface.
 - Covered floor keys: `tatami`, `wood`, `creaky_wood`, `gravel`, `shallow_water`.
 - Collision contract: graybox geometry uses world layer 1; gameplay markers use their existing marker scripts and layer constants.
+- Transition stations intentionally sit outside the central floor collision so crawl/water clearance sweeps do not treat support contact as an obstruction.
 
 ## Interactive checklist
 

@@ -42,6 +42,7 @@ func test_gym_player_can_try_stances_hide_crawl_beam_and_underwater_routes() -> 
 	var gym := _add_gym()
 	var player := gym.get_node(^"Player") as PlayerController
 	await _await_player_grounded(player)
+	player.set_physics_process(false)
 
 	var state_machine := player.state_machine
 	assert_eq(state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
