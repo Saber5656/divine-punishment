@@ -89,6 +89,8 @@ func recompute() -> float:
 		var is_moving: bool = false
 		if velocity_value is Vector3:
 			is_moving = (velocity_value as Vector3).length_squared() > 0.0001
+		if not is_moving and player.has_method(&"is_traversing"):
+			is_moving = bool(player.call(&"is_traversing"))
 		move_mod = 1.0 if is_moving else _stationary_modifier(state_machine)
 	_visibility = combine(light_sum, stance_mod, move_mod, _soft_cover_modifier)
 	visibility_changed.emit(_visibility)
