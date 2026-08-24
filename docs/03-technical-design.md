@@ -50,6 +50,7 @@ docs/
 | Autoload | 責務 |
 |---|---|
 | `EventBus` | 型付きシグナルのハブ。音イベント・異常イベント・警戒変化・ミッションイベント |
+| `Tuning` | `data/tuning/` の Resource をロードし、デバッグビルドで F5 リロードを提供 |
 | `GameState` | 現在ミッション・エリア警戒レベル・チェックポイント |
 | `MissionDirector` | 目標管理・評価カウンタ（発見回数 / 死体発見 / 殺害数 / 時間）・リザルト生成 |
 | `AudioDirector` | 警戒段階に応じた BGM レイヤリング、SE バス管理 |
