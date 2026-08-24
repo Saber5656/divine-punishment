@@ -79,6 +79,25 @@ func test_close_range_seen_blocks_entry_before_hidden_state() -> void:
 	assert_false(player.is_visibility_excluded())
 
 
+func test_close_range_seen_flag_is_used_by_interact_entry_path() -> void:
+	var hide_spot := HideSpot.new()
+	add_child_autofree(hide_spot)
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	player.set_close_range_seen(true)
+	assert_false(player.try_enter_hide_spot(null, player.close_range_seen()))
+	assert_false(player.is_visibility_excluded())
+
+
+func test_airborne_player_cannot_enter_hide_spot() -> void:
+	var hide_spot := HideSpot.new()
+	add_child_autofree(hide_spot)
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	player.velocity.y = -1.0
+	assert_false(player.try_enter_hide_spot(hide_spot))
+
+
 func test_hidden_state_has_sneak_stance_and_only_exits_to_crouch() -> void:
 	var state_machine := PlayerStateMachine.new()
 	add_child_autofree(state_machine)

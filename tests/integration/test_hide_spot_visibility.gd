@@ -25,6 +25,7 @@ func test_interact_enters_and_exits_hide_spot() -> void:
 	add_child_autofree(player)
 
 	Input.action_release(&"interact")
+	await get_tree().physics_frame
 	player._update_state_from_input()
 	Input.action_press(&"interact")
 	player._update_state_from_input()

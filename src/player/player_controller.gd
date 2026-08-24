@@ -83,6 +83,7 @@ var _water_recovery_pending := false
 var _breath_remaining := 0.0
 var _forced_surface_pending := false
 var _exhaustion_noise_emitted := false
+var _close_range_seen := false
 var _stance_toggle_queued := false
 var _stance_was_pressed := false
 
@@ -185,6 +186,14 @@ func active_hide_spot() -> HideSpot:
 
 func is_visibility_excluded() -> bool:
 	return state_machine.is_visibility_excluded()
+
+
+func set_close_range_seen(seen: bool) -> void:
+	_close_range_seen = seen
+
+
+func close_range_seen() -> bool:
+	return _close_range_seen
 
 
 func is_hidden() -> bool:
@@ -375,6 +384,8 @@ func try_enter_hide_spot(
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
+	if is_inside_tree() and not is_on_floor() and absf(velocity.y) > 0.001:
+		return false
 	var candidate := hide_spot if hide_spot != null else _nearest_hide_spot()
 	if (
 		candidate == null
@@ -522,8 +533,11 @@ func _update_state_from_input() -> void:
 			try_exit_hide_spot()
 		return
 
-	if interact_just_pressed and try_enter_hide_spot():
-		return
+	if interact_just_pressed:
+		var close_range_seen := _close_range_seen
+		_close_range_seen = false
+		if try_enter_hide_spot(null, close_range_seen):
+			return
 
 	if interact_just_pressed and try_enter_crawlspace():
 		return
