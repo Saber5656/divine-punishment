@@ -1,5 +1,7 @@
 # divine-punishment
 
+[![CI](https://github.com/Saber5656/divine-punishment/actions/workflows/ci.yml/badge.svg)](https://github.com/Saber5656/divine-punishment/actions/workflows/ci.yml)
+
 『天誅4 (Tenchu: Shadow Assassins)』に inspired された精神的続編 — 戦国の闇を舞台にした cinematic stealth-puzzle ninja game。
 
 公式 IP・キャラクター名・設定は使用しない。
