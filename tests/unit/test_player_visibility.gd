@@ -43,6 +43,14 @@ func test_player_detection_points_are_spatially_distinct() -> void:
 	assert_ne(points[1], points[2])
 
 
+func test_light_source_gizmo_segments_follow_radius() -> void:
+	var light := LightSource.new()
+	add_child_autofree(light)
+	assert_eq(light.gizmo_segments().size(), 64)
+	light.gameplay_radius = -1.0
+	assert_true(light.gizmo_segments().is_empty())
+
+
 func test_recompute_uses_partial_three_point_occlusion() -> void:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	player.set_physics_process(false)

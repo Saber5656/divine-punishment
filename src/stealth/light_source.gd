@@ -3,7 +3,11 @@ class_name LightSource
 extends Node3D
 
 
-@export_range(0.1, 100.0, 0.1) var gameplay_radius: float = 6.0
+@export_range(0.1, 100.0, 0.1) var gameplay_radius: float = 6.0:
+	set(value):
+		gameplay_radius = value
+		if Engine.is_editor_hint() and is_inside_tree():
+			update_gizmos()
 @export_range(0.0, 10.0, 0.05) var gameplay_intensity: float = 1.0
 @export var render_light: Light3D
 @export var starts_extinguished: bool = false
@@ -40,6 +44,19 @@ func gameplay_contribution(distance: float, occluded: bool) -> float:
 	if not _is_on:
 		return 0.0
 	return PlayerVisibility.light_contribution(distance, gameplay_radius, occluded) * gameplay_intensity
+
+
+func gizmo_segments() -> PackedVector3Array:
+	if not is_finite(gameplay_radius) or gameplay_radius <= 0.0:
+		return PackedVector3Array()
+	var segments := PackedVector3Array()
+	const SEGMENT_COUNT := 32
+	for index in SEGMENT_COUNT:
+		var start_angle := TAU * float(index) / SEGMENT_COUNT
+		var end_angle := TAU * float(index + 1) / SEGMENT_COUNT
+		segments.append(Vector3(cos(start_angle), 0.0, sin(start_angle)) * gameplay_radius)
+		segments.append(Vector3(cos(end_angle), 0.0, sin(end_angle)) * gameplay_radius)
+	return segments
 
 
 func _find_render_light() -> Light3D:
