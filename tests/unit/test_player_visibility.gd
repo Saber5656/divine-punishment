@@ -15,3 +15,7 @@ func test_combine_clamps_visibility_after_stance_movement_and_cover_modifiers() 
 	assert_almost_eq(PlayerVisibilityScript.combine(1.0, 0.6, 1.3, 0.3), 0.234)
 	assert_eq(PlayerVisibilityScript.combine(2.0, 1.0, 1.0, 1.0), 1.0)
 	assert_eq(PlayerVisibilityScript.combine(1.0, 0.0, 1.0, 1.0), 0.0)
+
+
+func test_light_occlusion_mask_uses_documented_layers() -> void:
+	assert_eq(PlayerVisibilityScript.LIGHT_OCCLUSION_MASK, (1 << 0) | (1 << 4))

@@ -4,7 +4,9 @@ extends Node
 
 const UPDATE_INTERVAL := 0.1
 const MAX_LIGHTS := 3
-const LIGHT_OCCLUSION_MASK := 1 | 5
+# Collision layers are numbered from one in the design docs, while Godot
+# expects a bit mask (layer N is represented by 1 << (N - 1)).
+const LIGHT_OCCLUSION_MASK := (1 << 0) | (1 << 4)
 
 signal visibility_changed(v: float)
 
