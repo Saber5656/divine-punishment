@@ -32,6 +32,22 @@ func emit_noise(radius: float, kind: Enums.NoiseKind) -> NoiseEvent:
 	return NoiseEventSystem.emit(event, get_tree())
 
 
+static func floor_material_for(collider: Object, fallback: StringName = &"wood") -> StringName:
+	if collider == null:
+		return fallback
+	var metadata: Variant = collider.get_meta(&"floor_material", fallback)
+	if metadata is StringName:
+		return metadata
+	if metadata is String:
+		return StringName(metadata)
+	var property_value: Variant = collider.get(&"floor_material")
+	if property_value is StringName:
+		return property_value
+	if property_value is String:
+		return StringName(property_value)
+	return fallback
+
+
 static func footstep_radius(stance: Enums.Stance, material: StringName, config: MovementConfig) -> float:
 	if config == null:
 		return 0.0

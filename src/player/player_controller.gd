@@ -7,6 +7,7 @@ const ClimbRules := preload("res://src/player/player_climb.gd")
 const CrawlRules := preload("res://src/player/player_crawl.gd")
 const SwimRules := preload("res://src/player/player_swim.gd")
 const NOISE_FOOTSTEP_DISTANCE := 1.5
+const MAX_NOISE_DELTA := 0.25
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
@@ -875,10 +876,16 @@ func _emit_ground_noise(delta: float, was_on_floor: bool) -> void:
 	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
 	if horizontal_speed <= 0.001:
 		return
-	_footstep_distance += horizontal_speed * maxf(delta, 0.0)
-	while _footstep_distance >= NOISE_FOOTSTEP_DISTANCE:
-		_footstep_distance -= NOISE_FOOTSTEP_DISTANCE
-		noise_emitter.emit_footstep(state_machine.stance())
+	var material := noise_emitter.floor_material
+	var floor_collision: KinematicCollision3D = get_floor_collision()
+	if floor_collision != null:
+		material = NoiseEmitter.floor_material_for(floor_collision.get_collider(), material)
+	if not is_finite(delta) or delta <= 0.0:
+		return
+	_footstep_distance += horizontal_speed * minf(delta, MAX_NOISE_DELTA)
+	if _footstep_distance >= NOISE_FOOTSTEP_DISTANCE:
+		_footstep_distance = fmod(_footstep_distance, NOISE_FOOTSTEP_DISTANCE)
+		noise_emitter.emit_footstep(state_machine.stance(), material)
 
 
 func _apply_swim_presentation(state: StringName) -> void:
