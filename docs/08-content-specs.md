@@ -139,6 +139,15 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 | M10 特例 | 「疾風」項目なし（配点を影 walker へ +15 振替） |
 | epilogue_a_condition | 累計 shura ≤ 12（M10 リザルト時に判定） |
 
+### 2.9 CameraConfig（data/tuning/camera.tres）
+
+| フィールド | 型 | default | 備考 |
+|---|---|---|---|
+| mouse_look_sensitivity | float | 0.0025 | マウスの `screen_relative` に乗算する rad/pixel 基準値 |
+| gamepad_look_speed | float | 2.5 | 右スティック入力に乗算する rad/s 基準値 |
+
+カメラ感度の基準値は `CameraConfig` を正本とし、`PlayerCameraRig` は `Tuning.reloaded` 後の値を即時参照する。pitch 制限、SpringArm 長、衝突形状、peek 上限は scene / rig contract とし、感度 tuning へ混在させない。
+
 ## 3. プレイヤー状態機械 遷移表（契約）
 
 | From \ 入力 | 移動 | しゃがみ | 走り | 壁際+張付 | 登攀縁 | 梁端 | 床下口 | 水面 | HideSpot | 必殺成立+入力 | 被弾0 |
@@ -156,6 +165,24 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 | Escort(千代同行, M9) | 移動 | 可 | 不可 | 不可 | 不可 | 不可 | 可 | 不可 | 2人用のみ | — | Dead |
 
 Combat への遷移: いずれかの敵が Combat 状態でプレイヤーを攻撃対象にした時、抜刀入力で。M9 は Combat 遷移なし（逃走のみ）。
+
+WallCling は Ground/Crouch 中に world layer=1 の壁・柱へ近接して `interact` を押したときだけ成立する。判定は player 自身を除外した水平 probe とし、floor/ceiling、非有限または退化した法線、world 以外の collider は採用しない。Crouch からの遷移は standing clearance を必須とする。
+
+張り付き中は前後移動 axis を正規化済み wall normal から求めた接線へ直接対応付け、player の向きや壁面方向に依存せず壁沿いに移動する。`sprint` または wall probe 消失で Ground へ解除し、wall normal と peek offset を必ず clear する。InputMap の `peek` action が有効な間は、同じ physical input に割り当てられた左右移動 axis を body movement から除外して signed peek 値として既存 `PlayerCameraRig` の local X offset へ渡す。前後 axis による wall tangent movement は維持するが、peek axis は Player 本体と `DetectPoints/Head|Chest|Hips` の transform を変更しない。
+
+ClimbEdge は `Area3D`（layer=12、mask=2）の有限な下端→上端区間として配置し、`interact` で Ground/Crouch/WallCling から Climb へ入る。区間長は 0.5–8.0 m、上向き成分は 0.25 m 以上、下端の進入半径は 0.1–2.0 m、world 座標は各軸 ±10,000 m 以内とし、global transform は unit-scale orthogonal basis（誤差 0.001 以内）に限定する。進入検索は下端の球形 collision を使う player 位置の physics point query に限定し、raw hit 256 件超または進入範囲内の有効候補 64 件超では fail-closed とする。前進/後退で区間距離を 0–全長へ clamp し、下端では Ground、上端では接続 BeamPath、未接続なら Ground へ遷移する。
+
+BeamPath は `Curve3D` を持つ `Area3D`（layer=12、mask=2）で、2–64 点、全長 0.5–100 m、各点/ハンドルの local 距離 100 m 以下、`bake_interval` 0.1–1.0 m、有限かつ非ゼロの端点 tangent を必須とする。global transform は各軸 ±10,000 m 以内の finite origin と unit-scale orthogonal basis（誤差 0.001 以内）に限定し、親 transform を含む scale で local 上限を迂回させない。bake 前に control polygon 全長 400 m、推定 4,000 segments を上限として拒否し、実際の baked-length 評価は1回だけ行う。curve 変更時の検証は最大 64 点・4 samples、各移動更新は cached 検証と位置 1 sample、editor gizmo は最大 128 線分に制限する。
+
+Climb から Beam へ入った後、前進/後退で bake 距離上を移動し、`sprint` で Ground へ落下、端点で `interact` を押すと接続 ClimbEdge の上端から下降できる。active marker の削除、curve/transform/layer/navigation invariant の変更、または非有限な変換後座標を検出した場合は、最後の有限位置を維持して Ground へ戻り traversal reference を消去する。
+
+ClimbEdge / BeamPath は `Divine Level Markers` editor plugin の gizmo で可視化し、相互リンクする端点は ClimbEdge の進入半径内に揃える。exported NodePath は同じ SceneTree 内の concrete ClimbEdge / BeamPath だけを受け入れる。両 marker は player_body のみ受け入れ、enemy_body を拒否する。梁マーカーを `NavigationRegion3D` / `NavigationLink3D` の配下へ置かず、NavigationRegion3D / NavigationLink3D を子孫に持たせない。navigation safety の探索上限は ancestor 64、descendant 128 nodes とし、tree 変更時に cache を破棄する。敵用 NavigationMesh は梁・屋根を bake 対象から外す（実際の level navmesh coverage は level content の QA で確認する）。
+
+CrawlEntrance は外側原点から `inside_offset` で床下側 endpoint を示す `Area3D`（layer=12、mask=2）として配置する。offset 長は 0.5–4.0 m、両 endpoint の interaction 半径は 0.1–1.5 m、world 座標は各軸 ±10,000 m 以内、global transform は unit-scale orthogonal basis（誤差 0.001 以内）に限定する。外側で `interact` すると Ground/Crouch から Crawlspace へ入り、床下側で `interact` すると Crouch へ戻る。移動前後の capsule clearance に加え、現在位置から移動先まで mask=1 の capsule sweep を1回実行する。endpoint 間に world collision がある場合は位置、状態、速度、active reference を変更しない。
+
+Crawlspace は `movement.tres` の `crawl`（速度 1.0 m/s、発音半径 1 m、可視度補正 ×0.3）を使う通常の平面移動と camera look を維持し、player capsule を高さ 0.7 m、CameraRig を基準位置から 0.9 m 下げる。active CrawlEntrance と進入時の transform、offset、radius、layer、crawl posture 設定は進入口付近にいる間は各 physics update で O(1) 再検証する。marker の削除・tree 離脱・runtime mutation または crawl 設定変更を検出した場合は、保存済み外側 endpoint まで同じ capsule sweep と Crouch clearance を確認してから Crouch へ安全復帰し、active reference と camera posture を消去する。安全復帰経路がない場合は collision 内で body を拡大せず、最後の検証済み crawl posture を維持して stale marker reference のみ破棄する。marker 検索は両 endpoint の球形 collision に対する player 位置の physics point query に限定し、raw hit 256 件超または進入範囲内の一意な有効候補 64 件超で fail-closed とする。同一 marker の2形状 hitは instance ID で一意化する。CrawlEntrance は player_body のみ受け入れ、enemy_body を拒否し、`Divine Level Markers` gizmo で外側・内側 endpoint を可視化する。
+
+床上を視認させる箇所は world collision の床板を左右に分割し、隙間部分に不可視 occluder を置かない。床下 camera の実位置から床上 enemy の足元 marker まで mask=1 の ray が無衝突であることを graybox QA で確認する。同じ隙間を world collision で覆った場合に ray が遮断される対照テストも維持し、「透視」ではなく authored floor gap による視認であることを保証する。
 
 ## 4. 入力マップ（InputMap 契約）
 
@@ -266,6 +293,29 @@ func change_state(next: StringName, ctx: Dictionary = {}) -> bool  # 不正遷�
 func stance() -> Enums.Stance                         # Ground=WALK, Crouch/Hidden=SNEAK 等の写像
 func movement_params() -> Dictionary                  # PlayerProfile から現状態の {speed, noise_radius, visibility_mod}
 
+# ── src/player/player_wall_cling.gd  (RefCounted。scene node は追加しない)
+class_name PlayerWallCling
+static func normalized_wall_normal(candidate: Vector3) -> Vector3  # finite・非退化・wall-like の水平法線だけ返す
+static func wall_tangent(wall_normal: Vector3) -> Vector3
+static func project_movement(input_direction: Vector3, wall_normal: Vector3) -> Vector3
+static func sanitize_axis(value: float) -> float
+
+# ── src/player/player_camera_rig.gd  (Node3D, player.tscn 直下 "CameraRig")
+class_name PlayerCameraRig
+func apply_mouse_look(screen_relative: Vector2) -> float       # tuning 適用後の player yaw delta を返し、rig pitch を更新
+func apply_gamepad_look(input_vector: Vector2, delta: float) -> float
+func set_peek_offset(requested_offset: Vector3) -> void        # max_peek_offset へ成分別 clamp。player body は動かさない
+func reset_peek_offset() -> void
+func peek_offset() -> Vector3
+func camera_config() -> CameraConfig
+
+# ── src/player/player_controller.gd  (CharacterBody3D, player.tscn root)
+func set_camera_peek_offset(offset: Vector3) -> void           # CameraRig API への公開 forwarding
+func reset_camera_peek_offset() -> void
+func camera_peek_offset() -> Vector3
+func wall_cling_normal() -> Vector3
+func try_enter_wall_cling() -> bool
+
 # ── src/stealth/player_visibility.gd  (Node, player.tscn 直下 "Visibility")
 class_name PlayerVisibility
 signal visibility_changed(v: float)
@@ -363,8 +413,8 @@ Player (CharacterBody3D)                 layer=2 player_body / mask=1 world
 ├─ NoiseEmitter (Node)                   # 足音・着地を EventBus.noise_emitted へ
 ├─ ToolRig (Node3D)
 │   └─ AimArc (Node3D)                   # 投射軌道表示
-├─ CameraRig (Node3D)
-│   └─ SpringArm3D ─ Camera3D
+├─ CameraRig (PlayerCameraRig, y=1.5, pitch −75°..75°, peek clamp x=±0.75/y=±0.3)
+│   └─ SpringArm3D (length=3.5, Sphere r=0.2, margin=0.1, mask=1 world) ─ Camera3D (current)
 └─ DetectPoints (Node3D)                 # group "player_detect_points"
     ├─ Head / Chest / Hips (Marker3D)    # 敵視覚レイの終点 3 点（§03 4.2）
 

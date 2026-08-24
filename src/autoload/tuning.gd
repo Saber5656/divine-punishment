@@ -12,11 +12,13 @@ const PERCEPTION_PATHS: Dictionary = {
 }
 
 const MOVEMENT_PATH := "res://data/tuning/movement.tres"
+const CAMERA_PATH := "res://data/tuning/camera.tres"
 const SCORING_PATH := "res://data/tuning/scoring.tres"
 const WEATHER_PATH := "res://data/tuning/weather.tres"
 
 var _perceptions: Dictionary = {}
 var _movement: MovementConfig
+var _camera: CameraConfig
 var _scoring: ScoringConfig
 var _weather: WeatherConfig
 
@@ -43,6 +45,10 @@ func movement() -> MovementConfig:
 	return _movement
 
 
+func camera() -> CameraConfig:
+	return _camera
+
+
 func scoring() -> ScoringConfig:
 	return _scoring
 
@@ -56,6 +62,7 @@ func reload() -> void:
 	for kind: StringName in PERCEPTION_PATHS:
 		_perceptions[kind] = _load_resource(PERCEPTION_PATHS[kind]) as PerceptionConfig
 	_movement = _load_resource(MOVEMENT_PATH) as MovementConfig
+	_camera = _load_resource(CAMERA_PATH) as CameraConfig
 	_scoring = _load_resource(SCORING_PATH) as ScoringConfig
 	_weather = _load_resource(WEATHER_PATH) as WeatherConfig
 	reloaded.emit()
