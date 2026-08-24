@@ -93,6 +93,21 @@ func test_climb_and_beam_transitions_follow_marker_contract() -> void:
 	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
 
 
+func test_crawlspace_uses_crawl_params_and_exits_only_to_crouch() -> void:
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CRAWLSPACE))
+	assert_eq(state_machine.stance(), Enums.Stance.CRAWL)
+	assert_eq(state_machine.movement_params(), {
+		&"speed": 1.0,
+		&"noise_radius": 1.0,
+		&"visibility_mod": 0.3,
+	})
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CRAWLSPACE))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+
+
 func test_invalid_transition_is_rejected_and_same_state_is_a_no_op() -> void:
 	watch_signals(state_machine)
 
@@ -224,6 +239,8 @@ func test_controller_drives_crouch_and_sprint_from_input() -> void:
 	add_child_autofree(player)
 	var player_state_machine := player.get_node("StateMachine") as PlayerStateMachine
 
+	Input.action_release(&"stance_toggle")
+	await get_tree().process_frame
 	Input.action_press(&"stance_toggle")
 	player._update_state_from_input()
 	Input.action_release(&"stance_toggle")

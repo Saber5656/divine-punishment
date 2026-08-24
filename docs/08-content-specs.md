@@ -178,6 +178,12 @@ Climb から Beam へ入った後、前進/後退で bake 距離上を移動し�
 
 ClimbEdge / BeamPath は `Divine Level Markers` editor plugin の gizmo で可視化し、相互リンクする端点は ClimbEdge の進入半径内に揃える。exported NodePath は同じ SceneTree 内の concrete ClimbEdge / BeamPath だけを受け入れる。両 marker は player_body のみ受け入れ、enemy_body を拒否する。梁マーカーを `NavigationRegion3D` / `NavigationLink3D` の配下へ置かず、NavigationRegion3D / NavigationLink3D を子孫に持たせない。navigation safety の探索上限は ancestor 64、descendant 128 nodes とし、tree 変更時に cache を破棄する。敵用 NavigationMesh は梁・屋根を bake 対象から外す（実際の level navmesh coverage は level content の QA で確認する）。
 
+CrawlEntrance は外側原点から `inside_offset` で床下側 endpoint を示す `Area3D`（layer=12、mask=2）として配置する。offset 長は 0.5–4.0 m、両 endpoint の interaction 半径は 0.1–1.5 m、world 座標は各軸 ±10,000 m 以内、global transform は unit-scale orthogonal basis（誤差 0.001 以内）に限定する。外側で `interact` すると Ground/Crouch から Crawlspace へ入り、床下側で `interact` すると Crouch へ戻る。移動前後の capsule clearance に加え、現在位置から移動先まで mask=1 の capsule sweep を1回実行する。endpoint 間に world collision がある場合は位置、状態、速度、active reference を変更しない。
+
+Crawlspace は `movement.tres` の `crawl`（速度 1.0 m/s、発音半径 1 m、可視度補正 ×0.3）を使う通常の平面移動と camera look を維持し、player capsule を高さ 0.7 m、CameraRig を基準位置から 0.9 m 下げる。active CrawlEntrance と進入時の transform、offset、radius、layer、crawl posture 設定は進入口付近にいる間は各 physics update で O(1) 再検証する。marker の削除・tree 離脱・runtime mutation または crawl 設定変更を検出した場合は、保存済み外側 endpoint まで同じ capsule sweep と Crouch clearance を確認してから Crouch へ安全復帰し、active reference と camera posture を消去する。安全復帰経路がない場合は collision 内で body を拡大せず、最後の検証済み crawl posture を維持して stale marker reference のみ破棄する。marker 検索は両 endpoint の球形 collision に対する player 位置の physics point query に限定し、raw hit 256 件超または進入範囲内の一意な有効候補 64 件超で fail-closed とする。同一 marker の2形状 hitは instance ID で一意化する。CrawlEntrance は player_body のみ受け入れ、enemy_body を拒否し、`Divine Level Markers` gizmo で外側・内側 endpoint を可視化する。
+
+床上を視認させる箇所は world collision の床板を左右に分割し、隙間部分に不可視 occluder を置かない。床下 camera の実位置から床上 enemy の足元 marker まで mask=1 の ray が無衝突であることを graybox QA で確認する。同じ隙間を world collision で覆った場合に ray が遮断される対照テストも維持し、「透視」ではなく authored floor gap による視認であることを保証する。
+
 ## 4. 入力マップ（InputMap 契約）
 
 | アクション名 | KBM | パッド |
