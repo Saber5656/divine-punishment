@@ -20,6 +20,9 @@ func before_each() -> void:
 func after_each() -> void:
 	Input.action_release(&"stance_toggle")
 	Input.action_release(&"sprint")
+	Input.action_release(&"interact")
+	Input.action_release(&"move_left")
+	Input.action_release(&"move_right")
 	if Tuning.movement() != original_tuning_movement:
 		Tuning._movement = original_tuning_movement
 		Tuning.reloaded.emit()
@@ -53,6 +56,71 @@ func test_sprint_release_restores_ground_origin() -> void:
 	assert_true(state_machine.change_state(&"Sprint"))
 	assert_true(state_machine.resume_from_sprint())
 	assert_eq(state_machine.current_state(), &"Ground")
+
+
+func test_wall_cling_transitions_use_sneak_params_and_release_to_ground() -> void:
+	watch_signals(state_machine)
+
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+	assert_eq(state_machine.current_state(), PlayerStateMachine.STATE_WALL_CLING)
+	assert_eq(state_machine.stance(), Enums.Stance.SNEAK)
+	assert_eq(state_machine.movement_params(), {
+		&"speed": 1.5,
+		&"noise_radius": 1.0,
+		&"visibility_mod": 0.6,
+	})
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+
+	assert_signal_emit_count(state_machine, "state_changed", 6)
+
+
+func test_climb_and_beam_transitions_follow_marker_contract() -> void:
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+	assert_eq(state_machine.stance(), Enums.Stance.SNEAK)
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_BEAM))
+	assert_eq(state_machine.stance(), Enums.Stance.SNEAK)
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+
+
+func test_crawlspace_uses_crawl_params_and_exits_only_to_crouch() -> void:
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CRAWLSPACE))
+	assert_eq(state_machine.stance(), Enums.Stance.CRAWL)
+	assert_eq(state_machine.movement_params(), {
+		&"speed": 1.0,
+		&"noise_radius": 1.0,
+		&"visibility_mod": 0.3,
+	})
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+
+
+func test_surface_and_underwater_swim_states_use_swim_params() -> void:
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SWIM_SURFACE))
+	assert_eq(state_machine.stance(), Enums.Stance.SWIM)
+	assert_eq(state_machine.movement_params(), {
+		&"speed": 1.2,
+		&"noise_radius": 0.0,
+		&"visibility_mod": 0.2,
+	})
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SWIM_UNDERWATER))
+	assert_eq(state_machine.stance(), Enums.Stance.SWIM)
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SWIM_SURFACE))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CRAWLSPACE))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
 
 
 func test_invalid_transition_is_rejected_and_same_state_is_a_no_op() -> void:
@@ -179,6 +247,10 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 	assert_eq((player.get_node("Interactor") as Area3D).collision_layer, 0)
 	assert_eq((player.get_node("Interactor") as Area3D).collision_mask, 22976)
 	assert_true((player.get_node("DetectPoints") as Node3D).is_in_group(&"player_detect_points"))
+	assert_true(player.get_node("Visual/SurfaceRipples") is Node3D)
+	assert_true(player.get_node("Visibility/SwimHud") is SwimHud)
+	assert_true(player.get_node("Visibility/SwimHud/RippleCue") is Control)
+	assert_true(player.get_node("Visibility/SwimHud/BreathPanel/BreathGauge") is ProgressBar)
 
 
 func test_controller_drives_crouch_and_sprint_from_input() -> void:
@@ -186,6 +258,8 @@ func test_controller_drives_crouch_and_sprint_from_input() -> void:
 	add_child_autofree(player)
 	var player_state_machine := player.get_node("StateMachine") as PlayerStateMachine
 
+	Input.action_release(&"stance_toggle")
+	await get_tree().process_frame
 	Input.action_press(&"stance_toggle")
 	player._update_state_from_input()
 	Input.action_release(&"stance_toggle")
