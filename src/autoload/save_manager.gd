@@ -23,7 +23,9 @@ func load_save() -> void:
 		_data = default_save()
 		return
 	var json := JSON.new()
-	var parse_error := json.parse(file.get_as_text())
+	var contents := file.get_as_text()
+	file.close()
+	var parse_error := json.parse(contents)
 	if parse_error != OK:
 		_backup_corrupt_save()
 		_data = default_save()

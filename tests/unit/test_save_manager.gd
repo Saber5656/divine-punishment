@@ -9,6 +9,7 @@ func after_each() -> void:
 	_remove_user_file(TEST_SAVE_PATH)
 	_remove_user_file("%s.tmp" % TEST_SAVE_PATH)
 	_remove_user_file("%s.bak" % TEST_SAVE_PATH)
+	_remove_corrupt_backups()
 
 
 func test_migrate_v1_like_data_to_v2_defaults_missing_keys() -> void:
@@ -59,8 +60,30 @@ func test_corrupt_json_initializes_default_save() -> void:
 	assert_eq(manager.campaign()["unlocked_mission"], 1)
 	assert_eq(manager.settings()["locale"], "ja")
 	manager.free()
+	assert_false(FileAccess.file_exists(TEST_SAVE_PATH))
+	assert_eq(_corrupt_backup_count(), 1)
 
 
 func _remove_user_file(path: String) -> void:
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func _corrupt_backup_count() -> int:
+	var count := 0
+	var directory := DirAccess.open(ProjectSettings.globalize_path("user://"))
+	if directory == null:
+		return count
+	for filename in directory.get_files():
+		if filename.begins_with("save_manager_test.json.corrupt."):
+			count += 1
+	return count
+
+
+func _remove_corrupt_backups() -> void:
+	var directory := DirAccess.open(ProjectSettings.globalize_path("user://"))
+	if directory == null:
+		return
+	for filename in directory.get_files():
+		if filename.begins_with("save_manager_test.json.corrupt."):
+			_remove_user_file("user://%s" % filename)
