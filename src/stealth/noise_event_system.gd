@@ -2,7 +2,8 @@ class_name NoiseEventSystem
 extends RefCounted
 
 
-const HEARING_OCCLUSION_MASK := 6
+# Collision layer 6 is represented by bit 5 in Godot's collision mask.
+const HEARING_OCCLUSION_MASK := 1 << 5
 const OCCLUDED_RADIUS_MULTIPLIER := 0.5
 
 

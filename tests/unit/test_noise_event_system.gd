@@ -25,3 +25,4 @@ func test_footstep_radius_uses_stance_and_material_multiplier() -> void:
 
 func test_occluded_noise_radius_is_halved() -> void:
 	assert_eq(NoiseEventSystem.OCCLUDED_RADIUS_MULTIPLIER, 0.5)
+	assert_eq(NoiseEventSystem.HEARING_OCCLUSION_MASK, 1 << 5)
