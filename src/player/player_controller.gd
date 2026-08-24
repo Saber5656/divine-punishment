@@ -21,6 +21,7 @@ const MAX_HIDE_SPOT_SPATIAL_RESULTS := 256
 const MAX_WATER_VOLUME_CANDIDATES := 64
 const MAX_WATER_VOLUME_SPATIAL_RESULTS := 256
 const MAX_LIGHT_SOURCE_CANDIDATES := 64
+const MAX_LIGHT_SOURCE_SPATIAL_RESULTS := 256
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 const MAX_CRAWL_SWEEP_DISTANCE := (
 	CrawlEntrance.MAX_PASSAGE_LENGTH + CrawlEntrance.MAX_ENTRY_RADIUS
@@ -1673,11 +1674,23 @@ func _nearest_hide_spot() -> HideSpot:
 func _nearest_light_source() -> LightSource:
 	if not is_inside_tree() or get_world_3d() == null:
 		return null
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = LightSource.INTERACTABLE_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_LIGHT_SOURCE_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_LIGHT_SOURCE_SPATIAL_RESULTS:
+		return null
 	var nearest: LightSource
 	var nearest_distance_squared := INF
 	var nearby_candidate_count := 0
 	var seen_instance_ids: Dictionary = {}
-	for candidate: Node in get_tree().get_nodes_in_group(&"lights"):
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
 		if candidate is not LightSource:
 			continue
 		var light := candidate as LightSource
