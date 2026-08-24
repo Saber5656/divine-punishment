@@ -20,6 +20,9 @@ func before_each() -> void:
 func after_each() -> void:
 	Input.action_release(&"stance_toggle")
 	Input.action_release(&"sprint")
+	Input.action_release(&"interact")
+	Input.action_release(&"move_left")
+	Input.action_release(&"move_right")
 	if Tuning.movement() != original_tuning_movement:
 		Tuning._movement = original_tuning_movement
 		Tuning.reloaded.emit()
@@ -53,6 +56,28 @@ func test_sprint_release_restores_ground_origin() -> void:
 	assert_true(state_machine.change_state(&"Sprint"))
 	assert_true(state_machine.resume_from_sprint())
 	assert_eq(state_machine.current_state(), &"Ground")
+
+
+func test_wall_cling_transitions_use_sneak_params_and_release_to_ground() -> void:
+	watch_signals(state_machine)
+
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+	assert_eq(state_machine.current_state(), PlayerStateMachine.STATE_WALL_CLING)
+	assert_eq(state_machine.stance(), Enums.Stance.SNEAK)
+	assert_eq(state_machine.movement_params(), {
+		&"speed": 1.5,
+		&"noise_radius": 1.0,
+		&"visibility_mod": 0.6,
+	})
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+
+	assert_signal_emit_count(state_machine, "state_changed", 6)
 
 
 func test_invalid_transition_is_rejected_and_same_state_is_a_no_op() -> void:

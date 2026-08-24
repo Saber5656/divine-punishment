@@ -166,6 +166,10 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 
 Combat への遷移: いずれかの敵が Combat 状態でプレイヤーを攻撃対象にした時、抜刀入力で。M9 は Combat 遷移なし（逃走のみ）。
 
+WallCling は Ground/Crouch 中に world layer=1 の壁・柱へ近接して `interact` を押したときだけ成立する。判定は player 自身を除外した水平 probe とし、floor/ceiling、非有限または退化した法線、world 以外の collider は採用しない。Crouch からの遷移は standing clearance を必須とする。
+
+張り付き中は前後移動 axis を正規化済み wall normal から求めた接線へ直接対応付け、player の向きや壁面方向に依存せず壁沿いに移動する。`sprint` または wall probe 消失で Ground へ解除し、wall normal と peek offset を必ず clear する。InputMap の `peek` action が有効な間は、同じ physical input に割り当てられた左右移動 axis を body movement から除外して signed peek 値として既存 `PlayerCameraRig` の local X offset へ渡す。前後 axis による wall tangent movement は維持するが、peek axis は Player 本体と `DetectPoints/Head|Chest|Hips` の transform を変更しない。
+
 ## 4. 入力マップ（InputMap 契約）
 
 | アクション名 | KBM | パッド |
@@ -275,6 +279,13 @@ func change_state(next: StringName, ctx: Dictionary = {}) -> bool  # 不正遷�
 func stance() -> Enums.Stance                         # Ground=WALK, Crouch/Hidden=SNEAK 等の写像
 func movement_params() -> Dictionary                  # PlayerProfile から現状態の {speed, noise_radius, visibility_mod}
 
+# ── src/player/player_wall_cling.gd  (RefCounted。scene node は追加しない)
+class_name PlayerWallCling
+static func normalized_wall_normal(candidate: Vector3) -> Vector3  # finite・非退化・wall-like の水平法線だけ返す
+static func wall_tangent(wall_normal: Vector3) -> Vector3
+static func project_movement(input_direction: Vector3, wall_normal: Vector3) -> Vector3
+static func sanitize_axis(value: float) -> float
+
 # ── src/player/player_camera_rig.gd  (Node3D, player.tscn 直下 "CameraRig")
 class_name PlayerCameraRig
 func apply_mouse_look(screen_relative: Vector2) -> float       # tuning 適用後の player yaw delta を返し、rig pitch を更新
@@ -288,6 +299,8 @@ func camera_config() -> CameraConfig
 func set_camera_peek_offset(offset: Vector3) -> void           # CameraRig API への公開 forwarding
 func reset_camera_peek_offset() -> void
 func camera_peek_offset() -> Vector3
+func wall_cling_normal() -> Vector3
+func try_enter_wall_cling() -> bool
 
 # ── src/stealth/player_visibility.gd  (Node, player.tscn 直下 "Visibility")
 class_name PlayerVisibility
