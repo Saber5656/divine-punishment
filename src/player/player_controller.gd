@@ -135,6 +135,10 @@ func current_movement_params() -> Dictionary:
 	return state_machine.movement_params()
 
 
+func is_traversing() -> bool:
+	return _is_traversing()
+
+
 func set_camera_peek_offset(offset: Vector3) -> void:
 	camera_rig.set_peek_offset(offset)
 
