@@ -42,7 +42,9 @@ static func radius_at_listener(
 	if tree == null or tree.get_root() == null:
 		return base_radius
 	var scene := tree.current_scene
-	var world := scene.get_world_3d() if scene is Node3D else null
+	var world: World3D = null
+	if scene is Node3D:
+		world = (scene as Node3D).get_world_3d()
 	if world == null:
 		return base_radius
 	var query := PhysicsRayQueryParameters3D.create(origin, listener_position)

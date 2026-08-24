@@ -20,7 +20,6 @@ func test_footstep_radius_uses_stance_and_material_multiplier() -> void:
 	var config := MovementConfigScript.new()
 	assert_eq(NoiseEmitterScript.footstep_radius(Enums.Stance.SNEAK, &"tatami", config), 0.5)
 	assert_eq(NoiseEmitterScript.footstep_radius(Enums.Stance.SPRINT, &"gravel", config), 18.0)
-	config.free()
 
 
 func test_occluded_noise_radius_is_halved() -> void:
