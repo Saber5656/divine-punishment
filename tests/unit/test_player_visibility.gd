@@ -19,3 +19,8 @@ func test_combine_clamps_visibility_after_stance_movement_and_cover_modifiers() 
 
 func test_light_occlusion_mask_uses_documented_layers() -> void:
 	assert_eq(PlayerVisibilityScript.LIGHT_OCCLUSION_MASK, (1 << 0) | (1 << 4))
+
+
+func test_visibility_uses_three_point_fraction_and_darkness_floor() -> void:
+	assert_eq(PlayerVisibilityScript.DETECTION_POINT_NAMES.size(), 3)
+	assert_eq(PlayerVisibilityScript.DARKNESS_FLOOR, 0.05)

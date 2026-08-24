@@ -4,6 +4,8 @@ extends Node
 
 const UPDATE_INTERVAL := 0.1
 const MAX_LIGHTS := 3
+const DETECTION_POINT_NAMES: Array[StringName] = [&"Head", &"Chest", &"Hips"]
+const DARKNESS_FLOOR := 0.05
 # Collision layers are numbered from one in the design docs, while Godot
 # expects a bit mask (layer N is represented by 1 << (N - 1)).
 const LIGHT_OCCLUSION_MASK := (1 << 0) | (1 << 4)
@@ -49,6 +51,7 @@ func recompute() -> float:
 		return _visibility
 	var chest := player.get_node_or_null("DetectPoints/Chest") as Node3D
 	var target_position := chest.global_position if chest != null else player.global_position
+	var detection_points := _detection_points(player, target_position)
 	var candidates: Array[Dictionary] = []
 	for node in get_tree().get_nodes_in_group("lights"):
 		var light := node as LightSource
@@ -68,15 +71,15 @@ func recompute() -> float:
 		var candidate: Dictionary = candidates[index]
 		var light: LightSource = candidate.get(&"light") as LightSource
 		var distance: float = float(candidate.get(&"distance", 0.0))
-		var base: float = light.gameplay_contribution(
-			distance,
-			_is_occluded(light.global_position, target_position, player),
-		)
+		var base: float = light.gameplay_contribution(distance, false)
+		base *= _light_visibility_factor(light.global_position, detection_points, player)
 		if base > 0.0:
 			contributions.append(base)
 	var light_sum := 0.0
 	for index in contributions.size():
 		light_sum += contributions[index]
+	if is_zero_approx(light_sum):
+		light_sum = DARKNESS_FLOOR
 	var stance_mod := 1.0
 	var move_mod := 1.0
 	var state_machine := player.get("state_machine") as PlayerStateMachine
@@ -118,12 +121,29 @@ static func _sort_light_candidates(left: Dictionary, right: Dictionary) -> bool:
 	return float(left.get(&"base", 0.0)) > float(right.get(&"base", 0.0))
 
 
-func _is_occluded(from: Vector3, to: Vector3, player: Node3D) -> bool:
+func _detection_points(player: Node3D, fallback: Vector3) -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	for point_name in DETECTION_POINT_NAMES:
+		var point := player.get_node_or_null(NodePath("DetectPoints/%s" % point_name)) as Node3D
+		if point != null:
+			points.append(point.global_position)
+	if points.is_empty():
+		points.append(fallback)
+	return points
+
+
+func _light_visibility_factor(from: Vector3, points: Array[Vector3], player: Node3D) -> float:
+	if points.is_empty():
+		return 0.0
 	var world_root := get_parent() as Node3D
 	if world_root == null or world_root.get_world_3d() == null:
-		return false
+		return 1.0
 	var space_state: PhysicsDirectSpaceState3D = world_root.get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(from, to)
-	query.collision_mask = LIGHT_OCCLUSION_MASK
-	query.exclude = [player]
-	return not space_state.intersect_ray(query).is_empty()
+	var visible_points := 0
+	for point in points:
+		var query := PhysicsRayQueryParameters3D.create(from, point)
+		query.collision_mask = LIGHT_OCCLUSION_MASK
+		query.exclude = [player]
+		if space_state.intersect_ray(query).is_empty():
+			visible_points += 1
+	return float(visible_points) / float(points.size())
