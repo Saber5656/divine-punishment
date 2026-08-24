@@ -1,10 +1,11 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
 [ext_resource type="Script" path="res://src/player/player_camera_rig.gd" id="3_camera_rig"]
 [ext_resource type="Script" path="res://src/ui/swim_hud.gd" id="4_swim_hud"]
 [ext_resource type="Script" path="res://src/ui/surface_ripple_cue.gd" id="5_ripple_cue"]
+[ext_resource type="Script" path="res://src/stealth/noise_emitter.gd" id="6_noise_emitter"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -101,6 +102,7 @@ collision_layer = 0
 collision_mask = 22976
 
 [node name="NoiseEmitter" type="Node" parent="."]
+script = ExtResource("6_noise_emitter")
 
 [node name="ToolRig" type="Node3D" parent="."]
 
