@@ -98,6 +98,27 @@ func test_sound_blocker_halves_radius_but_other_layers_do_not() -> void:
 	)
 
 
+func test_multiple_sound_blockers_attenuate_once_per_blocker() -> void:
+	var source := Node3D.new()
+	var listener := NoiseListener.new()
+	listener.position = Vector3(6.0, 0.0, 0.0)
+	add_child_autofree(source)
+	add_child_autofree(listener)
+	await get_tree().physics_frame
+	var first_blocker := _add_blocker(Vector3(2.0, 0.0, 0.0), 1 << 5)
+	var second_blocker := _add_blocker(Vector3(4.0, 0.0, 0.0), 1 << 5)
+	await get_tree().physics_frame
+
+	assert_eq(
+		NoiseEventSystem.radius_at_listener(
+			get_tree(), source.global_position, listener.global_position, 6.0, source,
+		),
+		1.5,
+	)
+	first_blocker.queue_free()
+	second_blocker.queue_free()
+
+
 func test_player_scene_wires_noise_emitter_and_emits_landing_and_door() -> void:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as Node3D
 	add_child_autofree(player)

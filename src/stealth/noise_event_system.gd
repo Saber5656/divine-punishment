@@ -9,6 +9,7 @@ extends RefCounted
 # Collision layer 6 is represented by bit 5 in Godot's collision mask.
 const HEARING_OCCLUSION_MASK := 1 << 5
 const OCCLUDED_RADIUS_MULTIPLIER := 0.5
+const MAX_OCCLUSION_HITS := 16
 
 
 static func emit(event: NoiseEvent, tree: SceneTree = null) -> NoiseEvent:
@@ -58,12 +59,36 @@ static func radius_at_listener(
 				break
 	if world == null:
 		return base_radius
-	var query := PhysicsRayQueryParameters3D.create(origin, listener_position)
-	query.collision_mask = HEARING_OCCLUSION_MASK
-	query.exclude = _source_exclusion_rids(source)
-	if world.direct_space_state.intersect_ray(query).is_empty():
+	var segment := listener_position - origin
+	var remaining := segment.length()
+	if remaining <= 0.001:
 		return base_radius
-	return base_radius * OCCLUDED_RADIUS_MULTIPLIER
+	var direction := segment / remaining
+	var current_origin := origin
+	var exclusion_rids := _source_exclusion_rids(source)
+	var blocker_count := 0
+	for _index in MAX_OCCLUSION_HITS:
+		if remaining <= 0.001:
+			break
+		var query := PhysicsRayQueryParameters3D.create(current_origin, listener_position)
+		query.collision_mask = HEARING_OCCLUSION_MASK
+		query.exclude = exclusion_rids
+		var hit := world.direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			break
+		var hit_position: Variant = hit.get(&"position", listener_position)
+		if not hit_position is Vector3:
+			break
+		var advanced := (hit_position as Vector3).distance_to(current_origin)
+		if advanced <= 0.0001:
+			break
+		var hit_rid: Variant = hit.get(&"rid")
+		if hit_rid is RID:
+			exclusion_rids.append(hit_rid as RID)
+		blocker_count += 1
+		current_origin = (hit_position as Vector3) + direction * 0.001
+		remaining = current_origin.distance_to(listener_position)
+	return base_radius * pow(OCCLUDED_RADIUS_MULTIPLIER, blocker_count)
 
 
 static func _source_exclusion_rids(source: Node) -> Array[RID]:
