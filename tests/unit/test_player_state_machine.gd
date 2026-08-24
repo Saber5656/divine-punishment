@@ -80,6 +80,19 @@ func test_wall_cling_transitions_use_sneak_params_and_release_to_ground() -> voi
 	assert_signal_emit_count(state_machine, "state_changed", 6)
 
 
+func test_climb_and_beam_transitions_follow_marker_contract() -> void:
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+	assert_eq(state_machine.stance(), Enums.Stance.SNEAK)
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_BEAM))
+	assert_eq(state_machine.stance(), Enums.Stance.SNEAK)
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_WALL_CLING))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+
+
 func test_invalid_transition_is_rejected_and_same_state_is_a_no_op() -> void:
 	watch_signals(state_machine)
 

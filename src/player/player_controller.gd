@@ -3,11 +3,15 @@ extends CharacterBody3D
 
 
 const WallClingRules := preload("res://src/player/player_wall_cling.gd")
+const ClimbRules := preload("res://src/player/player_climb.gd")
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
 const MIN_WALL_PROBE_HEIGHT := 0.0
 const MAX_WALL_PROBE_HEIGHT := 2.0
+const MAX_CLIMB_EDGE_CANDIDATES := 64
+const MAX_CLIMB_EDGE_SPATIAL_RESULTS := 256
+const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 
 
 @export var player_profile: PlayerProfile
@@ -23,6 +27,10 @@ var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
 var _wall_normal: Vector3 = Vector3.ZERO
 var _interact_was_pressed: bool = false
+var _active_climb_edge: ClimbEdge
+var _active_beam_path: BeamPath
+var _traversal_distance := 0.0
+var _beam_axis_direction := 1.0
 
 
 func _ready() -> void:
@@ -49,6 +57,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_state_from_input()
+	if _is_traversing():
+		advance_traversal(Input.get_axis(&"move_backward", &"move_forward"), delta)
+		return
 	_apply_gravity(delta)
 	_apply_movement()
 	move_and_slide()
@@ -74,6 +85,68 @@ func wall_cling_normal() -> Vector3:
 	return _wall_normal
 
 
+func active_climb_edge() -> ClimbEdge:
+	return _active_climb_edge if is_instance_valid(_active_climb_edge) else null
+
+
+func active_beam_path() -> BeamPath:
+	return _active_beam_path if is_instance_valid(_active_beam_path) else null
+
+
+func traversal_distance() -> float:
+	return _traversal_distance
+
+
+func try_enter_climb(edge: ClimbEdge = null) -> bool:
+	var current := state_machine.current_state()
+	if (
+		current != PlayerStateMachine.STATE_GROUND
+		and current != PlayerStateMachine.STATE_CROUCH
+		and current != PlayerStateMachine.STATE_WALL_CLING
+	):
+		return false
+	if current == PlayerStateMachine.STATE_CROUCH and not _has_standing_clearance():
+		return false
+
+	var candidate := edge if edge != null else _nearest_climb_edge()
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.can_accept_body(self)
+		or not candidate.is_near_bottom(global_position)
+	):
+		return false
+	return _enter_climb_at_distance(candidate, candidate.nearest_distance(global_position))
+
+
+func try_descend_from_beam() -> bool:
+	if state_machine.current_state() != PlayerStateMachine.STATE_BEAM:
+		return false
+	var beam := active_beam_path()
+	if beam == null or not beam.can_accept_body(self):
+		_leave_traversal()
+		return false
+	var edge := beam.descent_edge_for_distance(_traversal_distance)
+	if edge != null:
+		return _enter_climb_at_distance(edge, edge.span_length())
+	return false
+
+
+func drop_from_beam() -> bool:
+	if state_machine.current_state() != PlayerStateMachine.STATE_BEAM:
+		return false
+	_leave_traversal()
+	return true
+
+
+func advance_traversal(axis: float, delta: float) -> void:
+	match state_machine.current_state():
+		PlayerStateMachine.STATE_CLIMB:
+			_advance_climb(axis, delta)
+		PlayerStateMachine.STATE_BEAM:
+			_advance_beam(axis, delta)
+
+
 func try_enter_wall_cling() -> bool:
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
@@ -96,6 +169,20 @@ func _update_state_from_input() -> void:
 	var interact_pressed := Input.is_action_pressed(&"interact")
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
 	_interact_was_pressed = interact_pressed
+
+	if interact_just_pressed and try_enter_climb():
+		return
+
+	if state_machine.current_state() == PlayerStateMachine.STATE_CLIMB:
+		return
+
+	if state_machine.current_state() == PlayerStateMachine.STATE_BEAM:
+		if Input.is_action_pressed(&"sprint"):
+			drop_from_beam()
+			return
+		if interact_just_pressed:
+			try_descend_from_beam()
+		return
 
 	if state_machine.current_state() == PlayerStateMachine.STATE_WALL_CLING:
 		if Input.is_action_pressed(&"sprint"):
@@ -146,6 +233,13 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 	if from == PlayerStateMachine.STATE_WALL_CLING and to != PlayerStateMachine.STATE_WALL_CLING:
 		_wall_normal = Vector3.ZERO
 		reset_camera_peek_offset()
+	if to != PlayerStateMachine.STATE_CLIMB:
+		_active_climb_edge = null
+	if to != PlayerStateMachine.STATE_BEAM:
+		_active_beam_path = null
+		_beam_axis_direction = 1.0
+	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
+		_traversal_distance = 0.0
 	_apply_collision_shape_for_state(to)
 
 
@@ -186,6 +280,9 @@ func _has_standing_clearance() -> bool:
 
 
 func _apply_gravity(delta: float) -> void:
+	if _is_traversing():
+		velocity = Vector3.ZERO
+		return
 	if is_on_floor():
 		if velocity.y < 0.0:
 			velocity.y = 0.0
@@ -194,6 +291,9 @@ func _apply_gravity(delta: float) -> void:
 
 
 func _apply_movement() -> void:
+	if _is_traversing():
+		velocity = Vector3.ZERO
+		return
 	var wall_clinging := state_machine.current_state() == PlayerStateMachine.STATE_WALL_CLING
 	var world_direction := Vector3.ZERO
 	if wall_clinging:
@@ -211,6 +311,180 @@ func _apply_movement() -> void:
 	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
 	velocity.x = world_direction.x * speed
 	velocity.z = world_direction.z * speed
+
+
+func _is_traversing() -> bool:
+	return (
+		state_machine.current_state() == PlayerStateMachine.STATE_CLIMB
+		or state_machine.current_state() == PlayerStateMachine.STATE_BEAM
+	)
+
+
+func _enter_climb_at_distance(edge: ClimbEdge, distance: float) -> bool:
+	if edge == null or not is_instance_valid(edge) or not edge.can_accept_body(self):
+		return false
+	_active_climb_edge = edge
+	_active_beam_path = null
+	_traversal_distance = ClimbRules.bounded_distance(distance, edge.span_length())
+	var destination := edge.world_position_at_distance(_traversal_distance)
+	if not ClimbRules.is_safe_world_position(destination):
+		_active_climb_edge = null
+		_traversal_distance = 0.0
+		return false
+	velocity = Vector3.ZERO
+	if not state_machine.change_state(PlayerStateMachine.STATE_CLIMB):
+		_active_climb_edge = null
+		_traversal_distance = 0.0
+		return false
+	global_position = destination
+	return true
+
+
+func _enter_beam(path: BeamPath, distance: float) -> bool:
+	return _enter_beam_with_sample(path, distance, {})
+
+
+func _enter_beam_with_sample(path: BeamPath, distance: float, supplied_sample: Dictionary) -> bool:
+	if path == null or not is_instance_valid(path) or not path.can_accept_body(self):
+		return false
+	_active_beam_path = path
+	_active_climb_edge = null
+	_traversal_distance = ClimbRules.bounded_distance(distance, path.path_length())
+	_beam_axis_direction = (
+		-1.0
+		if path.path_length() - _traversal_distance <= TRAVERSAL_ENDPOINT_EPSILON
+		else 1.0
+	)
+	var destination_sample := supplied_sample
+	if not bool(destination_sample.get(&"valid", false)):
+		destination_sample = path.world_sample_at_distance(_traversal_distance)
+	if not bool(destination_sample.get(&"valid", false)):
+		_active_beam_path = null
+		_traversal_distance = 0.0
+		_beam_axis_direction = 1.0
+		return false
+	var destination: Vector3 = destination_sample[&"position"]
+	if not ClimbRules.is_safe_world_position(destination):
+		_active_beam_path = null
+		_traversal_distance = 0.0
+		_beam_axis_direction = 1.0
+		return false
+	velocity = Vector3.ZERO
+	if not state_machine.change_state(PlayerStateMachine.STATE_BEAM):
+		_active_beam_path = null
+		_traversal_distance = 0.0
+		_beam_axis_direction = 1.0
+		return false
+	global_position = destination
+	return true
+
+
+func _advance_climb(axis: float, delta: float) -> void:
+	var edge := active_climb_edge()
+	if edge == null or not edge.can_accept_body(self):
+		_leave_traversal()
+		return
+	var span := edge.span_length()
+	var sanitized_axis := ClimbRules.sanitize_axis(axis)
+	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
+	_traversal_distance = ClimbRules.advance_distance(
+		_traversal_distance,
+		sanitized_axis,
+		speed,
+		delta,
+		span,
+	)
+	var destination := edge.world_position_at_distance(_traversal_distance)
+	if not ClimbRules.is_safe_world_position(destination):
+		_leave_traversal()
+		return
+	global_position = destination
+	velocity = Vector3.ZERO
+	if sanitized_axis > 0.0 and span - _traversal_distance <= TRAVERSAL_ENDPOINT_EPSILON:
+		var connection := edge.connected_beam_connection()
+		var connected := connection.get(&"path") as BeamPath
+		if (
+			bool(connection.get(&"valid", false))
+			and connected != null
+			and _enter_beam_with_sample(
+				connected,
+				float(connection[&"distance"]),
+				{&"valid": true, &"position": connection[&"position"]},
+			)
+		):
+			return
+		_leave_traversal()
+	elif sanitized_axis < 0.0 and _traversal_distance <= TRAVERSAL_ENDPOINT_EPSILON:
+		_leave_traversal()
+
+
+func _advance_beam(axis: float, delta: float) -> void:
+	var path := active_beam_path()
+	if path == null or not path.can_accept_body(self):
+		_leave_traversal()
+		return
+	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
+	var next_distance := ClimbRules.advance_distance(
+		_traversal_distance,
+		axis * _beam_axis_direction,
+		speed,
+		delta,
+		path.path_length(),
+	)
+	var destination_sample := path.world_sample_at_distance(next_distance)
+	if not bool(destination_sample.get(&"valid", false)):
+		_leave_traversal()
+		return
+	var destination: Vector3 = destination_sample[&"position"]
+	if not ClimbRules.is_safe_world_position(destination):
+		_leave_traversal()
+		return
+	_traversal_distance = next_distance
+	global_position = destination
+	velocity = Vector3.ZERO
+
+
+func _leave_traversal() -> void:
+	state_machine.change_state(PlayerStateMachine.STATE_GROUND)
+	_active_climb_edge = null
+	_active_beam_path = null
+	_traversal_distance = 0.0
+	_beam_axis_direction = 1.0
+	velocity = Vector3.ZERO
+
+
+func _nearest_climb_edge() -> ClimbEdge:
+	if not is_inside_tree() or not ClimbRules.is_safe_world_position(global_position):
+		return null
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = ClimbEdge.CLIMB_MARKER_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_CLIMB_EDGE_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_CLIMB_EDGE_SPATIAL_RESULTS:
+		return null
+	var nearest: ClimbEdge
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
+		if candidate is not ClimbEdge:
+			continue
+		var edge := candidate as ClimbEdge
+		if not edge.can_accept_body(self) or not edge.is_near_bottom(global_position):
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_CLIMB_EDGE_CANDIDATES:
+			return null
+		var distance_squared := global_position.distance_squared_to(edge.bottom_world_position())
+		if distance_squared < nearest_distance_squared:
+			nearest = edge
+			nearest_distance_squared = distance_squared
+	return nearest
 
 
 func _refresh_wall_cling() -> bool:
