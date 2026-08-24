@@ -80,6 +80,28 @@ func test_player_adjacent_interaction_chooses_light_source() -> void:
 	assert_false(player.try_extinguish_adjacent_light())
 
 
+func test_player_light_discovery_fails_closed_on_raw_query_overflow() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	player.set_physics_process(false)
+	add_child_autofree(player)
+	for _index: int in PlayerController.MAX_LIGHT_SOURCE_SPATIAL_RESULTS + 1:
+		_add_light()
+	await get_tree().physics_frame
+
+	assert_null(player._nearest_light_source())
+
+
+func test_player_light_discovery_fails_closed_on_valid_candidate_overflow() -> void:
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	player.set_physics_process(false)
+	add_child_autofree(player)
+	for _index: int in PlayerController.MAX_LIGHT_SOURCE_CANDIDATES + 1:
+		_add_light()
+	await get_tree().physics_frame
+
+	assert_null(player._nearest_light_source())
+
+
 func test_relight_request_is_typed_and_does_not_change_state_until_accepted() -> void:
 	var light := _add_light()
 	var requester := Node.new()
