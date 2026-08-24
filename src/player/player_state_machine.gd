@@ -11,16 +11,20 @@ const STATE_WALL_CLING: StringName = &"WallCling"
 const STATE_CLIMB: StringName = &"Climb"
 const STATE_BEAM: StringName = &"Beam"
 const STATE_CRAWLSPACE: StringName = &"Crawlspace"
+const STATE_SWIM_SURFACE: StringName = &"SwimSurface"
+const STATE_SWIM_UNDERWATER: StringName = &"SwimUnderwater"
 const DEFAULT_PROFILE_PATH := "res://data/profiles/default.tres"
 
 const TRANSITIONS: Dictionary = {
-	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE],
-	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE],
-	STATE_SPRINT: [STATE_GROUND, STATE_CROUCH],
+	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE],
+	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE],
+	STATE_SPRINT: [STATE_GROUND, STATE_CROUCH, STATE_SWIM_SURFACE],
 	STATE_WALL_CLING: [STATE_GROUND, STATE_CLIMB],
 	STATE_CLIMB: [STATE_GROUND, STATE_BEAM],
 	STATE_BEAM: [STATE_GROUND, STATE_CLIMB],
 	STATE_CRAWLSPACE: [STATE_CROUCH],
+	STATE_SWIM_SURFACE: [STATE_GROUND, STATE_SWIM_UNDERWATER],
+	STATE_SWIM_UNDERWATER: [STATE_GROUND, STATE_SWIM_SURFACE],
 }
 
 @export var player_profile: PlayerProfile
@@ -74,6 +78,8 @@ func stance() -> Enums.Stance:
 	match _state:
 		STATE_CRAWLSPACE:
 			return Enums.Stance.CRAWL
+		STATE_SWIM_SURFACE, STATE_SWIM_UNDERWATER:
+			return Enums.Stance.SWIM
 		STATE_CROUCH, STATE_WALL_CLING, STATE_CLIMB, STATE_BEAM:
 			return Enums.Stance.SNEAK
 		STATE_SPRINT:
@@ -93,6 +99,26 @@ func movement_params() -> Dictionary:
 		&"noise_radius": float(profile.noise_radii.get(key, 0.0)),
 		&"visibility_mod": float(profile.visibility_mods.get(key, 0.0)),
 	}
+
+
+func breath_capacity() -> float:
+	var profile := _resolved_profile()
+	return float(profile.breath_seconds) if profile != null else 0.0
+
+
+func swim_exhaustion_noise_radius() -> float:
+	var profile := _resolved_profile()
+	return float(profile.noise_radii.get(Enums.Stance.SPRINT, 0.0)) if profile != null else 0.0
+
+
+func swim_noise_radius() -> float:
+	var profile := _resolved_profile()
+	return float(profile.noise_radii.get(Enums.Stance.SWIM, 0.0)) if profile != null else 0.0
+
+
+func swim_speed() -> float:
+	var profile := _resolved_profile()
+	return float(profile.move_speeds.get(Enums.Stance.SWIM, NAN)) if profile != null else NAN
 
 
 func _resolved_profile() -> PlayerProfile:

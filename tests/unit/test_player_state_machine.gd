@@ -104,6 +104,21 @@ func test_crawlspace_uses_crawl_params_and_exits_only_to_crouch() -> void:
 	assert_false(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
 	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
 	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
+
+
+func test_surface_and_underwater_swim_states_use_swim_params() -> void:
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SWIM_SURFACE))
+	assert_eq(state_machine.stance(), Enums.Stance.SWIM)
+	assert_eq(state_machine.movement_params(), {
+		&"speed": 1.2,
+		&"noise_radius": 0.0,
+		&"visibility_mod": 0.2,
+	})
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SWIM_UNDERWATER))
+	assert_eq(state_machine.stance(), Enums.Stance.SWIM)
+	assert_false(state_machine.change_state(PlayerStateMachine.STATE_SPRINT))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_SWIM_SURFACE))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
 	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CRAWLSPACE))
 	assert_true(state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
 
@@ -232,6 +247,10 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 	assert_eq((player.get_node("Interactor") as Area3D).collision_layer, 0)
 	assert_eq((player.get_node("Interactor") as Area3D).collision_mask, 22976)
 	assert_true((player.get_node("DetectPoints") as Node3D).is_in_group(&"player_detect_points"))
+	assert_true(player.get_node("Visual/SurfaceRipples") is Node3D)
+	assert_true(player.get_node("Visibility/SwimHud") is SwimHud)
+	assert_true(player.get_node("Visibility/SwimHud/RippleCue") is Control)
+	assert_true(player.get_node("Visibility/SwimHud/BreathPanel/BreathGauge") is ProgressBar)
 
 
 func test_controller_drives_crouch_and_sprint_from_input() -> void:
