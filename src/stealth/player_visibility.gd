@@ -66,7 +66,9 @@ func recompute() -> float:
 		var movement := state_machine.movement_params()
 		stance_mod = float(movement.get(&"visibility_mod", 1.0))
 		var velocity_value: Variant = player.get("velocity")
-		var is_moving := velocity_value is Vector3 and velocity_value.length_squared() > 0.0001
+		var is_moving: bool = false
+		if velocity_value is Vector3:
+			is_moving = (velocity_value as Vector3).length_squared() > 0.0001
 		move_mod = 1.0 if is_moving else _stationary_modifier(state_machine)
 	_visibility = combine(light_sum, stance_mod, move_mod, _soft_cover_modifier)
 	visibility_changed.emit(_visibility)
@@ -95,7 +97,10 @@ func _stationary_modifier(state_machine: PlayerStateMachine) -> float:
 
 
 func _is_occluded(from: Vector3, to: Vector3, player: Node3D) -> bool:
-	var space_state := get_world_3d().direct_space_state
+	var world_root := get_parent() as Node3D
+	if world_root == null or world_root.get_world_3d() == null:
+		return false
+	var space_state: PhysicsDirectSpaceState3D = world_root.get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = LIGHT_OCCLUSION_MASK
 	query.exclude = [player]

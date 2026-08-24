@@ -12,7 +12,7 @@ func test_light_contribution_is_distance_attenuated_and_occlusion_halves_it() ->
 
 
 func test_combine_clamps_visibility_after_stance_movement_and_cover_modifiers() -> void:
-	assert_almost_eq(PlayerVisibilityScript.combine(1.0, 0.6, 1.3, 0.3), 0.234)
+	assert_almost_eq(PlayerVisibilityScript.combine(1.0, 0.6, 1.3, 0.3), 0.234, 0.0001)
 	assert_eq(PlayerVisibilityScript.combine(2.0, 1.0, 1.0, 1.0), 1.0)
 	assert_eq(PlayerVisibilityScript.combine(1.0, 0.0, 1.0, 1.0), 0.0)
 
