@@ -20,9 +20,9 @@ API intact while making the following contracts deterministic and bounded:
 |---|---|---|
 | Focused GUT coverage | Pass | Code head `47cc77dc1a534cc0f5ec94c8706a0daa755f7fe1`, CI run `32748868605`, focused `5/5` |
 | Full GUT suite | Pass | Code head `47cc77dc1a534cc0f5ec94c8706a0daa755f7fe1`, CI run `32748868605`, `195/195`, `1,412` assertions |
-| Docs-evidence validation parent | Pass | `2841fc9c1c35ec2597d2757b70ca48001ee2b8fb`, tree `49383be2ad4db26fee4913e722f71f9376e6938a`; docs-only, CI run `32750802660` (GUT job success). This append-only correction is the child of that validated evidence commit; its newly assigned Git object ID is intentionally not self-referenced. |
+| Docs-evidence validation parent | Pass | `937ec2af2ed8ccd31bbb23359426b586d4f6c04a`, tree `5ff5f3a3831f9bde880a239a3e82d2430abb83a0`; docs-only, CI run `32750996868` (GUT job success). This docs-only correction is the child of that validated evidence commit; its newly assigned Git object ID is intentionally not self-referenced. |
 | Independent technical QA | Pass | `qa_pass` on code head/tree `47cc77dc…` / `14235ea5…`; 5 changed paths, 275 insertions / 7 deletions |
-| Independent security review | Pass | `security_clear` on code and docs-evidence parent `2841fc9…`; no code security findings, no new auth/input/DoS/secret/CI risks; this correction changes documentation only |
+| Independent security review | Pass | `security_clear` on code and docs-evidence parent `937ec2af…`; no code security findings, no new auth/input/DoS/secret/CI risks; this correction changes documentation only |
 | CI test entrypoint | Configured | `.github/workflows/ci.yml` → `scripts/run_tests.sh` |
 | Local Godot/GUT execution | Not available | `godot` is not installed in this environment; CI is the execution gate |
 | Diff whitespace check | Pass | local `git diff --check` |
