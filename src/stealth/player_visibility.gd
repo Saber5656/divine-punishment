@@ -144,11 +144,14 @@ func _light_visibility_factor(from: Vector3, points: Array[Vector3], player: Nod
 	if world_root == null or world_root.get_world_3d() == null:
 		return 1.0
 	var space_state: PhysicsDirectSpaceState3D = world_root.get_world_3d().direct_space_state
+	var exclude_rids: Array[RID] = []
+	if player is CollisionObject3D:
+		exclude_rids.append((player as CollisionObject3D).get_rid())
 	var visible_points := 0
 	for point in points:
 		var query := PhysicsRayQueryParameters3D.create(from, point)
 		query.collision_mask = LIGHT_OCCLUSION_MASK
-		query.exclude = [player]
+		query.exclude = exclude_rids
 		if space_state.intersect_ray(query).is_empty():
 			visible_points += 1
 	return float(visible_points) / float(points.size())
