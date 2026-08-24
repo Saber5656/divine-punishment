@@ -7,8 +7,10 @@ const PLAYER_SCENE_PATH := "res://src/player/player.tscn"
 func test_player_enters_and_exits_hide_spot_with_visibility_exclusion() -> void:
 	var hide_spot := HideSpot.new()
 	add_child_autofree(hide_spot)
+	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
+	await get_tree().physics_frame
 
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
 	assert_false(player.is_visibility_excluded())
@@ -27,8 +29,10 @@ func test_player_enters_and_exits_hide_spot_with_visibility_exclusion() -> void:
 func test_player_can_enter_hide_spot_from_crouch() -> void:
 	var hide_spot := HideSpot.new()
 	add_child_autofree(hide_spot)
+	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
+	await get_tree().physics_frame
 
 	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
 	assert_true(player.try_enter_hide_spot(hide_spot))
@@ -40,8 +44,10 @@ func test_player_can_enter_hide_spot_from_crouch() -> void:
 func test_close_range_seen_invalidates_an_active_hidden_player() -> void:
 	var hide_spot := HideSpot.new()
 	add_child_autofree(hide_spot)
+	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
+	await get_tree().physics_frame
 
 	assert_true(player.try_enter_hide_spot(hide_spot))
 	assert_false(player.invalidate_hidden_if_close_range_seen(false))
@@ -54,8 +60,10 @@ func test_close_range_seen_invalidates_an_active_hidden_player() -> void:
 func test_same_radius_entry_shape_replacement_invalidates_hidden_contract() -> void:
 	var hide_spot := HideSpot.new()
 	add_child_autofree(hide_spot)
+	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
+	await get_tree().physics_frame
 	assert_true(player.try_enter_hide_spot(hide_spot))
 	var collision := hide_spot.get_node(
 		NodePath(String(HideSpot.ENTRY_COLLISION_SHAPE_NODE_NAME)),
@@ -96,6 +104,29 @@ func test_airborne_player_cannot_enter_hide_spot() -> void:
 	add_child_autofree(player)
 	player.velocity.y = -1.0
 	assert_false(player.try_enter_hide_spot(hide_spot))
+
+
+func test_airborne_apex_cannot_enter_hide_spot() -> void:
+	var hide_spot := HideSpot.new()
+	add_child_autofree(hide_spot)
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	add_child_autofree(player)
+	player.velocity = Vector3.ZERO
+	assert_false(player.try_enter_hide_spot(hide_spot))
+
+
+func _add_floor() -> StaticBody3D:
+	var floor_body := StaticBody3D.new()
+	floor_body.collision_layer = 1
+	floor_body.collision_mask = 0
+	floor_body.position = Vector3(0.0, -1.0, 0.0)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(10.0, 0.2, 10.0)
+	collision.shape = shape
+	floor_body.add_child(collision)
+	add_child_autofree(floor_body)
+	return floor_body
 
 
 func test_hidden_state_has_sneak_stance_and_only_exits_to_crouch() -> void:

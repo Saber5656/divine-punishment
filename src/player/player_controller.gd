@@ -384,7 +384,7 @@ func try_enter_hide_spot(
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
-	if is_inside_tree() and not is_on_floor() and absf(velocity.y) > 0.001:
+	if is_inside_tree() and not is_on_floor():
 		return false
 	var candidate := hide_spot if hide_spot != null else _nearest_hide_spot()
 	if (
