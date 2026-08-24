@@ -13,11 +13,12 @@ const STATE_BEAM: StringName = &"Beam"
 const STATE_CRAWLSPACE: StringName = &"Crawlspace"
 const STATE_SWIM_SURFACE: StringName = &"SwimSurface"
 const STATE_SWIM_UNDERWATER: StringName = &"SwimUnderwater"
+const STATE_HIDDEN: StringName = &"Hidden"
 const DEFAULT_PROFILE_PATH := "res://data/profiles/default.tres"
 
 const TRANSITIONS: Dictionary = {
-	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE],
-	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE],
+	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE, STATE_HIDDEN],
+	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE, STATE_HIDDEN],
 	STATE_SPRINT: [STATE_GROUND, STATE_CROUCH, STATE_SWIM_SURFACE],
 	STATE_WALL_CLING: [STATE_GROUND, STATE_CLIMB],
 	STATE_CLIMB: [STATE_GROUND, STATE_BEAM],
@@ -25,6 +26,7 @@ const TRANSITIONS: Dictionary = {
 	STATE_CRAWLSPACE: [STATE_CROUCH],
 	STATE_SWIM_SURFACE: [STATE_GROUND, STATE_SWIM_UNDERWATER],
 	STATE_SWIM_UNDERWATER: [STATE_GROUND, STATE_SWIM_SURFACE],
+	STATE_HIDDEN: [STATE_CROUCH],
 }
 
 @export var player_profile: PlayerProfile
@@ -45,6 +47,14 @@ func _ready() -> void:
 
 func current_state() -> StringName:
 	return _state
+
+
+func is_hidden() -> bool:
+	return _state == STATE_HIDDEN
+
+
+func is_visibility_excluded() -> bool:
+	return is_hidden()
 
 
 func can_enter(next: StringName) -> bool:
@@ -80,7 +90,7 @@ func stance() -> Enums.Stance:
 			return Enums.Stance.CRAWL
 		STATE_SWIM_SURFACE, STATE_SWIM_UNDERWATER:
 			return Enums.Stance.SWIM
-		STATE_CROUCH, STATE_WALL_CLING, STATE_CLIMB, STATE_BEAM:
+		STATE_CROUCH, STATE_WALL_CLING, STATE_CLIMB, STATE_BEAM, STATE_HIDDEN:
 			return Enums.Stance.SNEAK
 		STATE_SPRINT:
 			return Enums.Stance.SPRINT
@@ -97,7 +107,11 @@ func movement_params() -> Dictionary:
 	return {
 		&"speed": float(profile.move_speeds.get(key, 0.0)),
 		&"noise_radius": float(profile.noise_radii.get(key, 0.0)),
-		&"visibility_mod": float(profile.visibility_mods.get(key, 0.0)),
+		&"visibility_mod": (
+			0.0
+			if is_visibility_excluded()
+			else float(profile.visibility_mods.get(key, 0.0))
+		),
 	}
 
 
