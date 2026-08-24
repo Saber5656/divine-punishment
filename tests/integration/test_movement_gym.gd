@@ -110,7 +110,7 @@ func test_gym_player_can_try_stances_hide_crawl_beam_and_underwater_routes() -> 
 	)
 	assert_true(player.try_exit_crawlspace(crawl_entrance))
 	assert_eq(state_machine.current_state(), PlayerStateMachine.STATE_CROUCH)
-	await get_tree().physics_frame
+	await _await_player_grounded(player)
 	assert_true(player.is_on_floor(), "Crawl exit must return to the supported floor")
 
 	var edge := gym.get_node(^"Markers/ClimbBeam/EntryEdge") as ClimbEdge

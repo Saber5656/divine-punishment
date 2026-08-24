@@ -22,6 +22,8 @@ const MAX_WATER_VOLUME_CANDIDATES := 64
 const MAX_WATER_VOLUME_SPATIAL_RESULTS := 256
 const MAX_LIGHT_SOURCE_CANDIDATES := 64
 const MAX_LIGHT_SOURCE_SPATIAL_RESULTS := 256
+# Clearance probes keep the authored foot support from counting as an obstruction.
+const CAPSULE_CLEARANCE_SUPPORT_EPSILON := 0.005
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 const MAX_CRAWL_SWEEP_DISTANCE := (
 	CrawlEntrance.MAX_PASSAGE_LENGTH + CrawlEntrance.MAX_ENTRY_RADIUS
@@ -700,6 +702,7 @@ func _has_capsule_clearance_at(height: float, world_position: Vector3) -> bool:
 	requested_capsule.height = height
 	var local_collision_transform := _standing_collision_transform
 	local_collision_transform.origin.y -= (_standing_capsule_height - height) * 0.5
+	local_collision_transform.origin.y += CAPSULE_CLEARANCE_SUPPORT_EPSILON
 	var target_body_transform := global_transform
 	target_body_transform.origin = world_position
 	var query := PhysicsShapeQueryParameters3D.new()
