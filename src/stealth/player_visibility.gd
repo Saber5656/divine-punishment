@@ -43,21 +43,39 @@ func recompute() -> float:
 	var player := get_parent() as Node3D
 	if player == null or not is_inside_tree():
 		return _visibility
+	if player.has_method(&"is_visibility_excluded") and player.call(&"is_visibility_excluded"):
+		_visibility = 0.0
+		visibility_changed.emit(_visibility)
+		return _visibility
 	var chest := player.get_node_or_null("DetectPoints/Chest") as Node3D
 	var target_position := chest.global_position if chest != null else player.global_position
-	var contributions: Array[float] = []
+	var candidates: Array[Dictionary] = []
 	for node in get_tree().get_nodes_in_group("lights"):
 		var light := node as LightSource
 		if light == null or not light.is_on():
 			continue
-		var distance := light.global_position.distance_to(target_position)
-		var base := light.gameplay_contribution(distance, _is_occluded(light.global_position, target_position, player))
+		var distance: float = light.global_position.distance_to(target_position)
+		var unoccluded_base: float = light.gameplay_contribution(distance, false)
+		if unoccluded_base > 0.0:
+			candidates.append({
+				&"light": light,
+				&"distance": distance,
+				&"base": unoccluded_base,
+			})
+	candidates.sort_custom(_sort_light_candidates)
+	var contributions: Array[float] = []
+	for index in mini(MAX_LIGHTS, candidates.size()):
+		var candidate: Dictionary = candidates[index]
+		var light: LightSource = candidate.get(&"light") as LightSource
+		var distance: float = float(candidate.get(&"distance", 0.0))
+		var base: float = light.gameplay_contribution(
+			distance,
+			_is_occluded(light.global_position, target_position, player),
+		)
 		if base > 0.0:
 			contributions.append(base)
-	contributions.sort()
-	contributions.reverse()
 	var light_sum := 0.0
-	for index in mini(MAX_LIGHTS, contributions.size()):
+	for index in contributions.size():
 		light_sum += contributions[index]
 	var stance_mod := 1.0
 	var move_mod := 1.0
@@ -94,6 +112,10 @@ func _stationary_modifier(state_machine: PlayerStateMachine) -> float:
 		return profile.stationary_visibility_mod
 	var movement := Tuning.movement()
 	return movement.stationary_visibility_mod if movement != null else 0.8
+
+
+static func _sort_light_candidates(left: Dictionary, right: Dictionary) -> bool:
+	return float(left.get(&"base", 0.0)) > float(right.get(&"base", 0.0))
 
 
 func _is_occluded(from: Vector3, to: Vector3, player: Node3D) -> bool:
