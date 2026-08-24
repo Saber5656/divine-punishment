@@ -10,7 +10,7 @@ func test_player_enters_and_exits_hide_spot_with_visibility_exclusion() -> void:
 	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
-	await get_tree().physics_frame
+	await _await_player_grounded(player)
 
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
 	assert_false(player.is_visibility_excluded())
@@ -32,7 +32,7 @@ func test_player_can_enter_hide_spot_from_crouch() -> void:
 	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
-	await get_tree().physics_frame
+	await _await_player_grounded(player)
 
 	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_CROUCH))
 	assert_true(player.try_enter_hide_spot(hide_spot))
@@ -47,7 +47,7 @@ func test_close_range_seen_invalidates_an_active_hidden_player() -> void:
 	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
-	await get_tree().physics_frame
+	await _await_player_grounded(player)
 
 	assert_true(player.try_enter_hide_spot(hide_spot))
 	assert_false(player.invalidate_hidden_if_close_range_seen(false))
@@ -63,7 +63,7 @@ func test_same_radius_entry_shape_replacement_invalidates_hidden_contract() -> v
 	_add_floor()
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
-	await get_tree().physics_frame
+	await _await_player_grounded(player)
 	assert_true(player.try_enter_hide_spot(hide_spot))
 	var collision := hide_spot.get_node(
 		NodePath(String(HideSpot.ENTRY_COLLISION_SHAPE_NODE_NAME)),
@@ -119,7 +119,7 @@ func _add_floor() -> StaticBody3D:
 	var floor_body := StaticBody3D.new()
 	floor_body.collision_layer = 1
 	floor_body.collision_mask = 0
-	floor_body.position = Vector3(0.0, -1.0, 0.0)
+	floor_body.position = Vector3(0.0, -0.95, 0.0)
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(10.0, 0.2, 10.0)
@@ -127,6 +127,14 @@ func _add_floor() -> StaticBody3D:
 	floor_body.add_child(collision)
 	add_child_autofree(floor_body)
 	return floor_body
+
+
+func _await_player_grounded(player: PlayerController) -> void:
+	for _frame in 8:
+		await get_tree().physics_frame
+		if player.is_on_floor():
+			return
+	assert_true(player.is_on_floor())
 
 
 func test_hidden_state_has_sneak_stance_and_only_exits_to_crouch() -> void:
