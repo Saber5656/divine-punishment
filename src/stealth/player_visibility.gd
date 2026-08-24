@@ -78,8 +78,7 @@ func recompute() -> float:
 	var light_sum := 0.0
 	for index in contributions.size():
 		light_sum += contributions[index]
-	if is_zero_approx(light_sum):
-		light_sum = DARKNESS_FLOOR
+	light_sum = apply_darkness_floor(light_sum)
 	var stance_mod := 1.0
 	var move_mod := 1.0
 	var state_machine := player.get("state_machine") as PlayerStateMachine
@@ -119,6 +118,10 @@ func _stationary_modifier(state_machine: PlayerStateMachine) -> float:
 
 static func _sort_light_candidates(left: Dictionary, right: Dictionary) -> bool:
 	return float(left.get(&"base", 0.0)) > float(right.get(&"base", 0.0))
+
+
+static func apply_darkness_floor(light_sum: float) -> float:
+	return maxf(light_sum, DARKNESS_FLOOR)
 
 
 func _detection_points(player: Node3D, fallback: Vector3) -> Array[Vector3]:
