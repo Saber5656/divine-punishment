@@ -3,7 +3,7 @@
 Date: 2026-08-25
 Gate: G1 — コード品質ゲート
 Issue: #19 Unit Tests for Perception Formulas
-Status: CI and independent technical QA passed; security evidence correction is in progress; merge awaits Issue #15 architecture gate
+Status: CI, independent technical QA, and security review passed; merge awaits Issue #15 architecture gate
 
 ## Scope
 
@@ -20,9 +20,9 @@ API intact while making the following contracts deterministic and bounded:
 |---|---|---|
 | Focused GUT coverage | Pass | Code head `47cc77dc1a534cc0f5ec94c8706a0daa755f7fe1`, CI run `32748868605`, focused `5/5` |
 | Full GUT suite | Pass | Code head `47cc77dc1a534cc0f5ec94c8706a0daa755f7fe1`, CI run `32748868605`, `195/195`, `1,412` assertions |
-| Final docs-evidence head | Pass | `4b14e9a21ffd2cbb09cdc695df2e3c066b5947e4`, tree `49383be2ad4db26fee4913e722f71f9376e6938a`; doc-only change; CI run `32749561095` (GUT job success) |
+| Docs-evidence validation parent | Pass | `2841fc9c1c35ec2597d2757b70ca48001ee2b8fb`, tree `49383be2ad4db26fee4913e722f71f9376e6938a`; docs-only, CI run `32750802660` (GUT job success). This append-only correction is the child of that validated evidence commit; its newly assigned Git object ID is intentionally not self-referenced. |
 | Independent technical QA | Pass | `qa_pass` on code head/tree `47cc77dc…` / `14235ea5…`; 5 changed paths, 275 insertions / 7 deletions |
-| Independent security review | Recheck required | Initial review found no code security findings, but final docs evidence must be rechecked against the corrected head before merge |
+| Independent security review | Pass | `security_clear` on code and docs-evidence parent `2841fc9…`; no code security findings, no new auth/input/DoS/secret/CI risks; this correction changes documentation only |
 | CI test entrypoint | Configured | `.github/workflows/ci.yml` → `scripts/run_tests.sh` |
 | Local Godot/GUT execution | Not available | `godot` is not installed in this environment; CI is the execution gate |
 | Diff whitespace check | Pass | local `git diff --check` |
@@ -36,5 +36,7 @@ choice is explicitly approved and the dependent integration is rechecked.
 
 ## Review handoff
 
-The code-head test and QA evidence, corrected final docs head/tree/CI evidence, and
-the remaining security and architecture gates are recorded here for the task owner.
+The code-head test and QA evidence, the validated docs-evidence parent, the
+security verdict, and the remaining architecture gate are recorded here. The
+self-referential current child SHA is intentionally omitted; PR metadata and CI
+provide its exact immutable identity.
