@@ -65,6 +65,7 @@ docs/
 signal noise_emitted(event: NoiseEvent)      # {position, radius, kind, source}
 signal anomaly_spotted(anomaly: Anomaly)     # 死体/消灯/開いた戸 …
 signal alert_changed(enemy: Enemy, from: AlertState, to: AlertState)
+signal light_relight_requested(request: RelightRequest) # M3 の敵 AI が再点灯を引き受ける
 ```
 
 - `NoiseEvent` は物理を使わず、`enemies` グループへ距離 + 壁遮蔽（1 レイキャスト）で配送
@@ -80,6 +81,7 @@ signal alert_changed(enemy: Enemy, from: AlertState, to: AlertState)
   2. 光源ごとに距離減衰 + 遮蔽レイキャスト（プレイヤー胸 1 点、上位 3 光源のみ 3 点）
   3. `V = clamp(Σ光量 × スタンス × 移動 × SoftCover)`
 - **レンダリングのライトとゲームプレイの光量を分離**する（見た目調整でステルスが壊れない）。`LightSource` がレンダーライトとゲームプレイ半径の両方を持ち、エディタで同期表示
+- `LightSource` は layer 7 の隣接インタラクト形状を持つ。`try_extinguish(actor)` は同一シーンツリー・player_body・interaction radius を検証し、成功時にレンダーライトの可視状態とゲームプレイ光量を同時に無効化する。消灯は `AnomalyKind.LIGHT_OUT` として `EventBus.anomaly_registered` へ通知し、敵 AI の再点灯は `RelightRequest` を `EventBus.light_relight_requested` へ渡す。
 
 ### 4.2 敵知覚（Perception, 敵ごとのコンポーネント）
 
