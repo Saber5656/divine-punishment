@@ -540,17 +540,33 @@ func _sensor_overlaps_enemy(player: Node3D, enemy: EnemyBase) -> bool:
 		or not target_area.monitorable
 	):
 		return false
-	# A target can be attached after the player's Area3D was registered in the
-	# same physics tick (the common scene/test construction path).  Explicitly
-	# flush the bounded physics query before reading the pair so one-frame
-	# evaluation is deterministic without accepting a geometric/group fallback.
-	PhysicsServer3D.sync()
 	# Explicit target evaluation uses a direct physics pair query so unrelated
 	# overlap entries cannot hide a valid assassination target.  Headless Godot
 	# can expose the synchronized overlap list one frame before `overlaps_area`
 	# reflects the same pair, so retain the engine-owned membership as a
 	# deterministic compatibility fallback without truncating explicit targets.
-	return interactor.overlaps_area(target_area) or interactor.get_overlapping_areas().has(target_area)
+	if interactor.overlaps_area(target_area) or interactor.get_overlapping_areas().has(target_area):
+		return true
+	# The monitoring list is updated asynchronously from the physics broadphase.
+	# Query the same interactor shape directly as a bounded, engine-owned fallback
+	# for an explicit target; this preserves collision-layer and actual geometry
+	# checks without trusting groups, distance-only heuristics, or arbitrary nodes.
+	var shape_node := interactor.get_node_or_null(NodePath("CollisionShape3D")) as CollisionShape3D
+	var world := interactor.get_world_3d()
+	if shape_node == null or shape_node.shape == null or world == null:
+		return false
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape_node.shape
+	query.transform = shape_node.global_transform
+	query.collision_mask = interactor.collision_mask
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.exclude = [interactor.get_rid()]
+	var hits := world.direct_space_state.intersect_shape(query, 8)
+	for hit: Dictionary in hits:
+		if hit.get("collider") == target_area or hit.get("rid") == target_area.get_rid():
+			return true
+	return false
 
 
 func _assassination_path_is_clear(
