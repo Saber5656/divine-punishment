@@ -14,7 +14,6 @@ const SUPPORT_SURFACE_MIN_NORMAL_Y := 0.5
 const ASSASSINATE_TARGET_LAYER := 1 << 10
 const ASSASSINATION_OCCLUSION_MASK := (1 << 0) | (1 << 4)
 const DEFAULT_PRESENTATION_DURATION_SECONDS := 1.0
-const MAX_ASSASSINATION_DELTA_SECONDS := 0.5
 const CONFIG_PROPERTY_NAMES := [
 	&"presentation_duration_seconds",
 	&"back_max_distance_m",
@@ -151,7 +150,7 @@ func _process(delta: float) -> void:
 			# remaining fallback duration.  Capping each frame at 0.5 seconds
 			# would stretch a no-presentation lock during a stalled frame.
 			_presentation_fallback_remaining = maxf(
-				_presentation_fallback_remaining - minf(delta, MAX_ASSASSINATION_DELTA_SECONDS),
+				_presentation_fallback_remaining - minf(delta, _presentation_fallback_remaining),
 				0.0,
 			)
 		if _presentation_fallback_remaining <= 0.0:

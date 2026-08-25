@@ -208,6 +208,24 @@ func test_presentation_completion_clears_lock_after_player_enters_dead_state() -
 	assert_false(resolver.release())
 
 
+func test_no_presentation_fallback_consumes_a_large_frame_delta() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	# Custom player scenes may omit the presentation node.  The resolver's
+	# fallback must still release on one finite frame without the old 0.5-second
+	# per-frame clamp stretching the lock.
+	(resolver.get_node("AssassinationPresentation") as Node).free()
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"back")
+	assert_true(resolver.confirm())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	resolver._process(10.0)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
+	assert_null(resolver.active_enemy())
+
+
 func test_back_context_requires_enemy_to_face_away_from_player() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
