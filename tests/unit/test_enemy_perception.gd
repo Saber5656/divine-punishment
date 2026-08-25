@@ -56,6 +56,7 @@ func test_enemy_scene_contains_perception_eye_and_fsm_sink() -> void:
 	var perception := enemy.get_node("Perception") as EnemyPerception
 	assert_not_null(perception)
 	assert_eq(perception.perception_config.view_distance_m, 15.0)
+	assert_eq(perception.perception_config.resource_path, "res://data/tuning/perception_ashigaru.tres")
 	assert_not_null(enemy.get_node("Perception/EyePoint") as Node3D)
 	assert_true(enemy.is_in_group("enemies"))
 	var assassination_shape := enemy.get_node("AssassinateTarget/CollisionShape3D") as CollisionShape3D
@@ -64,9 +65,8 @@ func test_enemy_scene_contains_perception_eye_and_fsm_sink() -> void:
 
 
 func test_default_perception_uses_tuning_and_refreshes() -> void:
-	var enemy := EnemyScene.instantiate() as EnemyBase
-	add_child_autofree(enemy)
-	var perception := enemy.get_node("Perception") as EnemyPerception
+	var perception := EnemyPerceptionScript.new() as EnemyPerception
+	add_child_autofree(perception)
 	var tuning := get_node("/root/Tuning") as TuningService
 	var original := tuning._perceptions[&"ashigaru"] as PerceptionConfig
 	assert_eq(perception.perception_config, original)
