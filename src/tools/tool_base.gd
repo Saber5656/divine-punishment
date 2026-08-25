@@ -10,7 +10,7 @@ extends Node3D
 signal used(user: Node3D, aim: Dictionary)
 
 const MAX_IMPACT_DISTANCE := 24.0
-const PROJECTILE_COLLISION_MASK := (1 << 0) | (1 << 2) | (1 << 6)
+const PROJECTILE_COLLISION_MASK := (1 << 0) | (1 << 2) | (1 << 3) | (1 << 6)
 
 @export var tool_definition: ToolDefinition
 
