@@ -368,7 +368,7 @@ func _is_self_noise(source: Node) -> bool:
 	if source == self or source == owner:
 		return true
 	if source is Node and owner is Node:
-		return (source as Node).is_ancestor_of(owner as Node) or (owner as Node).is_ancestor_of(source as Node)
+		return (owner as Node).is_ancestor_of(source as Node)
 	return false
 
 

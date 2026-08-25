@@ -83,6 +83,18 @@ func test_firework_noise_is_masking_only() -> void:
 	assert_eq((enemy.get_node("Brain") as EnemyBrain).drain_stimuli().size(), 0)
 
 
+func test_ancestor_owned_noise_is_not_treated_as_enemy_self_noise() -> void:
+	var container := Node3D.new()
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	container.add_child(enemy)
+	add_child_autofree(container)
+	await get_tree().process_frame
+	enemy.on_noise(NoiseEventScript.create(
+		Vector3(0.0, 1.5, 0.0), 6.0, Enums.NoiseKind.TOOL, container,
+	))
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).drain_stimuli().size(), 1)
+
+
 func test_malformed_perception_resource_fails_closed() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)
