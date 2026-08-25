@@ -94,6 +94,26 @@ func test_search_faces_authored_direction_before_hide_spot_inspection() -> void:
 	assert_gt(absf(enemy.rotation.y), 0.1)
 
 
+func test_search_route_rejects_inaccessible_and_overhead_points() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.brain()
+	var inaccessible := _add_search_point(&"Inaccessible", Vector3(0.0, 0.0, -1.0), 1.0, 0)
+	inaccessible.enemy_accessible = false
+	var overhead := _add_search_point(&"Overhead", Vector3(0.0, 5.0, -2.0), 1.0, 1)
+	overhead.enemy_accessible = false
+	var valid := _add_search_point(&"Ground", Vector3(0.0, 0.0, -3.0), 0.5, 2)
+	brain.submit_stimulus(PerceptionStimulus.create(
+		Enums.StimulusKind.NOISE,
+		3,
+		valid.global_position,
+		1.0,
+	))
+	brain.tick(0.016)
+
+	assert_eq(brain.search_point_count(), 1)
+	assert_eq(brain.current_search_point(), valid)
+
+
 func test_search_inspects_bounded_hide_spots_through_perception_gate() -> void:
 	var enemy := _spawn_enemy()
 	var brain := enemy.brain()
