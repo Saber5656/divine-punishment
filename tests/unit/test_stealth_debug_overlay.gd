@@ -36,8 +36,10 @@ func test_toggle_is_explicit_and_input_action_is_bound_to_f3() -> void:
 	assert_true(InputMap.has_action(OverlayScript.DEBUG_TOGGLE_ACTION))
 	var f3_bound := false
 	for event in InputMap.action_get_events(OverlayScript.DEBUG_TOGGLE_ACTION):
-		if event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_F3:
-			f3_bound = true
+		if event is InputEventKey:
+			var key_event := event as InputEventKey
+			if key_event.keycode == KEY_F3 and key_event.physical_keycode == KEY_F3:
+				f3_bound = true
 	assert_true(f3_bound)
 
 
