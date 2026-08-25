@@ -281,8 +281,7 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 	if not _valid_vector(player.global_position) or not _valid_vector(enemy.global_position):
 		return &""
 	var to_enemy_local := player.global_transform.affine_inverse() * enemy.global_position
-	var brain := enemy.brain()
-	var seen := brain != null and brain.target_visible()
+	var seen := _enemy_sees_player(enemy)
 	return resolve(
 		_state_name(),
 		to_enemy_local,
@@ -363,6 +362,9 @@ func _target_area_is_valid(enemy: EnemyBase) -> bool:
 
 
 func _enemy_sees_player(enemy: EnemyBase) -> bool:
+	var perception := enemy.get_node_or_null(NodePath("Perception")) as EnemyPerception
+	if perception != null and perception.target_visible():
+		return true
 	var brain := enemy.brain()
 	return brain != null and brain.target_visible()
 

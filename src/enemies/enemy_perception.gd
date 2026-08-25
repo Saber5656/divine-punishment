@@ -14,6 +14,7 @@ const LOD_DISTANCE := 30.0
 const CENTRAL_VIEW_DEGREES := 35.0
 const MAX_DETECTION_POINTS := 3
 const MAX_RAYCASTS_PER_UPDATE := MAX_DETECTION_POINTS
+const MAX_SMOKE_VOLUMES := 16
 const MAX_METER := 3.0
 
 signal stimulus(stim: PerceptionStimulus)
@@ -256,6 +257,8 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 	var visible_points := 0
 	for point_index in points.size():
 		var point := points[point_index] as Node3D
+		if _is_smoke_blocked(eye.global_position, point.global_position):
+			continue
 		if _point_visible(eye.global_position, point.global_position, exclusions):
 			visible_points += 1
 
@@ -456,6 +459,22 @@ func _player_visibility(target: Node3D) -> float:
 		return 0.0
 	var result := float(value)
 	return clampf(result, 0.0, 1.0) if is_finite(result) else 0.0
+
+
+func _is_smoke_blocked(observer: Vector3, target: Vector3) -> bool:
+	if not is_inside_tree() or not _valid_vector(observer) or not _valid_vector(target):
+		return false
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var checked := 0
+	for node in tree.get_nodes_in_group(&"smoke_volumes"):
+		if checked >= MAX_SMOKE_VOLUMES:
+			break
+		checked += 1
+		if node != null and node.has_method(&"blocks_visibility") and bool(node.call(&"blocks_visibility", observer, target)):
+			return true
+	return false
 
 
 func _ray_exclusions(target: Node3D) -> Array[RID]:

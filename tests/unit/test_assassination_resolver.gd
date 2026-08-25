@@ -81,8 +81,12 @@ func test_prompt_and_one_input_execution_lock_both_sides() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	enemy.position = Vector3(0.0, 0.0, 1.0)
 	add_child_autofree(enemy)
-	await get_tree().process_frame
+	await get_tree().physics_frame
+	await get_tree().physics_frame
 
+	var interactor := player.get_node("Interactor") as Area3D
+	var target_area := enemy.get_node("AssassinateTarget") as Area3D
+	assert_true(interactor.get_overlapping_areas().has(target_area))
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	watch_signals(resolver)
 	assert_eq(resolver.evaluate(enemy), &"back")
@@ -110,6 +114,22 @@ func test_prompt_and_evaluate_reject_enemy_in_combat() -> void:
 	add_child_autofree(enemy)
 	await get_tree().process_frame
 	(enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.COMBAT, &"test")
+
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	assert_eq(resolver.evaluate(enemy), &"")
+	assert_eq(resolver.prompt_context(), &"")
+	assert_false(resolver.confirm())
+
+
+func test_prompt_and_evaluate_reject_enemy_seen_by_perception() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 0.0, 1.0)
+	add_child_autofree(enemy)
+	await get_tree().process_frame
+	var perception := enemy.get_node("Perception") as EnemyPerception
+	perception.set("_target_visible", true)
 
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	assert_eq(resolver.evaluate(enemy), &"")
