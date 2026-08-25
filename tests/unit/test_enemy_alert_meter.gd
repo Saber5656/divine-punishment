@@ -168,3 +168,19 @@ func test_meter_hud_uses_edge_indicator_for_world_occlusion() -> void:
 	var entry := hud._entries.get(enemy.get_instance_id()) as Dictionary
 	assert_false((entry.get(&"fill") as ColorRect).visible)
 	assert_true((entry.get(&"symbol") as Label).text in ["↑", "↓", "←", "→"])
+
+
+func test_meter_hud_edge_indicator_keeps_horizontal_symbol_inside_viewport() -> void:
+	var viewport_size := Vector2(640.0, 360.0)
+	var indicator := EnemyAlertMeterHudScript._occlusion_indicator_position(
+		Vector2(-100.0, viewport_size.y * 0.5),
+		viewport_size,
+	)
+	var holder_origin := indicator - Vector2(
+		EnemyAlertMeterHudScript.METER_WIDTH * 0.5,
+		(EnemyAlertMeterHudScript.METER_HEIGHT + EnemyAlertMeterHudScript.METER_OFFSET_Y) * 0.5,
+	)
+	var symbol_width := 16.0
+	var symbol_left := holder_origin.x + (EnemyAlertMeterHudScript.METER_WIDTH - symbol_width) * 0.5
+	assert_gte(symbol_left, 0.0)
+	assert_lte(symbol_left + symbol_width, viewport_size.x)

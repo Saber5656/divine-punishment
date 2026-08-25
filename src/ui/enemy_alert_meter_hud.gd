@@ -320,6 +320,7 @@ func _update_entry(entry: Dictionary, screen_position: Vector2, meter_value: flo
 		holder.visible = false
 		return
 	holder.position = screen_position - Vector2(METER_WIDTH * 0.5, METER_OFFSET_Y + METER_HEIGHT)
+	symbol.position = Vector2(-18.0, 0.0)
 	background.visible = true
 	fill.visible = true
 	fill.size = Vector2(METER_WIDTH * clampf(meter_value / MAX_METER, 0.0, 1.0), METER_HEIGHT)
@@ -346,6 +347,10 @@ func _update_occluded_entry(
 		holder.visible = false
 		return
 	holder.position = _occlusion_indicator_position(screen_position, viewport_size) - holder.size * 0.5
+	# The regular meter keeps its symbol left of the bar, but an edge
+	# indicator has no bar.  Center the arrow on the clamped indicator so its
+	# full label bounds remain inside the viewport at either horizontal edge.
+	symbol.position = Vector2((holder.size.x - symbol.size.x) * 0.5, 0.0)
 	background.visible = false
 	fill.visible = false
 	symbol.text = _occlusion_symbol(screen_position, viewport_size)
