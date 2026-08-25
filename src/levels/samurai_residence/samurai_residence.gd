@@ -747,7 +747,11 @@ func _route_segments_are_clear(points: Array[Vector3], route_id: StringName) -> 
 	# Probe above the support plane. Overhead paths use a slightly higher probe
 	# so the platform below is not mistaken for a blocker.
 	var ray_offset := ROUTE_CLEARANCE_HEIGHT
-	if route_layer(route_id) == &"overhead":
+	if route_layer(route_id) == &"crawlspace":
+		# Crawl probes stay below the authored roof underside while still
+		# checking the route centerline for blocking bodies.
+		ray_offset = 0.0
+	elif route_layer(route_id) == &"overhead":
 		ray_offset = 0.3
 	for index: int in range(1, points.size()):
 		var query := PhysicsRayQueryParameters3D.create(
