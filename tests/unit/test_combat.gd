@@ -186,6 +186,22 @@ func test_enemy_combat_chases_a_target_before_attacking() -> void:
 	assert_lt(production_enemy.global_position.distance_to(production_player.global_position), 6.0)
 
 
+func test_combat_actions_cannot_enter_from_assassination_or_input_from_other_states() -> void:
+	var player_instance := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(player_instance)
+	var combat := player_instance.get_node("AssassinationResolver/Combat") as PlayerCombat
+	var state_machine := player_instance.get_node("StateMachine") as PlayerStateMachine
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_ASSASSINATE))
+	assert_false(combat.start_attack())
+	assert_false(combat.start_parry())
+	assert_false(combat.start_dodge(Vector3.RIGHT))
+	assert_eq(state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_GROUND))
+	assert_false(combat.call("_combat_input_allowed"))
+	assert_true(state_machine.change_state(PlayerStateMachine.STATE_COMBAT))
+	assert_true(combat.call("_combat_input_allowed"))
+
+
 func test_player_and_enemy_scenes_wire_combat_nodes_without_changing_contract_order() -> void:
 	var player_scene := load(PLAYER_SCENE_PATH) as PackedScene
 	var enemy_scene := load(ENEMY_SCENE_PATH) as PackedScene

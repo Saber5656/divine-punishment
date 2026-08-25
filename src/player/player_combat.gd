@@ -48,6 +48,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _combat_input_allowed():
+		return
 	if event.is_action_pressed(&"attack"):
 		attack()
 	elif event.is_action_pressed(&"parry"):
@@ -349,10 +351,19 @@ func _ensure_combat_state() -> bool:
 		return true
 	if state_machine.has_method(&"is_dead") and state_machine.call(&"is_dead"):
 		return false
+	if state_machine.has_method(&"current_state") and state_machine.call(&"current_state") == &"Assassinate":
+		return false
 	if state_machine.has_method(&"current_state") and state_machine.call(&"current_state") != &"Combat":
 		if not state_machine.call(&"change_state", &"Combat"):
 			return false
 	return true
+
+
+func _combat_input_allowed() -> bool:
+	var state_machine := _state_machine()
+	if state_machine == null or not state_machine.has_method(&"current_state"):
+		return true
+	return state_machine.call(&"current_state") == &"Combat"
 
 
 func _state_machine() -> Node:
