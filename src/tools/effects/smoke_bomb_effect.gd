@@ -18,6 +18,8 @@ func _apply_effect(hit: Dictionary) -> void:
 	var duration := clampf(definition.parameter_float(&"duration", MAX_SMOKE_DURATION), 0.0, MAX_SMOKE_DURATION)
 	if _radius <= 0.0 or duration <= 0.0:
 		return
+	# Smoke is an impact volume, not a projectile child: stop inheriting the moving ToolRig transform.
+	top_level = true
 	global_position = _impact_position(hit)
 	if not global_position.is_finite():
 		_radius = 0.0
