@@ -241,6 +241,25 @@ func test_resolver_refreshes_assassination_tuning_on_reload() -> void:
 	Tuning.reloaded.emit()
 
 
+func test_resolver_preserves_an_explicit_compatible_config_override() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	var explicit := ConfigScript.new() as Resource
+	explicit.set("back_max_distance_m", 0.75)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	resolver.config = explicit
+	add_child_autofree(player)
+	await get_tree().process_frame
+	var tuning := get_node("/root/Tuning") as TuningService
+	assert_eq(resolver.config, explicit)
+	var original := tuning.assassination()
+	tuning._assassination = ConfigScript.new() as Resource
+	tuning._assassination.set("back_max_distance_m", 0.25)
+	Tuning.reloaded.emit()
+	assert_eq(resolver.config, explicit)
+	tuning._assassination = original
+	Tuning.reloaded.emit()
+
+
 func test_crawl_posture_is_preserved_while_assassination_is_locked() -> void:
 	var entrance := CrawlEntrance.new()
 	entrance.inside_offset = Vector3(0.0, 0.0, -1.0)

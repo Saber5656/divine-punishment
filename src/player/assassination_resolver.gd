@@ -47,9 +47,12 @@ var _active_context: StringName = &""
 var _active_origin_state: StringName = PlayerStateMachine.STATE_GROUND
 var _active_elapsed_seconds := 0.0
 var _tuning_service: Node
+var _config_override: Resource
 
 
 func _ready() -> void:
+	if _config_is_compatible(config) and not _is_default_config_resource(config):
+		_config_override = config
 	_refresh_config()
 	_tuning_service = _find_tuning_service()
 	if _tuning_service != null and _tuning_service.has_signal(&"reloaded"):
@@ -68,6 +71,9 @@ func _exit_tree() -> void:
 
 
 func _refresh_config() -> void:
+	if _config_override != null:
+		config = _config_override
+		return
 	var candidate: Resource
 	var tuning := _find_tuning_service()
 	if tuning != null and tuning.has_method(&"assassination"):
@@ -95,6 +101,10 @@ static func _config_is_compatible(candidate: Resource) -> bool:
 		if candidate.get(property_name) == null:
 			return false
 	return true
+
+
+func _is_default_config_resource(candidate: Resource) -> bool:
+	return candidate != null and candidate.resource_path == DEFAULT_CONFIG_PATH
 
 
 func _process(delta: float) -> void:
