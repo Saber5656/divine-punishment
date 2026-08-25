@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "campaign": {
+    "unlocked_mission": 7,
+    "shura": 8,
+    "total_nontarget_kills": 3,
+    "total_civilian_kills": 1,
+    "total_detections": 5,
+    "mission_results": {
+      "m01": {
+        "rank": "皆伝",
+        "score": 93,
+        "flags": {
+          "undetected": true,
+          "no_body_found": true,
+          "one_strike": true,
+          "swift": false,
+          "side": true
+        }
+      }
+    },
+    "seen_cutscenes": ["op", "m01_pre"]
+  },
+  "settings": {
+    "volume_master": 1.0,
+    "volume_bgm": 0.8,
+    "volume_se": 1.0,
+    "sensitivity": 0.5,
+    "quality_preset": "high",
+    "input_overrides": {},
+    "locale": "ja"
+  },
+  "checkpoint": null
+}
