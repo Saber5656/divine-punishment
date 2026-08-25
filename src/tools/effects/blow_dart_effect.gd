@@ -31,7 +31,7 @@ func _apply_effect(hit: Dictionary) -> void:
 		return
 	var enemy := _find_enemy(target)
 	var wake_by_noise := _wake_by_noise_enabled(definition)
-	if enemy != null and _incapacitate(enemy, duration, wake_by_noise):
+	if enemy != null and not _dart_immune(enemy) and _incapacitate(enemy, duration, wake_by_noise):
 		_emit_knockout(enemy, duration)
 	if is_inside_tree():
 		queue_free()
@@ -59,6 +59,16 @@ func _find_enemy(target: Node) -> Node:
 			return cursor
 		cursor = cursor.get_parent()
 	return null
+
+
+
+func _dart_immune(enemy: Node) -> bool:
+	if enemy == null:
+		return false
+	var perception := enemy.get_node_or_null(NodePath("Perception")) as EnemyPerception
+	if perception == null or perception.perception_config == null:
+		return false
+	return perception.perception_config.dart_immune
 
 
 func _incapacitate(enemy: Node, duration: float, wake_by_noise: bool) -> bool:
