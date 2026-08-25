@@ -111,6 +111,13 @@ func _on_alert_changed(enemy: Node, _from_state: int, to_state: int) -> void:
 	update_enemy_alert(enemy, to_state)
 
 
+func _on_enemy_neutralized(enemy: Node, _method: String) -> void:
+	if enemy == null or not is_instance_valid(enemy):
+		return
+	_tracked_alerts.erase(enemy.get_instance_id())
+	_refresh_highest_tier()
+
+
 func _refresh_highest_tier() -> void:
 	var highest_state := highest_alert_state()
 	var tier := alert_tier_for_state(int(highest_state))
@@ -129,6 +136,7 @@ func _prune_tracked_alerts() -> void:
 		if (
 			not is_instance_valid(enemy)
 			or not enemy is Node
+			or _is_incapacitated_enemy(enemy as Node)
 			or not (state is int or state is float)
 			or not _is_active_alert_state(int(state))
 		):
@@ -137,20 +145,30 @@ func _prune_tracked_alerts() -> void:
 
 func _bind_event_bus() -> void:
 	var event_bus := _event_bus()
-	if event_bus == null or not event_bus.has_signal(&"alert_changed"):
+	if event_bus == null:
 		return
-	var callback := Callable(self, &"_on_alert_changed")
-	if not event_bus.is_connected(&"alert_changed", callback):
-		event_bus.connect(&"alert_changed", callback)
+	if event_bus.has_signal(&"alert_changed"):
+		var alert_callback := Callable(self, &"_on_alert_changed")
+		if not event_bus.is_connected(&"alert_changed", alert_callback):
+			event_bus.connect(&"alert_changed", alert_callback)
+	var neutralized_callback := Callable(self, &"_on_enemy_neutralized")
+	for signal_name in [&"enemy_killed", &"enemy_neutralized"]:
+		if event_bus.has_signal(signal_name) and not event_bus.is_connected(signal_name, neutralized_callback):
+			event_bus.connect(signal_name, neutralized_callback)
 
 
 func _unbind_event_bus() -> void:
 	var event_bus := _event_bus()
-	if event_bus == null or not event_bus.has_signal(&"alert_changed"):
+	if event_bus == null:
 		return
-	var callback := Callable(self, &"_on_alert_changed")
-	if event_bus.is_connected(&"alert_changed", callback):
-		event_bus.disconnect(&"alert_changed", callback)
+	if event_bus.has_signal(&"alert_changed"):
+		var alert_callback := Callable(self, &"_on_alert_changed")
+		if event_bus.is_connected(&"alert_changed", alert_callback):
+			event_bus.disconnect(&"alert_changed", alert_callback)
+	var neutralized_callback := Callable(self, &"_on_enemy_neutralized")
+	for signal_name in [&"enemy_killed", &"enemy_neutralized"]:
+		if event_bus.has_signal(signal_name) and event_bus.is_connected(signal_name, neutralized_callback):
+			event_bus.disconnect(signal_name, neutralized_callback)
 
 
 func _event_bus() -> Node:
@@ -166,6 +184,15 @@ static func _is_active_alert_state(state: int) -> bool:
 
 static func _valid_alert_state(state: int) -> bool:
 	return state >= Enums.AlertState.UNAWARE and state <= Enums.AlertState.RETURN
+
+
+static func _is_incapacitated_enemy(enemy: Node) -> bool:
+	if enemy == null or not is_instance_valid(enemy):
+		return false
+	if enemy.has_method(&"is_incapacitated"):
+		return bool(enemy.call(&"is_incapacitated"))
+	var brain := enemy.get_node_or_null(NodePath("Brain"))
+	return brain != null and brain.has_method(&"is_incapacitated") and bool(brain.call(&"is_incapacitated"))
 
 
 func play_bgm_set(set_id: StringName) -> void:

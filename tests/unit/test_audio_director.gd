@@ -2,6 +2,7 @@ extends GutTest
 
 
 const AudioDirectorScript := preload("res://src/autoload/audio_director.gd")
+const EnemyScene := preload("res://src/enemies/enemy_base.tscn")
 
 
 func test_audio_director_tracks_highest_active_alert_and_clears_inactive_states() -> void:
@@ -56,4 +57,21 @@ func test_audio_director_event_bus_hook_consumes_alert_changed() -> void:
 	EventBus.alert_changed.emit(enemy, Enums.AlertState.UNAWARE, Enums.AlertState.COMBAT)
 	assert_eq(director.highest_alert_state(), Enums.AlertState.COMBAT)
 	EventBus.alert_changed.emit(enemy, Enums.AlertState.COMBAT, Enums.AlertState.UNAWARE)
+	assert_eq(director.highest_alert_state(), Enums.AlertState.UNAWARE)
+
+
+func test_audio_director_drops_incapacitated_enemy_from_bgm_aggregate() -> void:
+	var director := AudioDirectorScript.new()
+	add_child_autofree(director)
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	await get_tree().process_frame
+
+	assert_true(director.update_enemy_alert(enemy, Enums.AlertState.COMBAT))
+	assert_eq(director.highest_alert_state(), Enums.AlertState.COMBAT)
+	assert_true(enemy.set_incapacitated(&"knockout", 0.0))
+	assert_eq(director.highest_alert_state(), Enums.AlertState.UNAWARE)
+
+	assert_true(director.update_enemy_alert(enemy, Enums.AlertState.COMBAT))
+	EventBus.enemy_neutralized.emit(enemy, "knockout")
 	assert_eq(director.highest_alert_state(), Enums.AlertState.UNAWARE)
