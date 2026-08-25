@@ -95,7 +95,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func set_debug_visible(value: bool) -> void:
-	_debug_visible = value and OS.is_debug_build()
+	_debug_visible = value
 	_refresh_visibility()
 	if _debug_visible:
 		_rebuild_geometry()
@@ -399,7 +399,7 @@ func _draw_enemy_debug() -> void:
 func _update_status_label() -> void:
 	var lines: Array[String] = ["STEALTH DEBUG  [F3]", ""]
 	var player_node := player()
-	var visibility_value := _player_visibility(player_node)
+	var visibility_value: Variant = _player_visibility(player_node)
 	if visibility_value == null:
 		lines.append("Player V: --")
 	else:
