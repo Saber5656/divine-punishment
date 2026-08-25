@@ -341,6 +341,8 @@ func _build_geometry() -> void:
 	_add_box(outer, &"EastPerimeterWall", Vector3(100.0, 0.5, 32.0), Vector3(0.4, 3.0, 64.0), &"", &"wall")
 	_add_box(outer, &"WestPerimeterWall", Vector3(0.0, 0.5, 32.0), Vector3(0.4, 3.0, 64.0), &"", &"wall")
 	_add_box(outer, &"CollapsedNorthWall", Vector3(12.0, 0.5, 0.0), Vector3(12.0, 1.2, 0.4), &"", &"wall")
+	# C1 is mounted against the collapsed north-wall remnant, not in open air.
+	_add_box(outer, &"C1ClimbWall", Vector3(12.0, 1.5, 2.0), Vector3(12.0, 3.0, 0.4), &"", &"wall")
 
 	_add_box(garden, &"GardenGravel", Vector3(50.0, -0.9, 28.0), Vector3(86.0, 0.2, 42.0), &"gravel", &"gravel")
 	_add_box(garden, &"GardenSoil", Vector3(18.0, -0.78, 40.0), Vector3(20.0, 0.2, 12.0), &"soil", &"soil")

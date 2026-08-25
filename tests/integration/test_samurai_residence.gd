@@ -90,6 +90,11 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 		_box_contains(crawl_roof, Vector3(58.0, 0.5, 20.0)),
 		"Route C must retain crawl clearance at the shoin crawl gap",
 	)
+	var c1_wall := residence.get_node(^"Geometry/OuterPerimeter/C1ClimbWall") as StaticBody3D
+	assert_true(
+		_box_contains(c1_wall, Vector3(12.0, 1.5, 2.0)),
+		"C1 must be backed by the collapsed north-wall geometry",
+	)
 	for entrance: CrawlEntrance in residence.get_tree().get_nodes_in_group(&"crawl_entrances"):
 		assert_gt(
 			entrance.inside_world_position().y,
