@@ -132,5 +132,7 @@ func test_player_and_enemy_scenes_wire_combat_nodes_without_changing_contract_or
 	add_child_autofree(enemy_instance)
 	assert_true(player_instance.get_node("AssassinationResolver/Combat") is PlayerCombat)
 	assert_true(enemy_instance.get_node("Combat") is EnemyCombat)
-	assert_eq(player_instance.get_node("AssassinationResolver/Combat").combat_config.player_max_health, 3)
+	var scene_combat := player_instance.get_node("AssassinationResolver/Combat") as PlayerCombat
+	assert_eq(scene_combat.get("_player"), player_instance)
+	assert_eq(scene_combat.combat_config.player_max_health, 3)
 	assert_eq(enemy_instance.get_node("Combat").enemy_stats.max_health, 3)

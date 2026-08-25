@@ -37,7 +37,7 @@ var _defeated := false
 
 
 func _ready() -> void:
-	_player = get_parent() as Node3D
+	_player = _resolve_player_owner()
 	_config = _resolve_config()
 	_initialize_health()
 	set_physics_process(true)
@@ -317,6 +317,17 @@ func _initialize_health() -> void:
 		if profile != null and profile.max_health > 0:
 			_max_health = clampi(profile.max_health, 1, CombatConfig.MAX_HEALTH)
 	_health = _max_health
+
+
+func _resolve_player_owner() -> Node3D:
+	var candidate := get_parent()
+	for _i in range(8):
+		if candidate == null:
+			break
+		if candidate is PlayerController or (candidate is Node3D and candidate.is_in_group(&"player")):
+			return candidate as Node3D
+		candidate = candidate.get_parent()
+	return get_parent() as Node3D
 
 
 func _resolve_config() -> CombatConfig:
