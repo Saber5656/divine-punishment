@@ -62,6 +62,7 @@ func _impact_hit(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> 
 			safe_origin + safe_direction * bounded_distance,
 		)
 		query.collision_mask = PROJECTILE_COLLISION_MASK
+		query.collide_with_areas = true
 		var user: Variant = hit.get(&"user")
 		if user is CollisionObject3D:
 			query.exclude = [(user as CollisionObject3D).get_rid()]
