@@ -1,0 +1,319 @@
+[gd_scene load_steps=35 format=3]
+
+[ext_resource type="Script" path="res://src/levels/gym/movement_gym.gd" id="1_gym"]
+[ext_resource type="Script" path="res://src/level/climb_edge.gd" id="2_climb_edge"]
+[ext_resource type="Script" path="res://src/level/beam_path.gd" id="3_beam_path"]
+[ext_resource type="Script" path="res://src/level/crawl_entrance.gd" id="4_crawl_entrance"]
+[ext_resource type="Script" path="res://src/level/water_volume.gd" id="5_water_volume"]
+[ext_resource type="Script" path="res://src/level/hide_spot.gd" id="6_hide_spot"]
+[ext_resource type="PackedScene" path="res://src/player/player.tscn" id="7_player"]
+
+[sub_resource type="Environment" id="Environment_gym"]
+background_mode = 1
+background_color = Color(0.035, 0.045, 0.06, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.35, 0.39, 0.48, 1)
+ambient_light_energy = 0.75
+
+[sub_resource type="StandardMaterial3D" id="Material_main_floor"]
+albedo_color = Color(0.18, 0.2, 0.22, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_tatami"]
+albedo_color = Color(0.62, 0.55, 0.35, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Material_wood"]
+albedo_color = Color(0.43, 0.24, 0.12, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Material_creaky_wood"]
+albedo_color = Color(0.28, 0.15, 0.08, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Material_gravel"]
+albedo_color = Color(0.32, 0.34, 0.35, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Material_shallow_water"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.1, 0.42, 0.52, 0.48)
+
+[sub_resource type="StandardMaterial3D" id="Material_wall"]
+albedo_color = Color(0.27, 0.29, 0.31, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_beam"]
+albedo_color = Color(0.36, 0.2, 0.09, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_marker"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.2, 0.85, 0.35, 0.32)
+
+[sub_resource type="BoxShape3D" id="BoxShape_main_floor"]
+size = Vector3(28, 0.2, 16)
+
+[sub_resource type="BoxMesh" id="BoxMesh_main_floor"]
+material = SubResource("Material_main_floor")
+size = Vector3(28, 0.2, 16)
+
+[sub_resource type="BoxShape3D" id="BoxShape_sample"]
+size = Vector3(4, 0.2, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tatami"]
+material = SubResource("Material_tatami")
+size = Vector3(4, 0.2, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wood"]
+material = SubResource("Material_wood")
+size = Vector3(4, 0.2, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_creaky_wood"]
+material = SubResource("Material_creaky_wood")
+size = Vector3(4, 0.2, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_gravel"]
+material = SubResource("Material_gravel")
+size = Vector3(4, 0.2, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_shallow_water"]
+material = SubResource("Material_shallow_water")
+size = Vector3(4, 0.05, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape_wall"]
+size = Vector3(3.2, 2.5, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall"]
+material = SubResource("Material_wall")
+size = Vector3(3.2, 2.5, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape_beam"]
+size = Vector3(6, 0.2, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_beam"]
+material = SubResource("Material_beam")
+size = Vector3(6, 0.2, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape_crawl_roof"]
+size = Vector3(2.2, 0.4, 2.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_crawl_roof"]
+material = SubResource("Material_wall")
+size = Vector3(2.2, 0.4, 2.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_water_surface"]
+material = SubResource("Material_shallow_water")
+size = Vector3(6, 0.05, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape_sample_walkway"]
+size = Vector3(28, 0.2, 1.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_sample_walkway"]
+material = SubResource("Material_main_floor")
+size = Vector3(28, 0.2, 1.5)
+
+[node name="MovementGym" type="Node3D"]
+script = ExtResource("1_gym")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_gym")
+
+[node name="Lights" type="Node3D" parent="."]
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Lights"]
+rotation_degrees = Vector3(-52, -28, 0)
+light_color = Color(0.76, 0.82, 1, 1)
+light_energy = 1.2
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+
+[node name="Enemies" type="Node3D" parent="."]
+
+[node name="Civilians" type="Node3D" parent="."]
+
+[node name="Markers" type="Node3D" parent="."]
+
+[node name="Objectives" type="Node3D" parent="."]
+
+[node name="WeatherController" type="Node" parent="."]
+
+[node name="Geometry" type="Node3D" parent="."]
+
+[node name="MainFloor" type="StaticBody3D" parent="Geometry"]
+position = Vector3(0, -1.1, 0)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"world"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/MainFloor"]
+shape = SubResource("BoxShape_main_floor")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/MainFloor"]
+mesh = SubResource("BoxMesh_main_floor")
+
+[node name="SampleWalkway" type="StaticBody3D" parent="Geometry"]
+position = Vector3(0, -1.1, 8.25)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"world"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/SampleWalkway"]
+shape = SubResource("BoxShape_sample_walkway")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/SampleWalkway"]
+mesh = SubResource("BoxMesh_sample_walkway")
+
+[node name="FloorSamples" type="Node3D" parent="Geometry"]
+
+[node name="TatamiFloor" type="StaticBody3D" parent="Geometry/FloorSamples"]
+position = Vector3(-10, -1.1, 10.5)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"tatami"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/FloorSamples/TatamiFloor"]
+shape = SubResource("BoxShape_sample")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/FloorSamples/TatamiFloor"]
+mesh = SubResource("BoxMesh_tatami")
+
+[node name="WoodFloor" type="StaticBody3D" parent="Geometry/FloorSamples"]
+position = Vector3(-5, -1.1, 10.5)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"wood"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/FloorSamples/WoodFloor"]
+shape = SubResource("BoxShape_sample")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/FloorSamples/WoodFloor"]
+mesh = SubResource("BoxMesh_wood")
+
+[node name="CreakingPlankFloor" type="StaticBody3D" parent="Geometry/FloorSamples"]
+position = Vector3(0, -1.1, 10.5)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"creaky_wood"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/FloorSamples/CreakingPlankFloor"]
+shape = SubResource("BoxShape_sample")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/FloorSamples/CreakingPlankFloor"]
+mesh = SubResource("BoxMesh_creaky_wood")
+
+[node name="GravelFloor" type="StaticBody3D" parent="Geometry/FloorSamples"]
+position = Vector3(5, -1.1, 10.5)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"gravel"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/FloorSamples/GravelFloor"]
+shape = SubResource("BoxShape_sample")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/FloorSamples/GravelFloor"]
+mesh = SubResource("BoxMesh_gravel")
+
+[node name="ShallowWaterFloor" type="StaticBody3D" parent="Geometry/FloorSamples"]
+position = Vector3(10, -1.1, 10.5)
+collision_layer = 1
+collision_mask = 0
+metadata/floor_material = &"shallow_water"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/FloorSamples/ShallowWaterFloor"]
+shape = SubResource("BoxShape_sample")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/FloorSamples/ShallowWaterFloor"]
+mesh = SubResource("BoxMesh_shallow_water")
+
+[node name="ClimbWall" type="StaticBody3D" parent="Geometry"]
+position = Vector3(-3.5, 1.25, -3.2)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/ClimbWall"]
+shape = SubResource("BoxShape_wall")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/ClimbWall"]
+mesh = SubResource("BoxMesh_wall")
+
+[node name="CrawlRoof" type="StaticBody3D" parent="Geometry"]
+position = Vector3(6, 0.5, -4.25)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometry/CrawlRoof"]
+shape = SubResource("BoxShape_crawl_roof")
+
+[node name="Visual" type="MeshInstance3D" parent="Geometry/CrawlRoof"]
+mesh = SubResource("BoxMesh_crawl_roof")
+
+[node name="ClimbBeam" type="Node3D" parent="Markers"]
+
+[node name="EntryEdge" type="Area3D" parent="Markers/ClimbBeam"]
+position = Vector3(-3.5, 0, -3)
+script = ExtResource("2_climb_edge")
+top_offset = Vector3(0, 2.5, 0)
+entry_radius = 1.0
+connected_beam_path = NodePath("../BeamPath")
+connected_beam_endpoint = 0
+
+[node name="BeamPath" type="Area3D" parent="Markers/ClimbBeam"]
+position = Vector3(-3.5, 2.5, -3)
+script = ExtResource("3_beam_path")
+start_climb_edge = NodePath("../EntryEdge")
+end_climb_edge = NodePath("../ExitEdge")
+
+[node name="Visual" type="MeshInstance3D" parent="Markers/ClimbBeam/BeamPath"]
+position = Vector3(3, -1, 0)
+mesh = SubResource("BoxMesh_beam")
+
+[node name="ExitEdge" type="Area3D" parent="Markers/ClimbBeam"]
+position = Vector3(2.5, 0, -3)
+script = ExtResource("2_climb_edge")
+top_offset = Vector3(0, 2.5, 0)
+entry_radius = 1.0
+connected_beam_path = NodePath("../BeamPath")
+connected_beam_endpoint = 1
+
+[node name="Crawlspace" type="Node3D" parent="Markers"]
+
+[node name="CrawlEntrance" type="Area3D" parent="Markers/Crawlspace"]
+position = Vector3(6, 0, -3)
+script = ExtResource("4_crawl_entrance")
+inside_offset = Vector3(0, 0, -2.5)
+entry_radius = 0.75
+
+[node name="Water" type="Node3D" parent="Markers"]
+
+[node name="WaterVolume" type="Area3D" parent="Markers/Water"]
+position = Vector3(8, 0, 3)
+script = ExtResource("5_water_volume")
+size = Vector3(6, 4, 6)
+surface_body_depth = 0.75
+underwater_body_depth = 1.5
+
+[node name="SurfaceVisual" type="MeshInstance3D" parent="Markers/Water"]
+position = Vector3(8, 2, 3)
+mesh = SubResource("BoxMesh_water_surface")
+
+[node name="HideSpot" type="Node3D" parent="Markers"]
+
+[node name="HideSpot" type="Area3D" parent="Markers/HideSpot"]
+position = Vector3(0, 0, 4)
+script = ExtResource("6_hide_spot")
+entry_radius = 0.75
+
+[node name="MarkerVisual" type="MeshInstance3D" parent="Markers/HideSpot"]
+position = Vector3(0, 0.6, 4)
+mesh = SubResource("BoxMesh_crawl_roof")
+scale = Vector3(0.6, 0.6, 0.6)
+material_override = SubResource("Material_marker")
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+position = Vector3(0, 0, 0)
+
+[node name="Player" parent="." instance=ExtResource("7_player")]
+position = Vector3(0, 0, 0)

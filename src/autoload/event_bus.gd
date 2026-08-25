@@ -13,6 +13,7 @@ signal civilian_killed(civ: Node)
 signal player_detected()
 signal light_extinguished(light: Node)
 signal light_relit(light: Node)
+signal light_relight_requested(request: RelightRequest)
 signal mission_event(event_name: StringName, payload: Dictionary)
 signal inner_monologue_requested(text_id: StringName)
 
