@@ -219,13 +219,16 @@ func enemy_debug_snapshot() -> Array[Dictionary]:
 func debug_geometry_snapshot() -> Dictionary:
 	var enemies := enemy_debug_snapshot()
 	var meter_count := 0
+	var cone_count := 0
 	for item in enemies:
+		if _has_vision_cone(item):
+			cone_count += 1
 		if item.has(&"meter"):
 			meter_count += 1
 	return {
 		&"light_radii": light_radius_snapshot().size(),
 		&"noise_radii": active_noise_count(),
-		&"vision_cones": enemies.size(),
+		&"vision_cones": cone_count,
 		&"meter_values": meter_count,
 	}
 
@@ -300,17 +303,16 @@ func _normalise_enemy_data(enemy: Node, raw: Dictionary) -> Dictionary:
 		forward = forward.normalized()
 	var fov := _finite_float(raw.get(&"fov_degrees", raw.get(&"fov", 0.0)), 0.0)
 	var view_distance := _finite_float(raw.get(&"view_distance", raw.get(&"view_distance_m", 0.0)), 0.0)
-	if fov <= 0.0 or view_distance <= 0.0:
-		return {}
 	var result := {
 		&"enemy": enemy,
 		&"origin": origin,
-		&"forward": forward,
-		&"fov_degrees": clampf(fov, 0.0, 360.0),
-		&"view_distance": view_distance,
 		&"color": raw.get(&"color", Color(1.0, 0.3, 0.35, 0.9)),
 		&"label": str(raw.get(&"label", enemy.name)),
 	}
+	if fov > 0.0 and view_distance > 0.0:
+		result[&"forward"] = forward
+		result[&"fov_degrees"] = clampf(fov, 0.0, 360.0)
+		result[&"view_distance"] = view_distance
 	if raw.has(&"meter"):
 		result[&"meter"] = _finite_float(raw.get(&"meter"), 0.0)
 	elif enemy.has_method(&"meter"):
@@ -321,6 +323,8 @@ func _normalise_enemy_data(enemy: Node, raw: Dictionary) -> Dictionary:
 		result[&"meter_max"] = _finite_float(raw.get(&"meter_max"), enemy_meter_max)
 	else:
 		result[&"meter_max"] = enemy_meter_max
+	if not _has_vision_cone(result) and not result.has(&"meter"):
+		return {}
 	return result
 
 
@@ -368,24 +372,25 @@ func _draw_enemy_debug() -> void:
 	var enemies := enemy_debug_snapshot()
 	for data in enemies:
 		var origin: Vector3 = data.get(&"origin", Vector3.ZERO)
-		var forward: Vector3 = data.get(&"forward", Vector3.FORWARD)
-		var half_angle := deg_to_rad(float(data.get(&"fov_degrees", 0.0))) * 0.5
-		var distance := float(data.get(&"view_distance", 0.0))
-		_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _vision_material)
-		var left := forward.rotated(Vector3.UP, -half_angle)
-		var right := forward.rotated(Vector3.UP, half_angle)
-		_mesh.surface_add_vertex(to_local(origin))
-		_mesh.surface_add_vertex(to_local(origin + left * distance))
-		_mesh.surface_add_vertex(to_local(origin))
-		_mesh.surface_add_vertex(to_local(origin + right * distance))
-		var previous := origin + left * distance
-		for index in range(1, VISION_CONE_SEGMENTS + 1):
-			var angle := -half_angle + (half_angle * 2.0 * float(index) / VISION_CONE_SEGMENTS)
-			var current := origin + forward.rotated(Vector3.UP, angle) * distance
-			_mesh.surface_add_vertex(to_local(previous))
-			_mesh.surface_add_vertex(to_local(current))
-			previous = current
-		_mesh.surface_end()
+		if _has_vision_cone(data):
+			var forward: Vector3 = data.get(&"forward", Vector3.FORWARD)
+			var half_angle := deg_to_rad(float(data.get(&"fov_degrees", 0.0))) * 0.5
+			var distance := float(data.get(&"view_distance", 0.0))
+			_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _vision_material)
+			var left := forward.rotated(Vector3.UP, -half_angle)
+			var right := forward.rotated(Vector3.UP, half_angle)
+			_mesh.surface_add_vertex(to_local(origin))
+			_mesh.surface_add_vertex(to_local(origin + left * distance))
+			_mesh.surface_add_vertex(to_local(origin))
+			_mesh.surface_add_vertex(to_local(origin + right * distance))
+			var previous := origin + left * distance
+			for index in range(1, VISION_CONE_SEGMENTS + 1):
+				var angle := -half_angle + (half_angle * 2.0 * float(index) / VISION_CONE_SEGMENTS)
+				var current := origin + forward.rotated(Vector3.UP, angle) * distance
+				_mesh.surface_add_vertex(to_local(previous))
+				_mesh.surface_add_vertex(to_local(current))
+				previous = current
+			_mesh.surface_end()
 		if data.has(&"meter"):
 			var meter := clampf(float(data.get(&"meter", 0.0)), 0.0, float(data.get(&"meter_max", enemy_meter_max)))
 			var max_meter := maxf(float(data.get(&"meter_max", enemy_meter_max)), MIN_RADIUS)
@@ -394,6 +399,10 @@ func _draw_enemy_debug() -> void:
 			_mesh.surface_add_vertex(to_local(origin + Vector3(0.0, 0.03, 0.0)))
 			_mesh.surface_add_vertex(to_local(origin + Vector3(0.0, 0.03 + meter_height, 0.0)))
 			_mesh.surface_end()
+
+
+func _has_vision_cone(data: Dictionary) -> bool:
+	return data.has(&"origin") and data.has(&"forward") and data.has(&"fov_degrees") and data.has(&"view_distance")
 
 
 func _update_status_label() -> void:
@@ -407,7 +416,11 @@ func _update_status_label() -> void:
 	lines.append("Light radii: %d" % light_radius_snapshot().size())
 	lines.append("Noise radii: %d" % active_noise_count())
 	var enemies := enemy_debug_snapshot()
-	lines.append("Vision cones: %d" % enemies.size())
+	var cone_count := 0
+	for data in enemies:
+		if _has_vision_cone(data):
+			cone_count += 1
+	lines.append("Vision cones: %d" % cone_count)
 	for data in enemies:
 		if data.has(&"meter"):
 			lines.append("  %s meter: %.2f / %.2f" % [

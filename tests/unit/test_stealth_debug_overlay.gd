@@ -105,6 +105,22 @@ func test_enemy_provider_exposes_vision_cone_and_meter_extension_points() -> voi
 	assert_eq(overlay.debug_geometry_snapshot().get(&"meter_values"), 1)
 
 
+func test_enemy_provider_preserves_meter_without_vision_cone() -> void:
+	var overlay := OverlayScript.new()
+	var enemy := EnemyDebugProvider.new()
+	enemy.detection_meter = 1.5
+	add_child_autofree(overlay)
+	add_child_autofree(enemy)
+	overlay.register_enemy(enemy)
+
+	var snapshot := overlay.enemy_debug_snapshot()
+	assert_eq(snapshot.size(), 1)
+	assert_false(snapshot[0].has(&"fov_degrees"))
+	assert_eq(snapshot[0].get(&"meter"), 1.5)
+	assert_eq(overlay.debug_geometry_snapshot().get(&"vision_cones"), 0)
+	assert_eq(overlay.debug_geometry_snapshot().get(&"meter_values"), 1)
+
+
 func test_noise_event_telemetry_is_received_without_changing_enemy_dispatch() -> void:
 	var overlay := OverlayScript.new()
 	add_child_autofree(overlay)
