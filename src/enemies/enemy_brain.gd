@@ -372,12 +372,57 @@ func is_lantern_bearer() -> bool:
 	return _routine_type == &"lantern_bearer"
 
 
+func is_target() -> bool:
+	return _routine_type == &"target"
+
+
+func is_escort() -> bool:
+	return _routine_type == &"escort"
+
+
 func current_routine_stop_index() -> int:
 	return _routine_stop_index
 
 
 func current_stop_index() -> int:
 	return current_routine_stop_index()
+
+
+## Return the bounded elapsed dwell time at the current authored stop.
+## This is intentionally read-only so target/escort variants cannot bypass the
+## same arrival and schedule gates used by the base routine controller.
+func routine_stop_elapsed() -> float:
+	return clampf(_routine_stop_elapsed, 0.0, RoutineStop.MAX_DWELL_SECONDS)
+
+
+func routine_clock() -> float:
+	return clampf(_routine_clock, 0.0, MAX_ROUTINE_CLOCK_SECONDS)
+
+
+func set_routine_stop_index(index: int) -> bool:
+	var path := routine_path()
+	if path == null or not _routine_path_is_usable(path):
+		return false
+	var stops := path.ordered_stops()
+	if index < 0 or index >= stops.size():
+		return false
+	var stop := stops[index]
+	if stop == null or not is_instance_valid(stop) or not stop.is_available_at(_area_alert_level()):
+		return false
+	_routine_stop_index = index
+	_routine_stop_elapsed = 0.0
+	_routine_holding_final_stop = false
+	_routine_arrived = false
+	return true
+
+
+func advance_routine_stop() -> bool:
+	var path := routine_path()
+	if path == null or not _routine_path_is_usable(path):
+		return false
+	var previous := _routine_stop_index
+	_advance_to_next_routine_stop()
+	return _routine_stop_index != previous and not _routine_holding_final_stop
 
 
 func current_routine_stop() -> RoutineStop:
@@ -1554,6 +1599,10 @@ static func _normalize_routine_type(value: StringName) -> StringName:
 			return &"guard"
 		"lantern", "lantern_bearer", "moving_light":
 			return &"lantern_bearer"
+		"target", "target_npc", "vip", "objective_target":
+			return &"target"
+		"escort", "escort_guard", "target_guard":
+			return &"escort"
 	return &""
 
 
