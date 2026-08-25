@@ -67,6 +67,18 @@ func test_extinguish_rejects_out_of_range_and_invalid_targets() -> void:
 	assert_false(light.can_interact(player))
 
 
+func test_non_extinguishable_light_rejects_player_interaction() -> void:
+	var light := _add_light()
+	light.extinguishable = false
+	var player := _add_player_body(Vector3.ZERO)
+	await get_tree().physics_frame
+
+	assert_true(light.is_on())
+	assert_false(light.can_interact(player))
+	assert_false(light.try_extinguish(player))
+	assert_true(light.is_on())
+
+
 func test_player_adjacent_interaction_chooses_light_source() -> void:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	player.set_physics_process(false)
