@@ -75,3 +75,22 @@ func test_audio_director_drops_incapacitated_enemy_from_bgm_aggregate() -> void:
 	assert_true(director.update_enemy_alert(enemy, Enums.AlertState.COMBAT))
 	EventBus.enemy_neutralized.emit(enemy, "knockout")
 	assert_eq(director.highest_alert_state(), Enums.AlertState.UNAWARE)
+
+
+func test_audio_director_retains_higher_alert_when_tracking_table_is_full() -> void:
+	var director := AudioDirectorScript.new()
+	add_child_autofree(director)
+	director.clear_alert_tracking()
+	for index in AudioDirectorScript.MAX_TRACKED_ENEMIES:
+		var enemy := Node.new()
+		add_child_autofree(enemy)
+		assert_true(director.update_enemy_alert(enemy, Enums.AlertState.SUSPICIOUS))
+
+	var combat_enemy := Node.new()
+	add_child_autofree(combat_enemy)
+	assert_true(director.update_enemy_alert(combat_enemy, Enums.AlertState.COMBAT))
+	assert_eq(director.active_alert_count(), AudioDirectorScript.MAX_TRACKED_ENEMIES)
+	assert_eq(director.highest_alert_state(), Enums.AlertState.COMBAT)
+
+	assert_true(director.update_enemy_alert(combat_enemy, Enums.AlertState.RETURN))
+	assert_eq(director.highest_alert_state(), Enums.AlertState.SUSPICIOUS)

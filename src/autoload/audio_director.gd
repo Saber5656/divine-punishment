@@ -82,9 +82,22 @@ func update_enemy_alert(enemy: Node, to_state: int) -> bool:
 		return true
 	_prune_tracked_alerts()
 	if not _tracked_alerts.has(instance_id) and _tracked_alerts.size() >= MAX_TRACKED_ENEMIES:
-		# Keep the aggregate bounded.  A full table must not allocate from an
-		# untrusted or malformed enemy population.
-		return false
+		# Keep the table bounded while retaining a higher-severity contribution.
+		# The aggregate is a maximum, so replacing a lower state is equivalent
+		# for the lower state and prevents a full table from masking Combat.
+		var weakest_id: Variant = null
+		var weakest_state := Enums.AlertState.COMBAT
+		for tracked_id: Variant in _tracked_alerts.keys():
+			var tracked_entry: Variant = _tracked_alerts.get(tracked_id)
+			if not tracked_entry is Dictionary:
+				continue
+			var tracked_value: Variant = (tracked_entry as Dictionary).get(&"state")
+			if (tracked_value is int or tracked_value is float) and int(tracked_value) < weakest_state:
+				weakest_state = int(tracked_value) as Enums.AlertState
+				weakest_id = tracked_id
+		if weakest_id == null or to_state <= int(weakest_state):
+			return false
+		_tracked_alerts.erase(weakest_id)
 	_tracked_alerts[instance_id] = {&"enemy": enemy, &"state": to_state}
 	_refresh_highest_tier()
 	return true
