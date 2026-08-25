@@ -101,6 +101,7 @@ func test_prompt_and_one_input_execution_lock_both_sides() -> void:
 	add_child_autofree(player)
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.rotation.y = PI
 	add_child_autofree(enemy)
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	watch_signals(resolver)
@@ -159,3 +160,139 @@ func test_prompt_and_evaluate_reject_enemy_seen_by_perception() -> void:
 	assert_eq(resolver.evaluate(enemy), &"")
 	assert_eq(resolver.prompt_context(), &"")
 	assert_false(resolver.confirm())
+
+
+func test_presentation_lock_completes_through_production_release_path() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"back")
+	resolver.config.set("presentation_duration_seconds", 0.1)
+
+	assert_true(resolver.confirm())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	for _i in range(20):
+		await get_tree().process_frame
+		if player.state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
+			break
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
+	assert_null(resolver.active_enemy())
+	assert_true(enemy.is_assassinated())
+
+
+func test_back_context_requires_enemy_to_face_away_from_player() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 0.0, 1.0)
+	add_child_autofree(enemy)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+
+	assert_eq(resolver.evaluate(enemy), &"")
+	enemy.rotation.y = PI
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_assassination_requires_sensor_overlap() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var interactor := player.get_node("Interactor") as Area3D
+	await _wait_for_sensor_overlap(player, enemy)
+	interactor.monitoring = false
+	assert_eq(resolver.evaluate(enemy), &"")
+	interactor.monitoring = true
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_assassination_requires_clear_world_path() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+	var blocker := _add_occluder(Vector3(0.0, 0.5, 0.5))
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"")
+	blocker.queue_free()
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_resolver_refreshes_assassination_tuning_on_reload() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	await get_tree().process_frame
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var tuning := get_node("/root/Tuning") as TuningService
+	var original := tuning.assassination()
+	var replacement := ConfigScript.new() as Resource
+	replacement.set("back_max_distance_m", 0.75)
+	tuning._assassination = replacement
+	Tuning.reloaded.emit()
+	assert_eq(resolver.config.get("back_max_distance_m"), 0.75)
+	tuning._assassination = original
+	Tuning.reloaded.emit()
+
+
+func test_crawl_posture_is_preserved_while_assassination_is_locked() -> void:
+	var entrance := CrawlEntrance.new()
+	entrance.inside_offset = Vector3(0.0, 0.0, -1.0)
+	add_child_autofree(entrance)
+	var player := PlayerScene.instantiate() as PlayerController
+	player.position = entrance.outside_world_position()
+	add_child_autofree(player)
+	assert_true(player.try_enter_crawlspace(entrance))
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 1.0, -1.0)
+	add_child_autofree(enemy)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var collision := player.get_node("CollisionShape3D") as CollisionShape3D
+	var capsule := collision.shape as CapsuleShape3D
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"below")
+	assert_true(resolver.confirm())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	assert_almost_eq(capsule.height, player.crawl_capsule_height, 0.0001)
+	assert_almost_eq(player.camera_rig.posture_drop(), player.crawl_camera_drop, 0.0001)
+	assert_true(resolver.release())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CRAWLSPACE)
+	assert_almost_eq(capsule.height, player.crawl_capsule_height, 0.0001)
+
+
+func _add_valid_back_enemy() -> EnemyBase:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.rotation.y = PI
+	add_child_autofree(enemy)
+	return enemy
+
+
+func _wait_for_sensor_overlap(player: PlayerController, enemy: EnemyBase) -> void:
+	var interactor := player.get_node("Interactor") as Area3D
+	var target_area := enemy.get_node("AssassinateTarget") as Area3D
+	for _i in range(8):
+		await get_tree().physics_frame
+		if interactor.get_overlapping_areas().has(target_area):
+			return
+	assert_true(interactor.get_overlapping_areas().has(target_area))
+
+
+func _add_occluder(at: Vector3) -> StaticBody3D:
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = 1
+	blocker.collision_mask = 0
+	blocker.position = at
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.5, 1.5, 0.2)
+	collision.shape = shape
+	blocker.add_child(collision)
+	add_child_autofree(blocker)
+	return blocker

@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_assassination_config")
+presentation_duration_seconds = 0.75
 back_max_distance_m = 1.5
 back_max_angle_degrees = 70.0
 back_allowed_alert_states = Array[int]([0, 1, 2, 4])
