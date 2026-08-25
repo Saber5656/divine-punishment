@@ -188,6 +188,23 @@ func _record_overflow(enemy: Node, state: int) -> void:
 		return
 	if _overflow_alerts.size() < MAX_OVERFLOW_ALERTS:
 		_overflow_alerts[instance_id] = {&"enemy": enemy, &"state": state}
+		return
+	# Keep the bounded overflow representative set useful for the aggregate:
+	# when it is full, a higher-severity alert may replace one lower-severity
+	# representative, but an equal/lower alert is rejected without growing it.
+	var weakest_id: Variant = null
+	var weakest_state := Enums.AlertState.COMBAT
+	for overflow_id: Variant in _overflow_alerts.keys():
+		var entry: Variant = _overflow_alerts.get(overflow_id)
+		if not entry is Dictionary:
+			continue
+		var value: Variant = (entry as Dictionary).get(&"state", Enums.AlertState.UNAWARE)
+		if (value is int or value is float) and int(value) < weakest_state:
+			weakest_state = int(value) as Enums.AlertState
+			weakest_id = overflow_id
+	if weakest_id != null and state > int(weakest_state):
+		_overflow_alerts.erase(weakest_id)
+		_overflow_alerts[instance_id] = {&"enemy": enemy, &"state": state}
 
 
 func _promote_overflow_alerts() -> void:

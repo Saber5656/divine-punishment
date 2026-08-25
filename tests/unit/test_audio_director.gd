@@ -124,6 +124,34 @@ func test_audio_director_retains_overflow_combat_after_tracked_entries_leave() -
 	assert_eq(director.highest_alert_state(), Enums.AlertState.UNAWARE)
 
 
+func test_audio_director_replaces_only_lower_overflow_alerts_at_capacity() -> void:
+	var director := AudioDirectorScript.new()
+	add_child_autofree(director)
+	director.clear_alert_tracking()
+	for index in AudioDirectorScript.MAX_TRACKED_ENEMIES:
+		var tracked_enemy := Node.new()
+		add_child_autofree(tracked_enemy)
+		assert_true(director.update_enemy_alert(tracked_enemy, Enums.AlertState.COMBAT))
+
+	for index in AudioDirectorScript.MAX_OVERFLOW_ALERTS:
+		var overflow_enemy := Node.new()
+		add_child_autofree(overflow_enemy)
+		assert_false(director.update_enemy_alert(overflow_enemy, Enums.AlertState.SUSPICIOUS))
+	assert_eq(director.overflow_alert_count(), AudioDirectorScript.MAX_OVERFLOW_ALERTS)
+
+	var promoted := Node.new()
+	add_child_autofree(promoted)
+	assert_false(director.update_enemy_alert(promoted, Enums.AlertState.COMBAT))
+	assert_eq(director.overflow_alert_count(), AudioDirectorScript.MAX_OVERFLOW_ALERTS)
+	assert_eq(director.tracked_alert_state(promoted), Enums.AlertState.COMBAT)
+
+	var discarded := Node.new()
+	add_child_autofree(discarded)
+	assert_false(director.update_enemy_alert(discarded, Enums.AlertState.SUSPICIOUS))
+	assert_eq(director.overflow_alert_count(), AudioDirectorScript.MAX_OVERFLOW_ALERTS)
+	assert_eq(director.tracked_alert_state(discarded), Enums.AlertState.UNAWARE)
+
+
 func test_audio_director_query_prune_refreshes_current_tier() -> void:
 	var director := AudioDirectorScript.new()
 	add_child_autofree(director)
