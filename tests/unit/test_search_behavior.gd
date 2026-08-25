@@ -76,6 +76,24 @@ func test_search_route_keeps_best_candidates_after_irrelevant_markers() -> void:
 	assert_eq(brain.current_search_point(), valid)
 
 
+func test_search_faces_authored_direction_before_hide_spot_inspection() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.brain()
+	var point := _add_search_point(&"Facing", Vector3(0.0, 0.0, -1.0), 1.0, 0)
+	point.facing_direction = Vector3.RIGHT
+	brain.submit_stimulus(PerceptionStimulus.create(
+		Enums.StimulusKind.NOISE,
+		3,
+		point.global_position,
+		1.0,
+	))
+	brain.tick(0.016)
+	enemy.global_position = point.global_position
+	brain.tick(0.016)
+
+	assert_gt(absf(enemy.rotation.y), 0.1)
+
+
 func test_search_inspects_bounded_hide_spots_through_perception_gate() -> void:
 	var enemy := _spawn_enemy()
 	var brain := enemy.brain()

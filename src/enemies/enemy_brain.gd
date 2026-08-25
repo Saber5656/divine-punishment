@@ -885,6 +885,12 @@ func _advance_search(delta: float) -> void:
 	var arrived := _navigation_has_reached(target)
 	var enemy := _enemy_node()
 	var bounded_delta := minf(delta, MAX_SEARCH_STEP_DELTA)
+	if enemy != null and enemy.has_method(&"face_routine_direction"):
+		var facing := point.world_facing_direction()
+		if _valid_vector(facing) and facing.length_squared() > 0.000001:
+			# Use the bounded full-step factor so the authored inspection cone is
+			# active before HideSpot visibility is evaluated.
+			enemy.call(&"face_routine_direction", facing, MAX_SEARCH_STEP_DELTA)
 	if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
 		var result: Variant = enemy.call(&"advance_navigation", bounded_delta, target, _routine_speed())
 		arrived = bool(result) if result is bool else _navigation_has_reached(target)
