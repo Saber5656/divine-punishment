@@ -1,0 +1,45 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/enemy_base.gd" id="1_enemy"]
+[ext_resource type="Script" path="res://src/enemies/enemy_brain.gd" id="2_brain"]
+[ext_resource type="Script" path="res://src/enemies/enemy_perception.gd" id="3_perception"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_enemy"]
+radius = 0.35
+height = 1.8
+
+[node name="EnemyBase" type="CharacterBody3D" groups=["enemies"]]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_enemy")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_enemy")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Model" type="Node3D" parent="Visual"]
+
+[node name="Brain" type="Node" parent="."]
+script = ExtResource("2_brain")
+
+[node name="Perception" type="Node" parent="."]
+script = ExtResource("3_perception")
+
+[node name="EyePoint" type="Marker3D" parent="Perception"]
+position = Vector3(0, 1.5, 0)
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+
+[node name="Combat" type="Node" parent="."]
+
+[node name="AssassinateTarget" type="Area3D" parent="."]
+collision_layer = 1024
+collision_mask = 0
+
+[node name="MeterAnchor" type="Marker3D" parent="."]
+position = Vector3(0, 2.0, 0)
+
+[node name="Carryable" type="Node" parent="."]
+
+[connection signal="stimulus" from="Perception" to="Brain" method="submit_stimulus"]
