@@ -15,6 +15,9 @@ func test_hud_ring_follows_visibility_and_keeps_three_empty_tool_frames() -> voi
 	assert_true(hud.is_visibility_ring_open())
 	assert_lte(hud.displayed_visibility(), 0.75)
 	assert_eq(hud.tool_slot_count(), 3)
+	assert_eq((hud.get_node("ToolSlots") as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	for slot_index in hud.tool_slot_count():
+		assert_eq(hud.tool_slot_frame(slot_index).mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	assert_not_null(hud.tool_slot_frame(0))
 	assert_not_null(hud.tool_slot_frame(1))
 	assert_not_null(hud.tool_slot_frame(2))
