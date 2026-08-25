@@ -13,7 +13,7 @@ extends Node3D
 const MAP_BOUNDS := Rect2(0.0, 0.0, 100.0, 64.0)
 const GROUND_SURFACE_Y := -1.0
 const PLAYER_CENTER_Y := 0.0
-const OVERHEAD_Y := 4.0
+const OVERHEAD_Y := 5.0
 const CRAWL_ROOF_Y := 0.5
 const WORLD_COLLISION_LAYER := 1
 const VISION_BLOCKER_LAYER := 1 << 4
