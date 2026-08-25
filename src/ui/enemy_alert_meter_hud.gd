@@ -103,7 +103,6 @@ func refresh() -> void:
 		if data.is_empty():
 			_remove_entry(instance_id)
 			continue
-		accepted += 1
 		var entry := _entry_for(instance_id)
 		var projection := project_anchor(
 			camera_node,
@@ -113,6 +112,7 @@ func refresh() -> void:
 		if not bool(projection.get(&"valid", false)):
 			entry[&"holder"].visible = false
 			continue
+		accepted += 1
 		_update_entry(entry, projection[&"position"], data[&"meter"], data[&"state"])
 	for instance_id: Variant in _entries.keys():
 		if not seen.has(instance_id):

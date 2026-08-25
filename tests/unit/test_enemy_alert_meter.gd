@@ -105,3 +105,33 @@ func test_meter_hud_evicts_stale_entries_under_candidate_churn() -> void:
 	assert_false(hud._entries.has(old_id))
 	await get_tree().process_frame
 	assert_false(is_instance_valid(old_holder))
+
+
+func test_meter_hud_visible_cap_ignores_offscreen_candidates() -> void:
+	var camera := Camera3D.new()
+	add_child_autofree(camera)
+	camera.current = true
+	var hud := EnemyAlertMeterHudScript.new() as EnemyAlertMeterHud
+	add_child_autofree(hud)
+	hud.set_camera(camera)
+
+	var candidates: Array[Node] = []
+	for index in EnemyAlertMeterHudScript.MAX_METERS:
+		var enemy := EnemyScene.instantiate() as EnemyBase
+		enemy.position = Vector3(100.0, 0.0, -5.0)
+		add_child_autofree(enemy)
+		(enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
+		(enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"offscreen")
+		candidates.append(enemy)
+	var visible_enemy := EnemyScene.instantiate() as EnemyBase
+	visible_enemy.position = Vector3(0.0, 0.0, -5.0)
+	add_child_autofree(visible_enemy)
+	(visible_enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
+	(visible_enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"onscreen")
+	candidates.append(visible_enemy)
+
+	hud.set_enemy_candidates(candidates)
+	await get_tree().process_frame
+	hud.refresh()
+	assert_eq(hud.meter_count(), 1)
+	assert_true(hud.meter_screen_position(visible_enemy).is_finite())
