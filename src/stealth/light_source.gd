@@ -113,6 +113,13 @@ func try_extinguish(actor: Node3D) -> bool:
 	return true
 
 
+func try_extinguish_from_projectile() -> bool:
+	if not is_inside_tree() or not is_geometry_valid() or not is_on() or not extinguishable:
+		return false
+	set_extinguished(true)
+	return true
+
+
 func request_relight(requester: Node) -> bool:
 	if (
 		is_on()

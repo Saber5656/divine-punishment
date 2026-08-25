@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="ToolDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ToolDefinition" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/tools/tool_definition.gd" id="1_definition"]
+[ext_resource type="PackedScene" path="res://src/tools/effects/blow_dart_effect.tscn" id="2_effect"]
 
 [resource]
 script = ExtResource("1_definition")
@@ -11,7 +12,11 @@ is_projectile = true
 lethal = false
 params = {
 &"sleep": 20.0,
+&"knockout_duration": 20.0,
+&"wake_by_noise": true,
+&"max_range": 24.0,
 }
+effect_scene = ExtResource("2_effect")
 projectile_speed = 32.0
 trajectory_gravity = 1.5
 trajectory_seconds = 0.9
