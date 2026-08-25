@@ -74,6 +74,15 @@ func test_noise_is_forwarded_to_brain_without_raw_event_bus_subscription() -> vo
 	assert_gt(stimuli[0].confidence, 0.0)
 
 
+func test_firework_noise_is_masking_only() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var source := Node.new()
+	add_child_autofree(source)
+	enemy.on_noise(NoiseEventScript.create(Vector3(0.0, 1.5, 0.0), 6.0, Enums.NoiseKind.FIREWORK, source))
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).drain_stimuli().size(), 0)
+
+
 func test_malformed_perception_resource_fails_closed() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)

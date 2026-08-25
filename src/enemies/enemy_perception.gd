@@ -63,6 +63,8 @@ func on_noise(event: NoiseEvent) -> void:
 		return
 	if event.kind < Enums.NoiseKind.FOOTSTEP or event.kind > Enums.NoiseKind.FIREWORK:
 		return
+	if event.kind == Enums.NoiseKind.FIREWORK:
+		return
 	if _is_self_noise(event.source):
 		return
 
