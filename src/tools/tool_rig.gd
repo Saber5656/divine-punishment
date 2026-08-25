@@ -68,8 +68,10 @@ func set_inventory(next_inventory: ToolInventory) -> bool:
 			inventory.slot_changed.disconnect(_on_inventory_slot_changed)
 		if inventory.count_changed.is_connected(_on_inventory_count_changed):
 			inventory.count_changed.disconnect(_on_inventory_count_changed)
-	if inventory != null and inventory.get_parent() == self:
-		remove_child(inventory)
+	var old_inventory := inventory
+	if old_inventory != null and old_inventory.get_parent() == self:
+		remove_child(old_inventory)
+		old_inventory.queue_free()
 	inventory = next_inventory
 	if inventory.get_parent() == null:
 		add_child(inventory)

@@ -150,10 +150,12 @@ func test_sparse_inventory_is_preserved_and_profile_slot_count_reaches_hud() -> 
 	assert_eq(player.tool_rig.inventory.slot_count(), 5)
 	assert_eq(player.swim_hud.tool_slot_count(), 5)
 
+	var old_inventory := player.tool_rig.inventory
 	var replacement := ToolInventoryScript.new() as ToolInventory
 	var stone := _definition(&"replacement", 1)
 	replacement.configure([stone], 1)
 	assert_true(player.tool_rig.set_inventory(replacement))
+	assert_true(old_inventory.is_queued_for_deletion())
 	assert_eq(player.swim_hud.tool_slot_definition(0), stone)
 
 
