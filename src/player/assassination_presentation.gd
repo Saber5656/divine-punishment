@@ -41,6 +41,7 @@ var _context: StringName = &""
 var _audio_phase: StringName = &""
 var _camera_rig: Node
 var _audio_director: Node
+var _animation_player: Node
 
 
 func _ready() -> void:
@@ -185,6 +186,7 @@ func _invoke_animation_hook() -> void:
 		return
 	var animation_player := get_node_or_null(animation_player_path)
 	if animation_player != null and animation_player.has_method(&"play"):
+		_animation_player = animation_player
 		animation_player.call(&"play", clip)
 
 
@@ -239,6 +241,11 @@ func _finish() -> void:
 
 
 func _reset_hooks() -> void:
+	var animation_player := _animation_player if is_instance_valid(_animation_player) else null
+	if animation_player != null and animation_player.has_method(&"stop"):
+		# Authored clips may be longer or looping; the presentation owns the
+		# direct playback it started and must stop it on every cleanup path.
+		animation_player.call(&"stop")
 	var camera_rig := _camera_rig if is_instance_valid(_camera_rig) else _resolve_camera_rig()
 	if camera_rig != null and camera_rig.has_method(&"end_assassination_blend"):
 		camera_rig.call(&"end_assassination_blend")
@@ -272,3 +279,4 @@ func _clear_state() -> void:
 	_context = &""
 	_camera_rig = null
 	_audio_director = null
+	_animation_player = null

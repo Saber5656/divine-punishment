@@ -112,6 +112,34 @@ func test_cancel_restores_previous_ambience_after_assassination() -> void:
 	AudioDirector.current_ambience = &"ambient"
 
 
+func test_direct_animation_clip_stops_on_cancel_and_completion() -> void:
+	var presentation := _presentation()
+	var animation_player := AnimationPlayer.new()
+	animation_player.name = "AnimationPlayer"
+	var library := AnimationLibrary.new()
+	var clip := Animation.new()
+	clip.length = 5.0
+	clip.loop_mode = Animation.LOOP_LINEAR
+	assert_true(library.add_animation(&"assassination_back", clip) == OK)
+	assert_true(animation_player.add_animation_library(&"", library) == OK)
+	presentation.add_child(animation_player)
+	presentation.animation_player_path = NodePath("AnimationPlayer")
+	presentation.duration_sec = 1.0
+	await get_tree().process_frame
+	var enemy := _enemy()
+
+	assert_true(presentation.begin(enemy, &"back"))
+	assert_true(animation_player.is_playing())
+	assert_true(presentation.cancel())
+	assert_false(animation_player.is_playing())
+
+	assert_true(presentation.begin(enemy, &"back"))
+	assert_true(animation_player.is_playing())
+	presentation.advance(1.0)
+	assert_false(presentation.is_active())
+	assert_false(animation_player.is_playing())
+
+
 func test_other_enemy_perception_runs_during_presentation() -> void:
 	var presentation := _presentation()
 	var target := _enemy()
