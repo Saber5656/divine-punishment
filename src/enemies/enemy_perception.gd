@@ -247,6 +247,40 @@ func target_visible() -> bool:
 	return _target_visible
 
 
+## Check an authored search target using the same bounded FOV, smoke, and
+## world-occlusion rules as anomaly perception.  Search logic must not treat a
+## nearby marker as automatically visible because distance alone is not sight.
+func can_see_position(position: Vector3) -> bool:
+	if not _valid_config() or not _valid_vector(position):
+		return false
+	var eye := _eye_point()
+	var owner := get_parent() as Node3D
+	if eye == null or owner == null or not is_inside_tree() or not _valid_vector(eye.global_position):
+		return false
+	var to_target := position - eye.global_position
+	var distance := to_target.length()
+	if not is_finite(distance) or distance <= 0.0 or distance > perception_config.view_distance_m:
+		return false
+	var forward: Vector3 = -owner.global_transform.basis.z
+	if not _valid_vector(forward) or forward.length_squared() <= 0.000001:
+		return false
+	forward = forward.normalized()
+	var horizontal_forward := Vector3(forward.x, 0.0, forward.z)
+	var horizontal_target := Vector3(to_target.x, 0.0, to_target.z)
+	if horizontal_forward.length_squared() <= 0.000001:
+		return false
+	if horizontal_target.length_squared() > 0.000001:
+		horizontal_forward = horizontal_forward.normalized()
+		horizontal_target = horizontal_target.normalized()
+		var dot_value := clampf(horizontal_forward.dot(horizontal_target), -1.0, 1.0)
+		var angle_degrees := rad_to_deg(acos(dot_value))
+		if not is_finite(angle_degrees) or angle_degrees > perception_config.fov_degrees * 0.5:
+			return false
+	if _is_smoke_blocked(eye.global_position, position):
+		return false
+	return _point_visible(eye.global_position, position, _ray_exclusions(null))
+
+
 func set_vigilance_multiplier(value: float) -> void:
 	if not is_finite(value):
 		_manual_vigilance_multiplier = 1.0
