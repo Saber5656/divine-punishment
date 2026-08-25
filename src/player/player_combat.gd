@@ -417,7 +417,7 @@ func _damage_result(result: Variant, requested_damage: int) -> int:
 
 func _target_in_range(target: Node, range_m: float) -> bool:
 	if not target is Node3D or _player == null:
-		return true
+		return false
 	var distance := _distance_to(target)
 	return is_finite(distance) and distance <= maxf(range_m, 0.1)
 

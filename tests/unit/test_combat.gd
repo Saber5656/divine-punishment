@@ -90,6 +90,15 @@ func test_player_attack_telemetry_reports_damage_actually_applied() -> void:
 	assert_eq(observed_damage, [1])
 
 
+func test_player_combat_rejects_a_non_spatial_attack_target() -> void:
+	var target := Node.new()
+	add_child_autofree(target)
+	assert_true(player_combat.start_attack())
+	player_combat.tick(0.1)
+	assert_false(player_combat.resolve_attack(target))
+	assert_eq(enemy_combat.health(), 3)
+
+
 func test_combo_window_resets_after_timeout() -> void:
 	assert_true(player_combat.start_attack())
 	player_combat.tick(0.1)
