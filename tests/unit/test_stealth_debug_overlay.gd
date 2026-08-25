@@ -122,7 +122,6 @@ func test_enemy_provider_preserves_meter_without_vision_cone() -> void:
 	assert_eq(overlay.debug_geometry_snapshot().get(&"vision_cones"), 0)
 	assert_eq(overlay.debug_geometry_snapshot().get(&"meter_values"), 1)
 
-
 func test_enemy_provider_preserves_requested_vision_color() -> void:
 	var overlay := OverlayScript.new()
 	var enemy := EnemyDebugProvider.new()
