@@ -541,8 +541,11 @@ func _sensor_overlaps_enemy(player: Node3D, enemy: EnemyBase) -> bool:
 	):
 		return false
 	# Explicit target evaluation uses a direct physics pair query so unrelated
-	# overlap entries cannot hide a valid assassination target.
-	return interactor.overlaps_area(target_area)
+	# overlap entries cannot hide a valid assassination target.  Headless Godot
+	# can expose the synchronized overlap list one frame before `overlaps_area`
+	# reflects the same pair, so retain the engine-owned membership as a
+	# deterministic compatibility fallback without truncating explicit targets.
+	return interactor.overlaps_area(target_area) or interactor.get_overlapping_areas().has(target_area)
 
 
 func _assassination_path_is_clear(
