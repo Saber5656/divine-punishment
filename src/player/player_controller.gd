@@ -279,6 +279,8 @@ func traversal_distance() -> float:
 
 
 func try_enter_water(volume: WaterVolume = null) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current not in [
 		PlayerStateMachine.STATE_GROUND,
@@ -367,6 +369,8 @@ func try_surface_from_underwater(forced: bool = false) -> bool:
 
 
 func try_enter_crawlspace(entrance: CrawlEntrance = null) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
@@ -443,6 +447,8 @@ func try_enter_hide_spot(
 	hide_spot: HideSpot = null,
 	close_range_seen: bool = false,
 ) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
@@ -487,11 +493,22 @@ func try_exit_hide_spot(hide_spot: HideSpot = null) -> bool:
 
 
 func is_carrying_body() -> bool:
-	return _carried_body != null and is_instance_valid(_carried_body)
+	if (
+		_carried_body == null
+		or not is_instance_valid(_carried_body)
+		or not _carried_body.is_inside_tree()
+		or _carried_body.get_tree() != get_tree()
+		or _carried_body.get_parent() != self
+		or not _carried_body.has_method(&"is_being_carried")
+		or not bool(_carried_body.call(&"is_being_carried"))
+	):
+		_carried_body = null
+		return false
+	return true
 
 
 func carried_body() -> Node3D:
-	return _carried_body
+	return _carried_body if is_carrying_body() else null
 
 
 func can_use_ninja_tools() -> bool:
@@ -555,6 +572,7 @@ func try_store_carried_body(hide_spot: HideSpot = null) -> bool:
 	if (
 		candidate == null
 		or not is_instance_valid(candidate)
+		or not candidate.is_near_entry(global_position)
 		or not candidate.can_store_body(_carried_body)
 		or not candidate.store_body(_carried_body)
 	):
@@ -566,7 +584,7 @@ func try_store_carried_body(hide_spot: HideSpot = null) -> bool:
 func try_retrieve_stored_body(hide_spot: HideSpot = null) -> bool:
 	if is_carrying_body():
 		return false
-	var candidate := hide_spot if hide_spot != null else _nearest_storage_hide_spot()
+	var candidate := hide_spot if hide_spot != null else _nearest_storage_hide_spot(true)
 	if candidate == null or not candidate.has_stored_body():
 		return false
 	var body := candidate.retrieve_body(self)
@@ -598,6 +616,8 @@ func invalidate_hidden_if_close_range_seen(close_range_seen: bool) -> bool:
 
 
 func try_enter_climb(edge: ClimbEdge = null) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if (
 		current != PlayerStateMachine.STATE_GROUND
@@ -648,6 +668,8 @@ func advance_traversal(axis: float, delta: float) -> void:
 
 
 func try_enter_wall_cling() -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
@@ -1942,7 +1964,7 @@ func _nearest_carryable_body() -> Node3D:
 	return nearest
 
 
-func _nearest_storage_hide_spot() -> HideSpot:
+func _nearest_storage_hide_spot(require_stored_body: bool = false) -> HideSpot:
 	if not is_inside_tree() or get_tree() == null or not global_position.is_finite():
 		return null
 	var spots := get_tree().get_nodes_in_group(&"hide_spots")
@@ -1958,6 +1980,8 @@ func _nearest_storage_hide_spot() -> HideSpot:
 			or spot.get_tree() != get_tree()
 			or not spot.is_geometry_valid()
 			or not spot.is_near_entry(global_position)
+			or (require_stored_body and not spot.has_stored_body())
+			or (not require_stored_body and spot.has_stored_body())
 		):
 			continue
 		var distance_squared := global_position.distance_squared_to(spot.entry_world_position())
