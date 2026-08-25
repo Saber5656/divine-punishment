@@ -68,3 +68,8 @@ func parameter_float(key: StringName, fallback: float = 0.0) -> float:
 		var number := float(value)
 		return number if is_finite(number) else fallback
 	return fallback
+
+
+func parameter_bool(key: StringName, fallback: bool = false) -> bool:
+	var value: Variant = params.get(key, fallback)
+	return value if value is bool else fallback
