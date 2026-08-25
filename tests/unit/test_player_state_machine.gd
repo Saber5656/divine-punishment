@@ -245,7 +245,7 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 	assert_eq(player.get_child(9).name, &"DetectPoints")
 	assert_true(player.get_node("StateMachine") is PlayerStateMachine)
 	assert_eq((player.get_node("Interactor") as Area3D).collision_layer, 0)
-	assert_eq((player.get_node("Interactor") as Area3D).collision_mask, 22976)
+	assert_eq((player.get_node("Interactor") as Area3D).collision_mask, 24000)
 	assert_true((player.get_node("DetectPoints") as Node3D).is_in_group(&"player_detect_points"))
 	assert_true(player.get_node("Visual/SurfaceRipples") is Node3D)
 	assert_true(player.get_node("Visibility/SwimHud") is SwimHud)
