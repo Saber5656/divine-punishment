@@ -115,7 +115,12 @@ func test_meter_hud_visible_cap_ignores_offscreen_candidates() -> void:
 	add_child_autofree(hud)
 	hud.set_camera(camera)
 
-	var candidates: Array[Node] = []
+	var visible_enemy := EnemyScene.instantiate() as EnemyBase
+	visible_enemy.position = Vector3(0.0, 0.0, -5.0)
+	add_child_autofree(visible_enemy)
+	(visible_enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
+	(visible_enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"onscreen")
+	var candidates: Array[Node] = [visible_enemy]
 	for index in EnemyAlertMeterHudScript.MAX_METERS:
 		var enemy := EnemyScene.instantiate() as EnemyBase
 		enemy.position = Vector3(100.0, 0.0, -5.0)
@@ -123,12 +128,6 @@ func test_meter_hud_visible_cap_ignores_offscreen_candidates() -> void:
 		(enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
 		(enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"offscreen")
 		candidates.append(enemy)
-	var visible_enemy := EnemyScene.instantiate() as EnemyBase
-	visible_enemy.position = Vector3(0.0, 0.0, -5.0)
-	add_child_autofree(visible_enemy)
-	(visible_enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
-	(visible_enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"onscreen")
-	candidates.append(visible_enemy)
 
 	hud.set_enemy_candidates(candidates)
 	await get_tree().process_frame

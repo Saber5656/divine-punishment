@@ -93,8 +93,6 @@ func refresh() -> void:
 	var inspected := mini(candidates.size(), MAX_ENEMY_CANDIDATES)
 	var accepted := 0
 	for index in inspected:
-		if accepted >= MAX_METERS:
-			break
 		var candidate: Variant = candidates[index]
 		var enemy := candidate as Node if candidate is Node else null
 		if not _valid_enemy(enemy):
@@ -105,15 +103,20 @@ func refresh() -> void:
 		if data.is_empty():
 			_remove_entry(instance_id)
 			continue
-		var entry := _entry_for(instance_id)
 		var projection := project_anchor(
 			camera_node,
 			data[&"world_position"],
 			viewport_size,
 		)
 		if not bool(projection.get(&"valid", false)):
-			entry[&"holder"].visible = false
+			# Offscreen/invalid candidates must not allocate or retain a capped
+			# meter entry.  A later visible candidate must remain eligible.
+			_remove_entry(instance_id)
 			continue
+		if accepted >= MAX_METERS:
+			_remove_entry(instance_id)
+			continue
+		var entry := _entry_for(instance_id)
 		accepted += 1
 		if _world_occluded(camera_node, enemy, data[&"world_position"]):
 			_update_occluded_entry(
