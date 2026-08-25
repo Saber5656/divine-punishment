@@ -195,6 +195,34 @@ func test_blow_dart_knockout_is_anomaly_and_noise_wakes_enemy() -> void:
 	assert_false(enemy.is_incapacitated())
 
 
+func test_blow_dart_respects_dart_immune_perception_config() -> void:
+	var enemy := FakeEnemy.new()
+	var perception := EnemyPerceptionScript.new() as EnemyPerception
+	perception.name = &"Perception"
+	var config := PerceptionConfig.new()
+	config.dart_immune = true
+	perception.set_perception_config(config)
+	enemy.add_child(perception)
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	watch_signals(EventBus)
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_false(enemy.is_incapacitated())
+	assert_signal_emit_count(EventBus, "enemy_neutralized", 0)
+	assert_signal_emit_count(EventBus, "anomaly_registered", 0)
+
+
 func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> void:
 	var user := Node3D.new()
 	add_child_autofree(user)

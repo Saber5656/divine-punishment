@@ -63,10 +63,23 @@ func _find_enemy(target: Node) -> Node:
 func _incapacitate(enemy: Node, duration: float) -> bool:
 	if not enemy is Node3D or not _is_runtime_node(enemy):
 		return false
+	if _is_dart_immune(enemy):
+		return false
 	if enemy.has_method(&"set_incapacitated"):
 		return bool(enemy.call(&"set_incapacitated", &"knockout", duration))
 	var brain := enemy.get_node_or_null(NodePath("Brain")) as EnemyBrain
 	return brain != null and brain.set_incapacitated(&"knockout", duration)
+
+
+func _is_dart_immune(enemy: Node) -> bool:
+	if enemy == null or not is_instance_valid(enemy):
+		return false
+	var perception := enemy.get_node_or_null(NodePath("Perception")) as EnemyPerception
+	return (
+		perception != null
+		and perception.perception_config != null
+		and perception.perception_config.dart_immune
+	)
 
 
 func _emit_knockout(enemy: Node, duration: float) -> void:
