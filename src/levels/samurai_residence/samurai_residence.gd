@@ -333,6 +333,7 @@ func _build_geometry() -> void:
 	var house := _new_layer(geometry, &"MainHouseFirstFloor")
 	var overhead := _new_layer(geometry, &"Overhead")
 	var crawlspace := _new_layer(geometry, &"Crawlspace")
+	var water_surfaces := _new_layer(geometry, &"WaterSurfaces")
 
 	_add_box(outer, &"GroundSupport", Vector3(50.0, -1.1, 32.0), Vector3(100.0, 0.2, 64.0), &"world", &"world")
 	_add_box(outer, &"NorthPerimeterWall", Vector3(50.0, 0.5, 0.0), Vector3(100.0, 3.0, 0.4), &"", &"wall")
@@ -345,6 +346,8 @@ func _build_geometry() -> void:
 	_add_box(garden, &"GardenSoil", Vector3(18.0, -0.78, 40.0), Vector3(20.0, 0.2, 12.0), &"soil", &"soil")
 	_add_box(garden, &"GardenSteppingStones", Vector3(37.0, -0.72, 20.0), Vector3(26.0, 0.2, 1.4), &"wood", &"wood")
 	_add_box(garden, &"PoolBed", Vector3(22.0, -0.70, 13.0), Vector3(16.0, 0.2, 9.0), &"shallow_water", &"shallow_water")
+	_add_water_surface(water_surfaces, &"W1Surface", Vector3(22.0, 2.0, 13.0), Vector3(16.0, 0.1, 9.0))
+	_add_water_surface(water_surfaces, &"W2Surface", Vector3(84.0, 2.0, 52.0), Vector3(12.0, 0.1, 12.0))
 
 	_add_box(house, &"MainHouseFloor", Vector3(58.0, -0.9, 19.0), Vector3(30.0, 0.2, 20.0), &"tatami", &"tatami")
 	_add_box(house, &"SouthVeranda", Vector3(40.0, -0.78, 17.0), Vector3(26.0, 0.2, 3.0), &"wood", &"wood")
@@ -870,6 +873,19 @@ func _add_box(
 	body.add_child(visual)
 	parent.add_child(body)
 	return body
+
+
+func _add_water_surface(parent: Node3D, surface_name: StringName, position: Vector3, size: Vector3) -> MeshInstance3D:
+	var visual := MeshInstance3D.new()
+	visual.name = surface_name
+	visual.position = position
+	visual.set_meta(&"water_surface", true)
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = _material_for(&"shallow_water")
+	visual.mesh = mesh
+	parent.add_child(visual)
+	return visual
 
 
 func _material_for(material_key: StringName) -> StandardMaterial3D:

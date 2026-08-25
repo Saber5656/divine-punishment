@@ -148,6 +148,16 @@ func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
 	assert_true((residence.get_node(^"Markers/Lights/L1_LanternNorth") as LightSource).extinguishable)
 	assert_false((residence.get_node(^"Markers/Lights/L5_GateBonfireWest") as LightSource).extinguishable)
 	assert_false((residence.get_node(^"Markers/Lights/L6_GateBonfireEast") as LightSource).extinguishable)
+	assert_almost_eq(
+		(residence.get_node(^"Geometry/WaterSurfaces/W1Surface") as MeshInstance3D).global_position.y,
+		(residence.get_node(^"Markers/Water/W1_Pond") as WaterVolume).surface_world_y(),
+		0.001,
+	)
+	assert_almost_eq(
+		(residence.get_node(^"Geometry/WaterSurfaces/W2Surface") as MeshInstance3D).global_position.y,
+		(residence.get_node(^"Markers/Water/W2_WestWaterway") as WaterVolume).surface_world_y(),
+		0.001,
+	)
 
 	var entry := residence.get_node(^"Markers/ClimbEdges/C1_NorthWallEntry") as ClimbEdge
 	var first_beam := residence.get_node(^"Markers/BeamPaths/B_Overhead_North") as BeamPath
