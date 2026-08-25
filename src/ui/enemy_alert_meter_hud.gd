@@ -17,7 +17,7 @@ const METER_OFFSET_Y := 14.0
 const SCREEN_MARGIN := 8.0
 const MIN_VIEWPORT_SIZE := 1.0
 const MAX_WORLD_COORDINATE := 10000.0
-const OCCLUSION_COLLISION_MASK := 1
+const OCCLUSION_COLLISION_MASK := (1 << 0) | (1 << 4)
 const OCCLUSION_INDICATOR_MARGIN := 16.0
 
 const SUSPICIOUS_COLOR := Color(0.96, 0.96, 0.92, 0.96)
@@ -389,11 +389,16 @@ static func _occlusion_indicator_position(screen_position: Vector2, viewport_siz
 	var direction := screen_position - center
 	if direction.length_squared() <= 0.000001:
 		direction = Vector2.UP
+	var half_holder_size := Vector2(METER_WIDTH * 0.5, (METER_HEIGHT + METER_OFFSET_Y) * 0.5)
+	var available := Vector2(
+		maxf(viewport_size.x * 0.5 - OCCLUSION_INDICATOR_MARGIN - half_holder_size.x, 0.0),
+		maxf(viewport_size.y * 0.5 - OCCLUSION_INDICATOR_MARGIN - half_holder_size.y, 0.0),
+	)
 	var scale := INF
 	if absf(direction.x) > 0.0001:
-		scale = minf(scale, (viewport_size.x * 0.5 - OCCLUSION_INDICATOR_MARGIN) / absf(direction.x))
+		scale = minf(scale, available.x / absf(direction.x))
 	if absf(direction.y) > 0.0001:
-		scale = minf(scale, (viewport_size.y * 0.5 - OCCLUSION_INDICATOR_MARGIN) / absf(direction.y))
+		scale = minf(scale, available.y / absf(direction.y))
 	if not is_finite(scale) or scale <= 0.0:
 		return center
 	return center + direction * scale

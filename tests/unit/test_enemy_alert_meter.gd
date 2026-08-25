@@ -141,7 +141,7 @@ func test_meter_hud_uses_edge_indicator_for_world_occlusion() -> void:
 	add_child_autofree(camera)
 	camera.current = true
 	var wall := StaticBody3D.new()
-	wall.collision_layer = EnemyAlertMeterHudScript.OCCLUSION_COLLISION_MASK
+	wall.collision_layer = 1 << 4
 	wall.collision_mask = 0
 	var wall_shape := CollisionShape3D.new()
 	var wall_box := BoxShape3D.new()
@@ -180,6 +180,8 @@ func test_meter_hud_edge_indicator_keeps_horizontal_symbol_inside_viewport() -> 
 		EnemyAlertMeterHudScript.METER_WIDTH * 0.5,
 		(EnemyAlertMeterHudScript.METER_HEIGHT + EnemyAlertMeterHudScript.METER_OFFSET_Y) * 0.5,
 	)
+	assert_gte(holder_origin.x, 0.0)
+	assert_lte(holder_origin.x + EnemyAlertMeterHudScript.METER_WIDTH, viewport_size.x)
 	var symbol_width := 16.0
 	var symbol_left := holder_origin.x + (EnemyAlertMeterHudScript.METER_WIDTH - symbol_width) * 0.5
 	assert_gte(symbol_left, 0.0)
