@@ -186,6 +186,17 @@ func test_enemy_combat_chases_a_target_before_attacking() -> void:
 	assert_lt(production_enemy.global_position.distance_to(production_player.global_position), 6.0)
 
 
+func test_enemy_combat_rejects_a_defeated_target_before_damage() -> void:
+	var defeated_enemy := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(defeated_enemy)
+	var defeated_combat := defeated_enemy.get_node("Combat") as EnemyCombat
+	assert_eq(defeated_combat.receive_damage(3), 3)
+	assert_true(defeated_combat.is_defeated())
+	assert_true(enemy_combat.set_target(defeated_enemy))
+	assert_false(enemy_combat.attack_target())
+	assert_eq(defeated_combat.health(), 0)
+
+
 func test_combat_actions_cannot_enter_from_assassination_or_input_from_other_states() -> void:
 	var player_instance := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate()
 	add_child_autofree(player_instance)

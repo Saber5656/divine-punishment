@@ -79,6 +79,8 @@ func attack_target() -> bool:
 		return false
 	if _target == null or not is_instance_valid(_target):
 		return false
+	if _target_is_defeated(_target):
+		return false
 	var range_m := _stats.attack_range_m if _stats != null else _config.enemy_attack_range_m
 	if not _target_in_range(_target, range_m):
 		_chase_target(_target)
@@ -248,6 +250,20 @@ func _target_in_range(target: Node, range_m: float) -> bool:
 		return true
 	var distance := _enemy.global_position.distance_to((target as Node3D).global_position)
 	return is_finite(distance) and distance <= maxf(range_m, 0.1)
+
+
+func _target_is_defeated(target: Node) -> bool:
+	if target == null or not is_instance_valid(target):
+		return true
+	if target.has_method(&"is_defeated"):
+		return bool(target.call(&"is_defeated"))
+	var combat := target.get_node_or_null(NodePath("Combat"))
+	if combat == null:
+		for candidate in target.get_children():
+			if candidate is PlayerCombat or candidate is EnemyCombat:
+				combat = candidate
+				break
+	return combat != null and combat.has_method(&"is_defeated") and bool(combat.call(&"is_defeated"))
 
 
 func _chase_target(target: Node) -> void:
