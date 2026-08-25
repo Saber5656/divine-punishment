@@ -26,6 +26,7 @@ var _meter := 0.0
 var _elapsed := 0.0
 var _player_override: Node3D
 var _uses_tuning := false
+var _manual_vigilance_multiplier := 1.0
 
 
 func _ready() -> void:
@@ -80,7 +81,11 @@ func on_noise(event: NoiseEvent) -> void:
 		return
 	var distance := eye.global_position.distance_to(event.position)
 	var confidence := PerceptionFormulasScript.sound_contribution(distance, event.radius, 0)
-	confidence = clampf(confidence * perception_config.hearing_multiplier, 0.0, 1.0)
+	confidence = clampf(
+		confidence * perception_config.hearing_multiplier * _vigilance_multiplier(),
+		0.0,
+		1.0,
+	)
 	if confidence <= 0.0:
 		return
 
@@ -97,6 +102,17 @@ func on_noise(event: NoiseEvent) -> void:
 
 func meter() -> float:
 	return _meter
+
+
+func set_vigilance_multiplier(value: float) -> void:
+	if not is_finite(value):
+		_manual_vigilance_multiplier = 1.0
+		return
+	_manual_vigilance_multiplier = clampf(value, 1.0, 4.0)
+
+
+func vigilance_multiplier() -> float:
+	return _manual_vigilance_multiplier
 
 
 func set_player_target(target: Node3D) -> void:
@@ -206,7 +222,7 @@ func _advance_meter(delta: float, gain: float, visible: bool, stimulus_position:
 	_meter = PerceptionFormulasScript.meter_step(
 		_meter,
 		delta,
-		gain,
+		gain * _vigilance_multiplier(),
 		perception_config.meter_decay,
 		visible,
 		MAX_METER,
@@ -420,6 +436,20 @@ func _is_self_noise(source: Node) -> bool:
 	if source is Node and owner is Node:
 		return (owner as Node).is_ancestor_of(source as Node)
 	return false
+
+
+func _vigilance_multiplier() -> float:
+	var owner := get_parent()
+	if owner == null:
+		return 1.0
+	var brain := owner.get_node_or_null(NodePath("Brain"))
+	if brain == null or not brain.has_method(&"detection_multiplier"):
+		return _manual_vigilance_multiplier
+	var value: Variant = brain.call(&"detection_multiplier")
+	if not value is float and not value is int:
+		return 1.0
+	var multiplier := float(value)
+	return multiplier if is_finite(multiplier) and multiplier > 0.0 else 1.0
 
 
 static func _valid_vector(value: Vector3) -> bool:

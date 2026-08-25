@@ -12,6 +12,21 @@ func on_noise(event: NoiseEvent) -> void:
 		perception.on_noise(event)
 
 
+func on_anomaly(anomaly: Anomaly) -> void:
+	var brain := get_node_or_null(NodePath("Brain")) as EnemyBrain
+	if brain != null:
+		brain.submit_anomaly(anomaly)
+
+
+func brain() -> EnemyBrain:
+	return get_node_or_null(NodePath("Brain")) as EnemyBrain
+
+
+func alert_state() -> Enums.AlertState:
+	var enemy_brain := brain()
+	return enemy_brain.alert_state() if enemy_brain != null else Enums.AlertState.UNAWARE
+
+
 func hearing_position() -> Vector3:
 	var perception := get_node_or_null(NodePath("Perception")) as EnemyPerception
 	if perception != null:
