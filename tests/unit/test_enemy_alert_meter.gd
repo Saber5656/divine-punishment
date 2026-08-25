@@ -9,11 +9,12 @@ func test_meter_phase_colors_and_symbols_are_state_specific() -> void:
 	assert_eq(EnemyAlertMeterHudScript.phase_color(Enums.AlertState.SUSPICIOUS), EnemyAlertMeterHudScript.SUSPICIOUS_COLOR)
 	assert_eq(EnemyAlertMeterHudScript.phase_color(Enums.AlertState.SEARCHING), EnemyAlertMeterHudScript.SEARCHING_COLOR)
 	assert_eq(EnemyAlertMeterHudScript.phase_color(Enums.AlertState.COMBAT), EnemyAlertMeterHudScript.COMBAT_COLOR)
+	assert_eq(EnemyAlertMeterHudScript.phase_color(Enums.AlertState.RETURN), EnemyAlertMeterHudScript.RETURN_COLOR)
 	assert_eq(EnemyAlertMeterHudScript.phase_symbol(Enums.AlertState.SUSPICIOUS), "●")
 	assert_eq(EnemyAlertMeterHudScript.phase_symbol(Enums.AlertState.SEARCHING), "▲")
 	assert_eq(EnemyAlertMeterHudScript.phase_symbol(Enums.AlertState.COMBAT), "◆")
-	assert_eq(EnemyAlertMeterHudScript.phase_symbol(Enums.AlertState.RETURN), "")
-	assert_eq(EnemyAlertMeterHudScript.phase_color(Enums.AlertState.RETURN).a, 0.0)
+	assert_eq(EnemyAlertMeterHudScript.phase_symbol(Enums.AlertState.RETURN), "●")
+	assert_gt(EnemyAlertMeterHudScript.phase_color(Enums.AlertState.RETURN).a, 0.0)
 
 
 func test_meter_projection_fails_closed_for_non_finite_behind_and_offscreen_positions() -> void:

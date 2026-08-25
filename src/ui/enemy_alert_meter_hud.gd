@@ -21,6 +21,7 @@ const MAX_WORLD_COORDINATE := 10000.0
 const SUSPICIOUS_COLOR := Color(0.96, 0.96, 0.92, 0.96)
 const SEARCHING_COLOR := Color(1.0, 0.78, 0.12, 0.98)
 const COMBAT_COLOR := Color(0.86, 0.16, 0.12, 0.98)
+const RETURN_COLOR := Color(0.78, 0.78, 0.82, 0.9)
 const BACKGROUND_COLOR := Color(0.04, 0.04, 0.04, 0.78)
 
 @export var camera_path: NodePath = NodePath("")
@@ -146,6 +147,8 @@ static func phase_color(state: int) -> Color:
 		return SEARCHING_COLOR
 	if state == Enums.AlertState.SUSPICIOUS:
 		return SUSPICIOUS_COLOR
+	if state == Enums.AlertState.RETURN:
+		return RETURN_COLOR
 	return Color(0.0, 0.0, 0.0, 0.0)
 
 
@@ -156,6 +159,8 @@ static func phase_symbol(state: int) -> String:
 		Enums.AlertState.SEARCHING:
 			return "▲"
 		Enums.AlertState.SUSPICIOUS:
+			return "●"
+		Enums.AlertState.RETURN:
 			return "●"
 		_:
 			return ""
