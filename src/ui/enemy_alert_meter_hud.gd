@@ -17,6 +17,8 @@ const METER_OFFSET_Y := 14.0
 const SCREEN_MARGIN := 8.0
 const MIN_VIEWPORT_SIZE := 1.0
 const MAX_WORLD_COORDINATE := 10000.0
+const OCCLUSION_COLLISION_MASK := 1
+const OCCLUSION_INDICATOR_MARGIN := 16.0
 
 const SUSPICIOUS_COLOR := Color(0.96, 0.96, 0.92, 0.96)
 const SEARCHING_COLOR := Color(1.0, 0.78, 0.12, 0.98)
@@ -113,7 +115,15 @@ func refresh() -> void:
 			entry[&"holder"].visible = false
 			continue
 		accepted += 1
-		_update_entry(entry, projection[&"position"], data[&"meter"], data[&"state"])
+		if _world_occluded(camera_node, enemy, data[&"world_position"]):
+			_update_occluded_entry(
+				entry,
+				projection[&"position"],
+				viewport_size,
+				data[&"state"],
+			)
+		else:
+			_update_entry(entry, projection[&"position"], data[&"meter"], data[&"state"])
 	for instance_id: Variant in _entries.keys():
 		if not seen.has(instance_id):
 			_remove_entry(instance_id)
@@ -290,27 +300,102 @@ func _entry_for(instance_id: int) -> Dictionary:
 	symbol.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	symbol.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(symbol)
-	var entry := {&"holder": holder, &"fill": fill, &"symbol": symbol}
+	var entry := {&"holder": holder, &"background": background, &"fill": fill, &"symbol": symbol}
 	_entries[instance_id] = entry
 	return entry
 
 
 func _update_entry(entry: Dictionary, screen_position: Vector2, meter_value: float, state: int) -> void:
 	var holder := entry.get(&"holder") as Control
+	var background := entry.get(&"background") as ColorRect
 	var fill := entry.get(&"fill") as ColorRect
 	var symbol := entry.get(&"symbol") as Label
-	if holder == null or fill == null or symbol == null:
+	if holder == null or background == null or fill == null or symbol == null:
 		return
 	var color := phase_color(state)
 	if color.a <= 0.0 or not is_finite(meter_value):
 		holder.visible = false
 		return
 	holder.position = screen_position - Vector2(METER_WIDTH * 0.5, METER_OFFSET_Y + METER_HEIGHT)
+	background.visible = true
+	fill.visible = true
 	fill.size = Vector2(METER_WIDTH * clampf(meter_value / MAX_METER, 0.0, 1.0), METER_HEIGHT)
 	fill.color = color
 	symbol.text = phase_symbol(state)
 	symbol.add_theme_color_override("font_color", color)
 	holder.visible = true
+
+
+func _update_occluded_entry(
+	entry: Dictionary,
+	screen_position: Vector2,
+	viewport_size: Vector2,
+	state: int,
+) -> void:
+	var holder := entry.get(&"holder") as Control
+	var background := entry.get(&"background") as ColorRect
+	var fill := entry.get(&"fill") as ColorRect
+	var symbol := entry.get(&"symbol") as Label
+	if holder == null or background == null or fill == null or symbol == null:
+		return
+	var color := phase_color(state)
+	if color.a <= 0.0:
+		holder.visible = false
+		return
+	holder.position = _occlusion_indicator_position(screen_position, viewport_size) - holder.size * 0.5
+	background.visible = false
+	fill.visible = false
+	symbol.text = _occlusion_symbol(screen_position, viewport_size)
+	symbol.add_theme_color_override("font_color", color)
+	holder.visible = true
+
+
+func _world_occluded(camera_node: Camera3D, enemy: Node, world_position: Vector3) -> bool:
+	if (
+		camera_node == null
+		or not is_instance_valid(camera_node)
+		or not _valid_enemy(enemy)
+		or not _valid_world_position(world_position)
+		or not _valid_world_position(camera_node.global_position)
+	):
+		return true
+	var distance := camera_node.global_position.distance_to(world_position)
+	if not is_finite(distance) or distance <= 0.001 or distance > MAX_WORLD_COORDINATE * 2.0:
+		return true
+	var world := camera_node.get_world_3d()
+	if world == null:
+		return true
+	var query := PhysicsRayQueryParameters3D.create(camera_node.global_position, world_position)
+	query.collision_mask = OCCLUSION_COLLISION_MASK
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.exclude = [enemy.get_rid()] if enemy is CollisionObject3D else []
+	var hit := world.direct_space_state.intersect_ray(query)
+	return not hit.is_empty()
+
+
+static func _occlusion_indicator_position(screen_position: Vector2, viewport_size: Vector2) -> Vector2:
+	if not _valid_vector2(screen_position) or not _valid_vector2(viewport_size):
+		return viewport_size * 0.5
+	var center := viewport_size * 0.5
+	var direction := screen_position - center
+	if direction.length_squared() <= 0.000001:
+		direction = Vector2.UP
+	var scale := INF
+	if absf(direction.x) > 0.0001:
+		scale = minf(scale, (viewport_size.x * 0.5 - OCCLUSION_INDICATOR_MARGIN) / absf(direction.x))
+	if absf(direction.y) > 0.0001:
+		scale = minf(scale, (viewport_size.y * 0.5 - OCCLUSION_INDICATOR_MARGIN) / absf(direction.y))
+	if not is_finite(scale) or scale <= 0.0:
+		return center
+	return center + direction * scale
+
+
+static func _occlusion_symbol(screen_position: Vector2, viewport_size: Vector2) -> String:
+	var direction := screen_position - viewport_size * 0.5
+	if absf(direction.x) > absf(direction.y):
+		return "→" if direction.x > 0.0 else "←"
+	return "↓" if direction.y > 0.0 else "↑"
 
 
 func _hide_entry(instance_id: int) -> void:
