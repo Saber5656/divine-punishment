@@ -11,6 +11,7 @@ const ENEMY_BODY_LAYER := 1 << 2
 const MIN_ENTRY_RADIUS := 0.1
 const MAX_ENTRY_RADIUS := 2.0
 const MAX_STORED_BODIES := 1
+const MAX_STORAGE_OFFSET := 2.0
 const UNIT_SCALE_TOLERANCE := 0.001
 const ENTRY_COLLISION_SHAPE_NODE_NAME := &"_EntryInteractionShape"
 
@@ -79,7 +80,15 @@ func stored_body() -> Node3D:
 
 
 func has_stored_body() -> bool:
-	return _stored_body != null and is_instance_valid(_stored_body)
+	if (
+		_stored_body == null
+		or not is_instance_valid(_stored_body)
+		or not _stored_body.is_inside_tree()
+		or _stored_body.get_tree() != get_tree()
+	):
+		_stored_body = null
+		return false
+	return true
 
 
 func entry_shape_identity() -> int:
@@ -96,6 +105,8 @@ func is_geometry_valid() -> bool:
 		and entry_radius >= MIN_ENTRY_RADIUS
 		and entry_radius <= MAX_ENTRY_RADIUS
 		and HideRules.is_safe_world_position(entry_world_position())
+		and storage_offset.is_finite()
+		and storage_offset.length() <= MAX_STORAGE_OFFSET
 		and HideRules.is_safe_world_position(storage_world_position())
 		and _is_entry_collision_shape_valid()
 	)
@@ -172,25 +183,32 @@ func store_body(body: Node3D) -> bool:
 	if not bool(body.call(&"begin_storage", self)):
 		return false
 	if body.get_parent() != self or not bool(body.call(&"is_stored")):
+		if body.has_method(&"end_storage"):
+			body.call(&"end_storage")
 		return false
 	_stored_body = body
 	return true
 
 
-func retrieve_body(receiver: Node3D = null) -> Node3D:
+func can_retrieve_body(receiver: Node3D = null) -> bool:
 	if not has_stored_body() or not is_geometry_valid():
+		return false
+	if receiver == null:
+		return true
+	return (
+		is_instance_valid(receiver)
+		and receiver.is_inside_tree()
+		and receiver.get_tree() == get_tree()
+		and receiver.global_position.is_finite()
+		and is_near_entry(receiver.global_position)
+	)
+
+
+func retrieve_body(receiver: Node3D = null) -> Node3D:
+	if not can_retrieve_body(receiver):
 		return null
-	if receiver != null:
-		if (
-			not is_instance_valid(receiver)
-			or not receiver.is_inside_tree()
-			or receiver.get_tree() != get_tree()
-			or not receiver.global_position.is_finite()
-			or not is_near_entry(receiver.global_position)
-		):
-			return null
 	var body := _stored_body
-	if not body.has_method(&"end_storage") or not bool(body.call(&"end_storage")):
+	if not body.has_method(&"end_storage") or not bool(body.call(&"end_storage", receiver)):
 		return null
 	_stored_body = null
 	return body

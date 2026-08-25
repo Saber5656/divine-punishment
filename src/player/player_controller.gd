@@ -570,7 +570,10 @@ func try_retrieve_stored_body(hide_spot: HideSpot = null) -> bool:
 	if candidate == null or not candidate.has_stored_body():
 		return false
 	var body := candidate.retrieve_body(self)
-	if body == null or not body.has_method(&"begin_carry") or not bool(body.call(&"begin_carry", self)):
+	# HideSpot.retrieve_body(self) performs the validated storage->carry
+	# transition atomically, so a body cannot be exposed between retrieval and
+	# reattachment to this player.
+	if body == null or not body.has_method(&"is_being_carried") or not bool(body.call(&"is_being_carried")):
 		return false
 	_carried_body = body
 	if tool_rig != null:

@@ -266,8 +266,14 @@ func is_body_carryable() -> bool:
 		and _carried_by == null
 		and _stored_by == null
 		and _carry_original_parent == null
+		and get_parent() != null
 		and global_position.is_finite()
 	)
+
+
+## Compatibility alias for interaction systems that use the shorter name.
+func is_carryable() -> bool:
+	return is_body_carryable()
 
 
 func is_being_carried() -> bool:
@@ -293,6 +299,7 @@ func begin_carry(carrier: Node3D) -> bool:
 		or carrier == self
 		or not carrier.is_inside_tree()
 		or carrier.get_tree() != get_tree()
+		or is_ancestor_of(carrier)
 		or not is_body_carryable()
 		or not carrier.global_position.is_finite()
 	):
@@ -352,26 +359,28 @@ func begin_storage(storage: Node3D) -> bool:
 		or _carry_original_parent == null
 	):
 		return false
+	var storage_position := storage.global_position
+	if storage.has_method(&"storage_world_position"):
+		var candidate: Variant = storage.call(&"storage_world_position")
+		if not candidate is Vector3:
+			return false
+		storage_position = candidate as Vector3
+	if not storage_position.is_finite():
+		return false
 	_clear_corpse_anomaly()
-	_stored_by = storage
-	_carried_by = null
 	reparent(storage, true)
 	if get_parent() != storage:
-		_stored_by = null
 		return false
+	_stored_by = storage
+	_carried_by = null
 	collision_layer = 0
 	collision_mask = 0
 	process_mode = Node.PROCESS_MODE_DISABLED
-	var storage_position := storage.global_position
-	if storage.has_method(&"storage_world_position"):
-		storage_position = storage.call(&"storage_world_position") as Vector3
-	if not storage_position.is_finite():
-		return false
 	global_position = storage_position
 	return true
 
 
-func end_storage() -> bool:
+func end_storage(receiver: Node3D = null) -> bool:
 	if (
 		_stored_by == null
 		or not is_instance_valid(_stored_by)
@@ -380,12 +389,23 @@ func end_storage() -> bool:
 		or not _carry_original_parent.is_inside_tree()
 	):
 		return false
+	if receiver != null and (
+		not is_instance_valid(receiver)
+		or not receiver.is_inside_tree()
+		or receiver.get_tree() != get_tree()
+		or receiver == self
+		or is_ancestor_of(receiver)
+		or not receiver.global_position.is_finite()
+	):
+		return false
 	var original_parent := _carry_original_parent
 	reparent(original_parent, true)
 	if get_parent() != original_parent:
 		return false
 	_stored_by = null
 	_restore_carry_context()
+	if receiver != null:
+		return begin_carry(receiver)
 	_clear_corpse_anomaly()
 	corpse_anomaly()
 	return true
