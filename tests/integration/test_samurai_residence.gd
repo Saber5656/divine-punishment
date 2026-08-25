@@ -53,6 +53,33 @@ func test_residence_routes_have_observation_and_restealth_options_per_area() -> 
 			)
 
 
+func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
+	var residence := _add_residence()
+	await get_tree().physics_frame
+
+	var north_wall := residence.get_node(^"Geometry/MainHouseFirstFloor/WestHouseWallNorth") as StaticBody3D
+	var south_wall := residence.get_node(^"Geometry/MainHouseFirstFloor/WestHouseWallSouth") as StaticBody3D
+	assert_false(
+		_box_contains(north_wall, Vector3(43.0, 0.5, 17.0)),
+		"Route A must have a clear west-wall opening at the south veranda",
+	)
+	assert_false(
+		_box_contains(south_wall, Vector3(43.0, 0.5, 17.0)),
+		"Route A must have a clear west-wall opening at the south veranda",
+	)
+
+	var crawl_floor := residence.get_node(^"Geometry/Crawlspace/CrawlUnderHouseFloor") as StaticBody3D
+	var crawl_roof := residence.get_node(^"Geometry/Crawlspace/CrawlUnderHouseRoof") as StaticBody3D
+	assert_true(
+		_box_contains(crawl_floor, Vector3(58.0, -0.92, 20.0)),
+		"Route C must reach the shoin crawl gap",
+	)
+	assert_true(
+		_box_contains(crawl_roof, Vector3(58.0, 0.5, 20.0)),
+		"Route C must retain crawl clearance at the shoin crawl gap",
+	)
+
+
 func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
 	var residence := _add_residence()
 	await get_tree().physics_frame
@@ -93,3 +120,16 @@ func _add_residence() -> SamuraiResidence:
 	assert_not_null(residence)
 	add_child_autofree(residence)
 	return residence
+
+
+func _box_contains(body: StaticBody3D, point: Vector3) -> bool:
+	if body == null:
+		return false
+	var size := body.get_meta(&"graybox_bounds", Vector3.ZERO) as Vector3
+	var local_point := body.to_local(point)
+	var half_size := size * 0.5
+	return (
+		absf(local_point.x) <= half_size.x
+		and absf(local_point.y) <= half_size.y
+		and absf(local_point.z) <= half_size.z
+	)

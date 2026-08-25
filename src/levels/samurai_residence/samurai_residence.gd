@@ -334,7 +334,9 @@ func _build_geometry() -> void:
 	_add_box(house, &"CreakyCorridor", Vector3(51.0, -0.68, 17.0), Vector3(12.0, 0.2, 2.0), &"creaky_wood", &"creaky_wood")
 	_add_box(house, &"NorthHouseWall", Vector3(58.0, 0.5, 9.0), Vector3(30.0, 3.0, 0.4), &"", &"wall")
 	_add_box(house, &"EastHouseWall", Vector3(73.0, 0.5, 19.0), Vector3(0.4, 3.0, 20.0), &"", &"wall")
-	_add_box(house, &"WestHouseWall", Vector3(43.0, 0.5, 19.0), Vector3(0.4, 3.0, 20.0), &"", &"wall")
+	# Leave the south-veranda opening clear so Route A can enter the house.
+	_add_box(house, &"WestHouseWallNorth", Vector3(43.0, 0.5, 12.0), Vector3(0.4, 3.0, 6.0), &"", &"wall")
+	_add_box(house, &"WestHouseWallSouth", Vector3(43.0, 0.5, 24.0), Vector3(0.4, 3.0, 10.0), &"", &"wall")
 	_add_box(house, &"ShoinNorthWall", Vector3(58.0, 0.5, 29.0), Vector3(30.0, 3.0, 0.4), &"", &"wall")
 	_add_box(house, &"ShoinGapFloor", Vector3(58.0, -0.58, 19.8), Vector3(5.0, 0.15, 0.8), &"creaky_wood", &"creaky_wood")
 
@@ -344,6 +346,9 @@ func _build_geometry() -> void:
 
 	_add_box(crawlspace, &"CrawlSoilFloor", Vector3(70.0, -0.92, 38.0), Vector3(24.0, 0.2, 8.0), &"soil", &"soil")
 	_add_box(crawlspace, &"CrawlRoof", Vector3(70.0, CRAWL_ROOF_Y, 38.0), Vector3(24.0, 0.4, 8.0), &"", &"wall")
+	# Extend the crawl layer beneath the house to the shoin gap at (58, 20).
+	_add_box(crawlspace, &"CrawlUnderHouseFloor", Vector3(69.0, -0.92, 26.0), Vector3(26.0, 0.2, 20.0), &"soil", &"soil")
+	_add_box(crawlspace, &"CrawlUnderHouseRoof", Vector3(69.0, CRAWL_ROOF_Y, 26.0), Vector3(26.0, 0.4, 20.0), &"", &"wall")
 	_add_box(crawlspace, &"CreakySupportOne", Vector3(66.0, -0.70, 36.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 	_add_box(crawlspace, &"CreakySupportTwo", Vector3(70.0, -0.70, 38.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 	_add_box(crawlspace, &"CreakySupportThree", Vector3(74.0, -0.70, 40.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
@@ -362,8 +367,8 @@ func _build_navigation() -> void:
 		Vector3(76.0, OVERHEAD_Y, 22.0), Vector3(10.0, OVERHEAD_Y, 22.0),
 	]))
 	_add_navigation_region(navigation, &"CrawlspaceNavigation", PackedVector3Array([
-		Vector3(58.0, GROUND_SURFACE_Y, 34.0), Vector3(84.0, GROUND_SURFACE_Y, 34.0),
-		Vector3(84.0, GROUND_SURFACE_Y, 43.0), Vector3(58.0, GROUND_SURFACE_Y, 43.0),
+		Vector3(56.0, GROUND_SURFACE_Y, 16.0), Vector3(84.0, GROUND_SURFACE_Y, 16.0),
+		Vector3(84.0, GROUND_SURFACE_Y, 43.0), Vector3(56.0, GROUND_SURFACE_Y, 43.0),
 	]))
 
 
