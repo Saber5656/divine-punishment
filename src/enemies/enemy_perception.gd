@@ -22,7 +22,6 @@ signal stimulus(stim: PerceptionStimulus)
 @export var player_path: NodePath
 
 var _meter := 0.0
-var _previous_meter := 0.0
 var _elapsed := 0.0
 var _player_override: Node3D
 
@@ -114,7 +113,6 @@ static func vision_gain(
 
 
 func _evaluate_visual(delta: float, target: Node3D) -> void:
-	_previous_meter = _meter
 	if target == null or not is_instance_valid(target):
 		_advance_meter(delta, 0.0, false, Vector3.ZERO)
 		return
@@ -142,7 +140,11 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 		_advance_meter(delta, 0.0, false, center)
 		return
 
-	var forward := -global_transform.basis.z
+	var enemy_root := get_parent() as Node3D
+	if enemy_root == null:
+		_advance_meter(delta, 0.0, false, center)
+		return
+	var forward: Vector3 = -enemy_root.global_transform.basis.z
 	if not _valid_vector(forward) or forward.length_squared() <= 0.000001:
 		_advance_meter(delta, 0.0, false, center)
 		return
