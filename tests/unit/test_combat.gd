@@ -76,6 +76,20 @@ func test_three_slash_combo_damages_enemy_once_per_hit_and_defeats_it() -> void:
 	assert_true(enemy_combat.is_defeated())
 
 
+func test_player_attack_telemetry_reports_damage_actually_applied() -> void:
+	var observed_damage: Array[int] = []
+	player_combat.attack_hit.connect(func(_combo: int, _target: Node, damage: int) -> void:
+		observed_damage.append(damage)
+	)
+	enemy_combat.receive_damage(2)
+	player_combat._config = (load(COMBAT_TUNING_PATH) as CombatConfig).normalized()
+	player_combat.start_attack()
+	player_combat.tick(0.1)
+	assert_true(player_combat.resolve_attack(enemy))
+	assert_eq(enemy_combat.health(), 0)
+	assert_eq(observed_damage, [1])
+
+
 func test_combo_window_resets_after_timeout() -> void:
 	assert_true(player_combat.start_attack())
 	player_combat.tick(0.1)

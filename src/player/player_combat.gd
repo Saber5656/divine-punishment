@@ -126,11 +126,11 @@ func resolve_attack(target: Node) -> bool:
 		return false
 	var damage := _config.damage_for_combo(_combo_index)
 	var applied := _apply_damage_to_target(target, damage)
-	if not applied:
+	if applied <= 0:
 		return false
 	_attack_hit_targets[target_id] = true
-	attack_hit.emit(_combo_index, target, damage)
-	_emit_event(&"combat_attack", [_player if _player != null else self, target, damage])
+	attack_hit.emit(_combo_index, target, applied)
+	_emit_event(&"combat_attack", [_player if _player != null else self, target, applied])
 	return true
 
 
@@ -382,11 +382,11 @@ func _nearest_enemy() -> Node:
 	return nearest
 
 
-func _apply_damage_to_target(target: Node, damage: int) -> bool:
+func _apply_damage_to_target(target: Node, damage: int) -> int:
 	if target.has_method(&"receive_combat_damage"):
-		return _damage_result(target.call(&"receive_combat_damage", damage, self))
+		return _damage_result(target.call(&"receive_combat_damage", damage, self), damage)
 	if target.has_method(&"receive_damage"):
-		return _damage_result(target.call(&"receive_damage", damage, self))
+		return _damage_result(target.call(&"receive_damage", damage, self), damage)
 	var combat := target.get_node_or_null(NodePath("Combat"))
 	if combat == null:
 		for candidate in target.get_children():
@@ -394,14 +394,14 @@ func _apply_damage_to_target(target: Node, damage: int) -> bool:
 				combat = candidate
 				break
 	if combat != null and combat != self and combat.has_method(&"receive_damage"):
-		return _damage_result(combat.call(&"receive_damage", damage, self))
-	return false
+		return _damage_result(combat.call(&"receive_damage", damage, self), damage)
+	return 0
 
 
-func _damage_result(result: Variant) -> bool:
+func _damage_result(result: Variant, requested_damage: int) -> int:
 	if result is bool:
-		return result
-	return int(result) > 0
+		return requested_damage if result else 0
+	return maxi(int(result), 0)
 
 
 func _target_in_range(target: Node, range_m: float) -> bool:
