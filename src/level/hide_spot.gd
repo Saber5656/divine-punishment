@@ -76,7 +76,7 @@ func storage_world_position() -> Vector3:
 
 
 func stored_body() -> Node3D:
-	return _stored_body
+	return _stored_body if has_stored_body() else null
 
 
 func has_stored_body() -> bool:
@@ -85,6 +85,9 @@ func has_stored_body() -> bool:
 		or not is_instance_valid(_stored_body)
 		or not _stored_body.is_inside_tree()
 		or _stored_body.get_tree() != get_tree()
+		or _stored_body.get_parent() != self
+		or not _stored_body.has_method(&"is_stored")
+		or not bool(_stored_body.call(&"is_stored"))
 	):
 		_stored_body = null
 		return false
@@ -209,6 +212,16 @@ func retrieve_body(receiver: Node3D = null) -> Node3D:
 		return null
 	var body := _stored_body
 	if not body.has_method(&"end_storage") or not bool(body.call(&"end_storage", receiver)):
+		# Keep the occupancy pointer only when the body really remains stored.
+		# This covers a failed reparent/receiver transition without retaining a
+		# stale HideSpot reference to an exposed body.
+		if (
+			not is_instance_valid(body)
+			or body.get_parent() != self
+			or not body.has_method(&"is_stored")
+			or not bool(body.call(&"is_stored"))
+		):
+			_stored_body = null
 		return null
 	_stored_body = null
 	return body

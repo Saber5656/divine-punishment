@@ -277,11 +277,19 @@ func is_carryable() -> bool:
 
 
 func is_being_carried() -> bool:
-	return _carried_by != null
+	return (
+		_carried_by != null
+		and is_instance_valid(_carried_by)
+		and get_parent() == _carried_by
+	)
 
 
 func is_stored() -> bool:
-	return _stored_by != null
+	return (
+		_stored_by != null
+		and is_instance_valid(_stored_by)
+		and get_parent() == _stored_by
+	)
 
 
 func carried_by() -> Node3D:
@@ -311,13 +319,12 @@ func begin_carry(carrier: Node3D) -> bool:
 	_carry_original_collision_layer = collision_layer
 	_carry_original_collision_mask = collision_mask
 	_carry_original_process_mode = process_mode
-	_clear_corpse_anomaly()
-	_carried_by = carrier
 	reparent(carrier, true)
 	if get_parent() != carrier:
-		_carried_by = null
-		_carry_original_parent = null
+		_restore_carry_context()
 		return false
+	_carried_by = carrier
+	_clear_corpse_anomaly()
 	collision_layer = 0
 	collision_mask = 0
 	process_mode = Node.PROCESS_MODE_DISABLED
@@ -357,6 +364,8 @@ func begin_storage(storage: Node3D) -> bool:
 		or _carried_by == null
 		or _stored_by != null
 		or _carry_original_parent == null
+		or not is_instance_valid(_carry_original_parent)
+		or not _carry_original_parent.is_inside_tree()
 	):
 		return false
 	var storage_position := storage.global_position
@@ -367,10 +376,12 @@ func begin_storage(storage: Node3D) -> bool:
 		storage_position = candidate as Vector3
 	if not storage_position.is_finite():
 		return false
-	_clear_corpse_anomaly()
+	var original_parent := _carry_original_parent
 	reparent(storage, true)
 	if get_parent() != storage:
+		reparent(original_parent, true)
 		return false
+	_clear_corpse_anomaly()
 	_stored_by = storage
 	_carried_by = null
 	collision_layer = 0
@@ -398,14 +409,38 @@ func end_storage(receiver: Node3D = null) -> bool:
 		or not receiver.global_position.is_finite()
 	):
 		return false
+	var storage := _stored_by
 	var original_parent := _carry_original_parent
+	var original_collision_layer := _carry_original_collision_layer
+	var original_collision_mask := _carry_original_collision_mask
+	var original_process_mode := _carry_original_process_mode
 	reparent(original_parent, true)
 	if get_parent() != original_parent:
 		return false
 	_stored_by = null
 	_restore_carry_context()
 	if receiver != null:
-		return begin_carry(receiver)
+		if begin_carry(receiver):
+			return true
+		# A receiver can become invalid between validation and the transition.
+		# Restore the stored contract if possible; otherwise expose the body and
+		# recreate its anomaly rather than leaving HideSpot/state metadata stale.
+		if is_instance_valid(storage) and storage.is_inside_tree():
+			reparent(storage, true)
+		if get_parent() == storage:
+			_stored_by = storage
+			_carried_by = null
+			_carry_original_parent = original_parent
+			_carry_original_collision_layer = original_collision_layer
+			_carry_original_collision_mask = original_collision_mask
+			_carry_original_process_mode = original_process_mode
+			collision_layer = 0
+			collision_mask = 0
+			process_mode = Node.PROCESS_MODE_DISABLED
+			return false
+		_clear_corpse_anomaly()
+		corpse_anomaly()
+		return false
 	_clear_corpse_anomaly()
 	corpse_anomaly()
 	return true
