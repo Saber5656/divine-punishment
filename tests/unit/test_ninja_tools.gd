@@ -5,6 +5,7 @@ const ToolDefinitionScript := preload("res://src/tools/tool_definition.gd")
 const NoiseEventScript := preload("res://src/core/noise_event.gd")
 const EnemyPerceptionScript := preload("res://src/enemies/enemy_perception.gd")
 const ToolRigScript := preload("res://src/tools/tool_rig.gd")
+const EnemyScene := preload("res://src/enemies/enemy_base.tscn")
 
 
 class FakeEnemy extends Node3D:
@@ -249,6 +250,64 @@ func test_blow_dart_wake_by_noise_parameter_is_applied_to_enemy_hook() -> void:
 	assert_true(enemy.is_incapacitated())
 	enemy.on_noise(NoiseEventScript.create(Vector3.ZERO, 1.0, Enums.NoiseKind.TOOL, user))
 	assert_true(enemy.is_incapacitated())
+
+
+func test_blow_dart_knocks_out_production_enemy_with_bounded_duration() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	var brain := enemy.brain()
+	assert_not_null(brain)
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_true(brain.is_incapacitated())
+	assert_eq(brain.incapacitated_kind(), &"knockout")
+	assert_gt(brain.incapacitation_remaining(), 0.0)
+	assert_lte(brain.incapacitation_remaining(), BlowDartTool.MAX_SLEEP_SECONDS)
+
+
+func test_blow_dart_wake_by_noise_reaches_production_enemy_brain() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	assert_true(definition.parameter_bool(&"wake_by_noise"))
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	var brain := enemy.brain()
+	assert_not_null(brain)
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_true(brain.is_incapacitated())
+	assert_true(brain.incapacitation_wakes_on_noise())
+
+	enemy.on_noise(NoiseEventScript.create(
+		enemy.hearing_position(),
+		6.0,
+		Enums.NoiseKind.TOOL,
+		user,
+	))
+	assert_false(brain.is_incapacitated())
+	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
 
 
 func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> void:

@@ -126,3 +126,88 @@ func test_malformed_perception_resource_fails_closed() -> void:
 	perception.on_noise(NoiseEventScript.create(Vector3.ZERO, 6.0, Enums.NoiseKind.TOOL, Node.new()))
 	assert_eq(perception.meter(), 0.0)
 	assert_eq((enemy.get_node("Brain") as EnemyBrain).drain_stimuli().size(), 0)
+	invalid.fov_degrees = NAN
+	perception.on_anomaly(Anomaly.create(
+		Enums.AnomalyKind.CORPSE,
+		Vector3(0.0, 1.5, -3.0),
+		null,
+		3,
+	))
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).drain_stimuli().size(), 0)
+
+
+func test_anomaly_perception_requires_fov_line_of_sight_and_occlusion_clearance() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var perception := enemy.get_node("Perception") as EnemyPerception
+	var visible_node := Node3D.new()
+	visible_node.position = Vector3(0.0, 1.5, -3.0)
+	add_child_autofree(visible_node)
+	var visible_anomaly := Anomaly.create(
+		Enums.AnomalyKind.CORPSE,
+		visible_node.global_position,
+		visible_node,
+		3,
+	)
+	perception.on_anomaly(visible_anomaly)
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).pending_stimulus_count(), 1)
+	(enemy.get_node("Brain") as EnemyBrain).drain_stimuli()
+
+	var side_node := Node3D.new()
+	side_node.position = Vector3(3.0, 1.5, 0.0)
+	add_child_autofree(side_node)
+	perception.on_anomaly(Anomaly.create(
+		Enums.AnomalyKind.CORPSE,
+		side_node.global_position,
+		side_node,
+		3,
+	))
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).pending_stimulus_count(), 0)
+
+	var blocker := _add_occluder(Vector3(0.0, 1.5, -1.5))
+	await get_tree().physics_frame
+	perception.on_anomaly(Anomaly.create(
+		Enums.AnomalyKind.CORPSE,
+		visible_node.global_position,
+		visible_node,
+		3,
+	))
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).pending_stimulus_count(), 0)
+	blocker.queue_free()
+
+
+func test_anomaly_event_subscription_is_single_and_removed_on_teardown() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var perception := enemy.get_node("Perception") as EnemyPerception
+	var callback := Callable(perception, &"_on_anomaly_registered")
+	assert_true(EventBus.anomaly_registered.is_connected(callback))
+
+	var node := Node3D.new()
+	node.position = Vector3(0.0, 1.5, -3.0)
+	add_child_autofree(node)
+	EventBus.anomaly_registered.emit(Anomaly.create(
+		Enums.AnomalyKind.CORPSE,
+		node.global_position,
+		node,
+		3,
+	))
+	assert_eq((enemy.get_node("Brain") as EnemyBrain).pending_stimulus_count(), 1)
+
+	enemy.queue_free()
+	await get_tree().process_frame
+	assert_false(EventBus.anomaly_registered.is_connected(callback))
+
+
+func _add_occluder(at: Vector3) -> StaticBody3D:
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = 1
+	blocker.collision_mask = 0
+	blocker.position = at
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.6, 2.0, 0.6)
+	collision.shape = shape
+	blocker.add_child(collision)
+	add_child_autofree(blocker)
+	return blocker
