@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ScoringConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/tuning/scoring_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+shadow_walker_points = 40
+no_traces_points = 25
+one_strike_points = 20
+swift_points = 15
+nontarget_kill_penalty = -3
+nontarget_kill_penalty_cap = -15
+civilian_kill_penalty = -10
+side_objective_bonus = 5
+rank_kaiden_threshold = 90
+rank_okuden_threshold = 75
+rank_chuden_threshold = 55
+m9_knockout_success_ratio = 0.8
+m10_shadow_walker_bonus_shift = 15
+epilogue_a_condition = 12
