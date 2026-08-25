@@ -540,6 +540,11 @@ func _sensor_overlaps_enemy(player: Node3D, enemy: EnemyBase) -> bool:
 		or not target_area.monitorable
 	):
 		return false
+	# A target can be attached after the player's Area3D was registered in the
+	# same physics tick (the common scene/test construction path).  Explicitly
+	# flush the bounded physics query before reading the pair so one-frame
+	# evaluation is deterministic without accepting a geometric/group fallback.
+	PhysicsServer3D.sync()
 	# Explicit target evaluation uses a direct physics pair query so unrelated
 	# overlap entries cannot hide a valid assassination target.  Headless Godot
 	# can expose the synchronized overlap list one frame before `overlaps_area`
