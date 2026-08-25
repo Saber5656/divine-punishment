@@ -954,8 +954,6 @@ func _advance_search(delta: float) -> void:
 		_search_point_index += 1
 	else:
 		_search_route_complete = true
-
-
 func _inspect_hide_spots_at(position: Vector3) -> void:
 	if _search_hide_spot_checks >= MAX_SEARCH_HIDE_SPOTS or not _valid_vector(position):
 		return
@@ -1572,8 +1570,12 @@ func _set_navigation_target(target: Vector3) -> void:
 	if enemy == null:
 		return
 	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
-	if agent != null:
-		agent.target_position = target
+	if agent == null or not EnemyBase._navigation_map_ready(agent):
+		if agent != null:
+			var neutral_target: Vector3 = enemy.global_position if _valid_vector(enemy.global_position) else Vector3.ZERO
+			agent.target_position = neutral_target
+		return
+	agent.target_position = target
 
 
 func _navigation_has_reached(target: Vector3) -> bool:
@@ -1583,8 +1585,10 @@ func _navigation_has_reached(target: Vector3) -> bool:
 	if enemy == null or not _valid_vector(enemy.global_position):
 		return false
 	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
+	if agent == null or not EnemyBase._navigation_map_ready(agent):
+		return false
 	var tolerance := 0.5
-	if agent != null and is_finite(agent.target_desired_distance):
+	if is_finite(agent.target_desired_distance):
 		tolerance = minf(maxf(agent.target_desired_distance, tolerance), 0.5)
 	var distance := enemy.global_position.distance_to(target)
 	if not is_finite(distance):
