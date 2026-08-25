@@ -97,6 +97,7 @@ var _routine_stop_elapsed := 0.0
 var _routine_clock := 0.0
 var _routine_curve_distance := 0.0
 var _routine_holding_final_stop := false
+var _last_area_alert_level := -1
 var _lantern_light: LightSource
 var _lantern_offset := Vector3(0.0, 1.4, 0.0)
 
@@ -104,10 +105,20 @@ var _lantern_offset := Vector3(0.0, 1.4, 0.0)
 func _ready() -> void:
 	_started = true
 	set_physics_process(true)
+	var event_bus := _event_bus()
+	if event_bus != null:
+		var callback := Callable(self, &"_on_area_alert_changed")
+		if not event_bus.is_connected(&"area_alert_changed", callback):
+			event_bus.connect(&"area_alert_changed", callback)
 
 
 func _exit_tree() -> void:
 	_started = false
+	var event_bus := _event_bus()
+	if event_bus != null:
+		var callback := Callable(self, &"_on_area_alert_changed")
+		if event_bus.is_connected(&"area_alert_changed", callback):
+			event_bus.disconnect(&"area_alert_changed", callback)
 
 
 func _physics_process(delta: float) -> void:
@@ -308,6 +319,7 @@ func set_routine_path(path: PatrolPath) -> bool:
 	_routine_curve_distance = 0.0
 	_routine_holding_final_stop = false
 	_routine_arrived = false
+	_last_area_alert_level = -1
 	return true
 
 
@@ -370,6 +382,7 @@ func current_stop_index() -> int:
 
 func current_routine_stop() -> RoutineStop:
 	var path := routine_path()
+	_sync_routine_alert_level()
 	return path.stop_at(_routine_stop_index) if path != null else null
 
 
@@ -1187,7 +1200,17 @@ func _effective_priority(stim: PerceptionStimulus) -> int:
 
 
 func _anomaly_is_relevant(anomaly: Anomaly) -> bool:
-	if anomaly == null or not _valid_vector(anomaly.position):
+	if (
+		anomaly == null
+		or anomaly.kind < Enums.AnomalyKind.CORPSE
+		or anomaly.kind > Enums.AnomalyKind.KNOCKOUT
+		or anomaly.severity < 1
+		or anomaly.severity > 3
+		or not is_finite(anomaly.expires_at)
+		or anomaly.expires_at < 0.0
+		or (anomaly.expires_at > 0.0 and Time.get_ticks_msec() / 1000.0 >= anomaly.expires_at)
+		or not _valid_vector(anomaly.position)
+	):
 		return false
 	var enemy_position := _enemy_position()
 	if not _valid_vector(enemy_position):
@@ -1227,8 +1250,88 @@ func _enemy_position() -> Vector3:
 	return NO_POSITION
 
 
+func routine_alert_level() -> int:
+	return _area_alert_level()
+
+
+func refresh_routine_for_alert() -> void:
+	_last_area_alert_level = -1
+	_sync_routine_alert_level()
+
+
+func _on_area_alert_changed(_level: int) -> void:
+	_sync_routine_alert_level()
+
+
+func _area_alert_level() -> int:
+	var game_state := _autoload(&"GameState")
+	if game_state == null:
+		return 0
+	var value: Variant = game_state.get(&"area_alert_level")
+	if not (value is int or value is float):
+		return 0
+	var numeric := float(value)
+	if not is_finite(numeric):
+		return 0
+	return clampi(int(numeric), 0, MAX_AREA_ALERT_LEVEL)
+
+
+func _sync_routine_alert_level() -> void:
+	var level := _area_alert_level()
+	if _last_area_alert_level == level:
+		return
+	# A newly bound brain has no prior event to compare with.  Treat its
+	# baseline as calm so a late-spawned enemy immediately selects the strictest
+	# stop already eligible for the current permanent alert level.
+	var previous := maxi(_last_area_alert_level, 0)
+	_last_area_alert_level = level
+	var path := _routine_path
+	if path == null or not is_instance_valid(path):
+		return
+	var stops := path.ordered_stops()
+	if stops.is_empty():
+		return
+	var current_index := clampi(_routine_stop_index, 0, stops.size() - 1)
+	var current_stop := stops[current_index]
+	var candidate_index := -1
+
+	# On an alert rise, select the strictest newly eligible stop.  This lets a
+	# route author place a guard pair/lantern stop at level 1 and an extra patrol
+	# stop at level 2 without rebuilding the route resource.
+	if previous >= 0 and level > previous:
+		var highest_threshold := previous
+		for index in stops.size():
+			var stop := stops[index]
+			if stop == null or not is_instance_valid(stop):
+				continue
+			var threshold := stop.alert_level_required()
+			if threshold > highest_threshold and threshold <= level:
+				highest_threshold = threshold
+				candidate_index = index
+
+	# Initial binding, alert reduction, or an authored stop that is no longer
+	# eligible must always fail closed to the first eligible stop.
+	if candidate_index < 0 and (
+		current_stop == null
+		or not is_instance_valid(current_stop)
+		or current_stop.alert_level_required() > level
+	):
+		for index in stops.size():
+			var stop := stops[index]
+			if stop != null and is_instance_valid(stop) and stop.alert_level_required() <= level:
+				candidate_index = index
+				break
+
+	if candidate_index >= 0 and candidate_index != _routine_stop_index:
+		_routine_stop_index = candidate_index
+		_routine_stop_elapsed = 0.0
+		_routine_holding_final_stop = false
+		_routine_arrived = false
+
+
 func _routine_target() -> Vector3:
 	_sync_routine_binding()
+	_sync_routine_alert_level()
 	var path := _routine_path
 	if _routine_path_is_usable(path):
 		var route_stops := path.ordered_stops()
@@ -1284,7 +1387,7 @@ func _advance_routine(delta: float) -> void:
 		# remains there without advancing through the route.
 		return
 	var stop := current_routine_stop()
-	if stop != null and not stop.is_active_at(_routine_clock):
+	if stop != null and not stop.is_active_at(_routine_clock, _area_alert_level()):
 		_advance_to_next_routine_stop()
 		return
 	_routine_stop_elapsed += bounded_delta
@@ -1309,7 +1412,7 @@ func _advance_to_next_routine_stop() -> void:
 	var path := _routine_path
 	if not _routine_path_is_usable(path):
 		return
-	var next_index := path.next_stop_index(_routine_stop_index, true)
+	var next_index := _next_eligible_routine_stop_index(path)
 	if next_index < 0 or (not path.is_looped() and next_index == _routine_stop_index):
 		_routine_holding_final_stop = true
 		_routine_stop_elapsed = 0.0
@@ -1320,6 +1423,25 @@ func _advance_to_next_routine_stop() -> void:
 	_routine_holding_final_stop = false
 	_routine_arrived = false
 	_set_navigation_target(_routine_target())
+
+
+func _next_eligible_routine_stop_index(path: PatrolPath) -> int:
+	if path == null or not is_instance_valid(path):
+		return -1
+	var stops := path.ordered_stops()
+	if stops.is_empty():
+		return -1
+	var current_index := clampi(_routine_stop_index, 0, stops.size() - 1)
+	var level := _area_alert_level()
+	for _attempt in stops.size():
+		var candidate_index := path.next_stop_index_for_alert(current_index, level, true)
+		if candidate_index < 0 or candidate_index == _routine_stop_index:
+			return -1
+		var candidate := path.stop_at(candidate_index)
+		if candidate != null and candidate.is_active_at(_routine_clock, level):
+			return candidate_index
+		current_index = candidate_index
+	return -1
 
 
 func _routine_facing_direction() -> Vector3:
