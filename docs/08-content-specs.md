@@ -419,10 +419,56 @@ func set_ambience(id: StringName) -> void
 
 # ── src/tools/tool_base.gd  (Node3D, ToolDefinition.effect_scene のルート基底)
 class_name ToolBase
+@export var tool_definition: ToolDefinition
 func definition() -> ToolDefinition
 func use(user: Node3D, aim: Dictionary) -> bool       # aim: {origin: Vector3, dir: Vector3, target: Node3D|null}
                                                       # false = 不成立（残数を消費しない）
 # 派生クラスは _apply_effect(hit: Dictionary) -> void を実装（投射着弾 or 即時使用時に呼ばれる）
+
+# ── src/tools/tool_definition.gd (Resource, data/tools/*.tres)
+class_name ToolDefinition
+@export var id: StringName
+@export var display_name: String
+@export var default_count: int
+@export var is_projectile: bool
+@export var lethal: bool
+@export var effect_scene: PackedScene
+@export var params: Dictionary
+@export var projectile_speed: float
+@export var trajectory_gravity: float
+@export var trajectory_seconds: float
+@export var trajectory_steps: int
+func is_valid() -> bool
+func supports_aiming() -> bool
+
+# ── src/tools/tool_inventory.gd (Node, ToolRig child)
+class_name ToolInventory
+signal slot_changed(index: int, definition: ToolDefinition, remaining: int)
+signal count_changed(index: int, definition: ToolDefinition, remaining: int)
+func configure(definitions: Array[ToolDefinition], requested_slot_limit: int = 3) -> void
+func set_slot(index: int, definition: ToolDefinition, remaining: int = -1) -> bool
+func select_slot(index: int) -> bool
+func cycle(direction: int = 1) -> bool
+func current_definition() -> ToolDefinition
+func remaining_count(index: int = -1) -> int
+func consume(index: int = -1, amount: int = 1) -> bool
+
+# ── src/tools/tool_rig.gd (Node3D, player.tscn ToolRig)
+class_name ToolRig
+signal aiming_changed(active: bool)
+func set_aiming(active: bool) -> bool
+func is_aiming() -> bool
+func aim() -> Dictionary                               # {origin, dir, target}
+func trajectory_points() -> PackedVector3Array
+func use_selected(user: Node3D = null) -> bool
+
+# ── src/tools/trajectory_display.gd (Node3D, ToolRig/AimArc)
+class_name TrajectoryDisplay
+func set_points(points: PackedVector3Array) -> void
+func set_trajectory(origin: Vector3, velocity: Vector3, gravity: float,
+        duration: float, sample_count: int = 24) -> void
+func points() -> PackedVector3Array
+func clear() -> void
 ```
 
 ### 10.2 シーンツリー構造
@@ -440,8 +486,9 @@ Player (CharacterBody3D)                 layer=2 player_body / mask=1 world
 ├─ AssassinationResolver
 ├─ Interactor (Area3D)                   layer=0 / mask=7|8|9|12|13|15
 ├─ NoiseEmitter (Node)                   # 足音・着地を EventBus.noise_emitted へ
-├─ ToolRig (Node3D)
-│   └─ AimArc (Node3D)                   # 投射軌道表示
+├─ ToolRig (ToolRig, Node3D)             # tool_cycle / tool_use / aim を受ける
+│   ├─ ToolInventory (ToolInventory)     # 最大8スロット、defaultは3、残数は0未満にならない
+│   └─ AimArc (TrajectoryDisplay, Node3D) # 投射軌道表示（最大128点）
 ├─ CameraRig (PlayerCameraRig, y=1.5, pitch −75°..75°, peek clamp x=±0.75/y=±0.3)
 │   └─ SpringArm3D (length=3.5, Sphere r=0.2, margin=0.1, mask=1 world) ─ Camera3D (current)
 └─ DetectPoints (Node3D)                 # group "player_detect_points"
@@ -610,3 +657,12 @@ func set_extinguished(extinguished: bool) -> void
 - `try_extinguish` は actor が同一 SceneTree の layer 2 `player_body` で、同一の有効な geometry 契約を持ち、`interaction_radius` 内にある場合だけ成功する。敵 body、範囲外、shape 差し替え・無効化、非有限値は拒否する。
 - 成功時は `_is_on` を更新してから render `Light3D.visible` を更新し、gameplay contribution を同じフレームから 0 とする。その後 `Anomaly.create(AnomalyKind.LIGHT_OUT, light.global_position, light, 1)` を `EventBus.anomaly_registered`、状態変化を `EventBus.light_extinguished` へ通知する。既に消灯中の再試行はイベントを重複発行しない。
 - `request_relight(requester)` は消灯中かつ同一 SceneTree の有効な requester の場合だけ `RelightRequest { light, requester, position }` を `EventBus.light_relight_requested` へ渡す。依頼自体はライトを点灯せず、敵 AI が到着した時点で `set_extinguished(false)` を呼ぶ。
+
+### 10.7 忍具フレームワーク（Issue #32）
+
+- `ToolDefinition` は `data/tools/*.tres` のデータ正本であり、所持初期数・投射可否・効果シーン・効果パラメータ・照準チューニングを持つ。個別の効果処理は `effect_scene` の `ToolBase` 派生へ分離する（小石・吹き矢・煙玉などの実装は Issue #33 以降）。
+- `ToolInventory` は Player の `ToolRig` 直下で最大 8 スロット、既定 3 スロットを管理する。スロット選択は範囲外を拒否し、巡回は末尾から先頭へ wrap する。`consume()` は定義と残数が有効な場合だけ成功し、残数を 0 未満へ下げない。
+- `ToolRig.aim()` は Camera3D の前方を `{origin, dir, target}` へ正規化して返す。`aim` 中の projectile は `TrajectoryDisplay` へ最大 128 点の有限な弾道を渡す。無効な数値、空スロット、非投射具では軌道を表示しない。
+- `tool_use` は `ToolBase.use()` が成立した後にだけ残数を 1 消費する。`ToolBase.use()` の失敗は残数へ副作用を持たない。Effect scene が未実装の Resource でも、フレームワークの検証用 no-op 基底で API 契約を維持する。
+- Aim は Player FSM に新しい状態を追加せず、Ground/Crouch など現在状態を保持したまま `ToolRig` が入力を所有する。HUD は `ToolInventory` の slot/count signal を購読し、選択 slot・名称・残数を既存の `SwimHud/ToolSlots` へ反映する。HUD Control は pointer event を受け取らない（既存 §M2 のカメラ操作を妨げない）。
+- Projectile は layer 10 (`projectile`) に載せ、飛翔時に参照する world/enemy/civilian/interactable mask は既存表の `1|3|4|7` を使用する。新しい layer や個別エフェクトの衝突判定は本 Issue では追加しない。

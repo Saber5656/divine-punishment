@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -9,6 +9,8 @@
 [ext_resource type="Script" path="res://src/stealth/player_visibility.gd" id="7_player_visibility"]
 [ext_resource type="Script" path="res://src/ui/visibility_ring.gd" id="8_visibility_ring"]
 [ext_resource type="Script" path="res://src/ui/noise_ripple_cue.gd" id="9_noise_ripple_cue"]
+[ext_resource type="Script" path="res://src/tools/tool_rig.gd" id="10_tool_rig"]
+[ext_resource type="Script" path="res://src/tools/trajectory_display.gd" id="11_trajectory_display"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -202,8 +204,10 @@ collision_mask = 22976
 script = ExtResource("6_noise_emitter")
 
 [node name="ToolRig" type="Node3D" parent="."]
+script = ExtResource("10_tool_rig")
 
 [node name="AimArc" type="Node3D" parent="ToolRig"]
+script = ExtResource("11_trajectory_display")
 
 [node name="CameraRig" type="Node3D" parent="."]
 position = Vector3(0, 1.5, 0)

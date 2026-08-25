@@ -50,6 +50,7 @@ const SWIM_DEPTH_EPSILON := 0.001
 @onready var surface_ripples: Node3D = $Visual/SurfaceRipples as Node3D
 @onready var swim_hud: SwimHud = $Visibility/SwimHud as SwimHud
 @onready var noise_emitter: NoiseEmitter = $NoiseEmitter as NoiseEmitter
+@onready var tool_rig: ToolRig = $ToolRig as ToolRig
 
 var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
@@ -156,6 +157,22 @@ func _physics_process(delta: float) -> void:
 
 func current_movement_params() -> Dictionary:
 	return state_machine.movement_params()
+
+
+func current_tool_definition() -> ToolDefinition:
+	return tool_rig.selected_definition() if tool_rig != null else null
+
+
+func current_tool_remaining() -> int:
+	return tool_rig.remaining_count() if tool_rig != null else 0
+
+
+func set_tool_aiming(active: bool) -> bool:
+	return tool_rig.set_aiming(active) if tool_rig != null else false
+
+
+func is_tool_aiming() -> bool:
+	return tool_rig.is_aiming() if tool_rig != null else false
 
 
 func is_traversing() -> bool:

@@ -11,6 +11,7 @@ extends CanvasLayer
 
 var _player: Node
 var _visibility_source: PlayerVisibility
+var _tool_inventory: ToolInventory
 
 
 func _ready() -> void:
@@ -23,6 +24,7 @@ func _ready() -> void:
 		set_visibility(_visibility_source.visibility())
 	if not EventBus.noise_emitted.is_connected(_on_noise_emitted):
 		EventBus.noise_emitted.connect(_on_noise_emitted)
+	_bind_player_tools()
 	set_underwater(false, 0.0, 1.0)
 
 
@@ -31,6 +33,7 @@ func _exit_tree() -> void:
 		_visibility_source.visibility_changed.disconnect(_on_visibility_changed)
 	if EventBus.noise_emitted.is_connected(_on_noise_emitted):
 		EventBus.noise_emitted.disconnect(_on_noise_emitted)
+	_unbind_tool_inventory()
 
 
 func set_underwater(active: bool, remaining: float, capacity: float) -> void:
@@ -89,6 +92,31 @@ func tool_slot_frame(index: int) -> Control:
 	return tool_slots.get_child(index) as Control
 
 
+func bind_tool_inventory(inventory: ToolInventory) -> void:
+	_unbind_tool_inventory()
+	_tool_inventory = inventory
+	if _tool_inventory == null:
+		_render_tool_slots()
+		return
+	if not _tool_inventory.slot_changed.is_connected(_on_tool_slot_changed):
+		_tool_inventory.slot_changed.connect(_on_tool_slot_changed)
+	if not _tool_inventory.count_changed.is_connected(_on_tool_count_changed):
+		_tool_inventory.count_changed.connect(_on_tool_count_changed)
+	_render_tool_slots()
+
+
+func tool_slot_definition(index: int) -> ToolDefinition:
+	return _tool_inventory.definition_at(index) if _tool_inventory != null else null
+
+
+func tool_slot_remaining(index: int) -> int:
+	return _tool_inventory.remaining_count(index) if _tool_inventory != null else 0
+
+
+func selected_tool_slot() -> int:
+	return _tool_inventory.selected_slot() if _tool_inventory != null else 0
+
+
 func is_breath_gauge_visible() -> bool:
 	return visible and $BreathPanel.visible and breath_gauge.visible
 
@@ -110,6 +138,58 @@ func _on_visibility_changed(value: float) -> void:
 func _on_noise_emitted(event: NoiseEvent) -> void:
 	if _is_local_player_source(event.source):
 		show_noise_ripple(event)
+
+
+func _bind_player_tools() -> void:
+	if _player == null:
+		return
+	var tool_rig := _player.get_node_or_null("ToolRig")
+	if tool_rig == null:
+		return
+	var inventory: ToolInventory = tool_rig.get("inventory") as ToolInventory
+	if inventory != null:
+		bind_tool_inventory(inventory)
+
+
+func _unbind_tool_inventory() -> void:
+	if _tool_inventory == null:
+		return
+	if _tool_inventory.slot_changed.is_connected(_on_tool_slot_changed):
+		_tool_inventory.slot_changed.disconnect(_on_tool_slot_changed)
+	if _tool_inventory.count_changed.is_connected(_on_tool_count_changed):
+		_tool_inventory.count_changed.disconnect(_on_tool_count_changed)
+	_tool_inventory = null
+
+
+func _render_tool_slots() -> void:
+	for index in tool_slots.get_child_count():
+		_render_tool_slot(index)
+
+
+func _render_tool_slot(index: int) -> void:
+	var frame := tool_slot_frame(index)
+	if frame == null:
+		return
+	var index_label := frame.get_node_or_null("SlotIndex") as Label
+	if index_label == null:
+		return
+	var definition := tool_slot_definition(index)
+	var count := tool_slot_remaining(index)
+	var label := str(index + 1)
+	if definition != null:
+		label += "  %s  ×%d" % [definition.display_name, count]
+	else:
+		label += "  —"
+	index_label.text = label
+	frame.modulate = Color(1.0, 0.86, 0.56, 1.0) if index == selected_tool_slot() else Color.WHITE
+
+
+func _on_tool_slot_changed(_index: int, _definition: ToolDefinition, _remaining: int) -> void:
+	_render_tool_slots()
+
+
+func _on_tool_count_changed(index: int, _definition: ToolDefinition, _remaining: int) -> void:
+	_render_tool_slot(index)
 
 
 func _is_local_player_source(source: Node) -> bool:
