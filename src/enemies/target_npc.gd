@@ -33,6 +33,7 @@ func _ready() -> void:
 	if enemy_brain != null:
 		enemy_brain.set_routine_type(&"target")
 		enemy_brain.set_routine_enabled(target_routine_enabled)
+		enemy_brain.set_routine_cycle_seconds(routine_cycle_seconds)
 	var event_bus := _target_event_bus()
 	if event_bus != null:
 		var callback := Callable(self, &"_on_enemy_killed")
@@ -85,7 +86,11 @@ func is_target_routine_enabled() -> bool:
 func set_routine_cycle_seconds(value: float) -> bool:
 	if not is_finite(value) or value < MIN_ROUTINE_CYCLE_SECONDS:
 		return false
-	routine_cycle_seconds = minf(value, MAX_ROUTINE_CYCLE_SECONDS)
+	var bounded := minf(value, MAX_ROUTINE_CYCLE_SECONDS)
+	var enemy_brain := brain()
+	if enemy_brain == null or not enemy_brain.set_routine_cycle_seconds(bounded):
+		return false
+	routine_cycle_seconds = bounded
 	return true
 
 
@@ -146,7 +151,7 @@ func is_target_defeated() -> bool:
 ## same one-shot target_killed mission event.
 func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	var applied := super.set_incapacitated(kind, duration_seconds)
-	if applied and kind == &"dead":
+	if applied and kind == &"dead" and not is_assassinating():
 		notify_target_defeated(&"combat")
 	return applied
 

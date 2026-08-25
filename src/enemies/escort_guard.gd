@@ -179,10 +179,12 @@ func _on_enemy_killed(enemy: Node, _method: String) -> void:
 
 
 func _enter_target_combat() -> void:
+	var enemy_brain := brain()
+	if enemy_brain == null or enemy_brain.is_incapacitated():
+		return
 	_target_defeated = true
 	velocity = Vector3.ZERO
-	var enemy_brain := brain()
-	if enemy_brain != null and enemy_brain.alert_state() != Enums.AlertState.COMBAT:
+	if enemy_brain.alert_state() != Enums.AlertState.COMBAT:
 		enemy_brain.force_state(Enums.AlertState.COMBAT, &"target_defeated")
 
 

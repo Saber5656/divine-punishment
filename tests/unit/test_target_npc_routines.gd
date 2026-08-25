@@ -23,6 +23,7 @@ func test_target_role_cycles_authored_stops_and_exposes_bounded_timing() -> void
 	assert_eq(target.target_routine_stop().dwell_duration(), 120.0)
 	assert_true(target.set_routine_cycle_seconds(360.0))
 	assert_eq(target.target_routine_cycle_seconds(), 360.0)
+	assert_eq(target.brain().routine_cycle_seconds(), 360.0)
 	assert_false(target.set_routine_cycle_seconds(NAN))
 	assert_false(target.set_routine_cycle_seconds(-1.0))
 	assert_eq(target.target_routine_cycle_seconds(), 360.0)
@@ -39,6 +40,27 @@ func test_target_role_cycles_authored_stops_and_exposes_bounded_timing() -> void
 	target._physics_process(0.016)
 	assert_eq(target.target_routine_stop_index(), 0)
 	assert_false(target.is_escort_separated())
+
+
+func test_target_routine_cycle_wraps_brain_schedule_clock() -> void:
+	var target := TargetScene.instantiate() as TargetNpc
+	add_child_autofree(target)
+	var path := _make_path([
+		{ "position": Vector3.ZERO, "action": &"study", "dwell": 600.0 },
+		{ "position": Vector3(1.0, 0.0, 0.0), "action": &"stand", "dwell": 600.0 },
+	])
+	assert_true(target.set_target_routine_path(path))
+	assert_true(target.set_routine_cycle_seconds(2.0))
+	assert_eq(target.brain().routine_cycle_seconds(), 2.0)
+
+	for _index in 6:
+		target.brain().tick(0.25)
+	assert_almost_eq(target.target_routine_cycle_elapsed(), 1.5, 0.0001)
+	for _index in 4:
+		target.brain().tick(0.25)
+	assert_almost_eq(target.target_routine_cycle_elapsed(), 0.5, 0.0001)
+	assert_false(target.set_routine_cycle_seconds(0.5))
+	assert_false(target.set_routine_cycle_seconds(INF))
 
 
 func test_target_routine_rejects_invalid_route_without_movement() -> void:
@@ -123,6 +145,40 @@ func test_target_dead_api_emits_event_once_through_combat_compatibility() -> voi
 	assert_eq(_mission_event_names, [&"target_killed"])
 	assert_eq(_mission_event_payloads[0].get("method"), &"combat")
 	EventBus.mission_event.disconnect(callback)
+
+
+func test_target_assassination_preserves_assassination_method() -> void:
+	var target := TargetScene.instantiate() as TargetNpc
+	add_child_autofree(target)
+	_mission_event_names.clear()
+	_mission_event_payloads.clear()
+	var callback := Callable(self, &"_capture_mission_event")
+	EventBus.mission_event.connect(callback)
+
+	assert_true(target.begin_assassination(&"back"))
+	assert_eq(_mission_event_names, [&"target_killed"])
+	assert_eq(_mission_event_payloads.size(), 1)
+	assert_eq(_mission_event_payloads[0].get("method"), &"assassination")
+
+	EventBus.mission_event.disconnect(callback)
+
+
+func test_incapacitated_escort_defers_target_combat_until_wake() -> void:
+	var target := TargetScene.instantiate() as TargetNpc
+	add_child_autofree(target)
+	var escort := EscortScene.instantiate() as EscortGuard
+	add_child_autofree(escort)
+	assert_true(escort.set_escort_target(target))
+	assert_true(escort.set_incapacitated(&"knockout", 10.0))
+
+	assert_true(target.notify_target_defeated(&"combat"))
+	assert_true(escort.brain().is_incapacitated())
+	assert_eq(escort.brain().alert_state(), Enums.AlertState.UNAWARE)
+	assert_false(escort.brain().alert_state() == Enums.AlertState.COMBAT)
+
+	assert_true(escort.set_incapacitated(&""))
+	escort._physics_process(0.016)
+	assert_eq(escort.brain().alert_state(), Enums.AlertState.COMBAT)
 
 
 func _capture_mission_event(event_name: StringName, payload: Dictionary) -> void:
