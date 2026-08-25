@@ -67,6 +67,61 @@ func test_hide_spot_stores_one_body_and_suppresses_corpse_anomaly() -> void:
 	assert_not_null(body.corpse_anomaly())
 
 
+func test_invalid_storage_rolls_back_without_exposing_carried_body() -> void:
+	_add_floor()
+	var player := _add_player(Vector3(0.0, 1.0, 0.0))
+	var hide_spot := HideSpot.new()
+	hide_spot.position = Vector3(0.0, 1.0, 0.0)
+	add_child_autofree(hide_spot)
+	var body := _add_dead_body(Vector3(0.0, 1.0, -0.5))
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	assert_true(player.try_pick_up_body(body))
+	var original_parent := body.get_parent()
+	hide_spot.storage_offset = Vector3(INF, 0.0, 0.0)
+
+	assert_false(body.begin_storage(hide_spot))
+	assert_eq(body.get_parent(), player)
+	assert_eq(body.get_parent(), original_parent)
+	assert_true(body.is_being_carried())
+	assert_false(body.is_stored())
+	assert_eq(body.collision_layer, 0)
+	assert_eq(body.collision_mask, 0)
+	assert_eq(body.process_mode, Node.PROCESS_MODE_DISABLED)
+	assert_false(hide_spot.has_stored_body())
+	assert_true(player.is_carrying_body())
+
+
+func test_failed_retrieval_keeps_hide_spot_occupancy_consistent() -> void:
+	_add_floor()
+	var player := _add_player(Vector3(0.0, 1.0, 0.0))
+	var hide_spot := HideSpot.new()
+	hide_spot.position = Vector3(0.0, 1.0, 0.0)
+	add_child_autofree(hide_spot)
+	var body := _add_dead_body(Vector3(0.0, 1.0, -0.5))
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	assert_true(player.try_pick_up_body(body))
+	assert_true(player.try_store_carried_body(hide_spot))
+	var detached_receiver := Node3D.new()
+	assert_null(hide_spot.retrieve_body(detached_receiver))
+	assert_true(hide_spot.has_stored_body())
+	assert_eq(hide_spot.stored_body(), body)
+	assert_eq(body.get_parent(), hide_spot)
+	assert_true(body.is_stored())
+	detached_receiver.free()
+
+	# A body ending storage through the production API must also clear a stale
+	# HideSpot pointer when the transition is no longer owned by that spot.
+	assert_true(body.end_storage())
+	assert_false(hide_spot.has_stored_body())
+	assert_null(hide_spot.stored_body())
+	assert_false(body.is_stored())
+	assert_not_null(body.corpse_anomaly())
+
+
 func test_body_carry_and_storage_reject_invalid_owners_and_duplicates() -> void:
 	var live_body := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(live_body)
