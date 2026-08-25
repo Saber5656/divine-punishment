@@ -27,6 +27,7 @@ var _elapsed := 0.0
 var _player_override: Node3D
 var _uses_tuning := false
 var _manual_vigilance_multiplier := 1.0
+var _target_visible := false
 
 
 func _ready() -> void:
@@ -104,6 +105,10 @@ func meter() -> float:
 	return _meter
 
 
+func target_visible() -> bool:
+	return _target_visible
+
+
 func set_vigilance_multiplier(value: float) -> void:
 	if not is_finite(value):
 		_manual_vigilance_multiplier = 1.0
@@ -122,6 +127,7 @@ func set_player_target(target: Node3D) -> void:
 func set_perception_config(config: PerceptionConfig) -> void:
 	_disconnect_tuning()
 	perception_config = config
+	_target_visible = false
 
 
 static func vision_gain(
@@ -141,6 +147,9 @@ static func vision_gain(
 
 
 func _evaluate_visual(delta: float, target: Node3D) -> void:
+	# Track the latest sampled visibility independently of threshold crossings;
+	# a saturated meter must not make a continuously visible target look lost.
+	_target_visible = false
 	if target == null or not is_instance_valid(target):
 		_advance_meter(delta, 0.0, false, Vector3.ZERO)
 		return
@@ -214,7 +223,8 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 		central,
 		perception_config.meter_gain_base,
 	)
-	_advance_meter(delta, gain, visible and gain > 0.0, center)
+	_target_visible = visible and gain > 0.0
+	_advance_meter(delta, gain, _target_visible, center)
 
 
 func _advance_meter(delta: float, gain: float, visible: bool, stimulus_position: Vector3) -> void:

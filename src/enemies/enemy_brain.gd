@@ -25,6 +25,7 @@ const RELIGHT_DELAY := RELIGHT_DELAY_SEC
 const RETURN_ARRIVAL_DURATION := 1.0
 const DEFAULT_RETURN_VIGILANCE_MULTIPLIER := 1.5
 const DEFAULT_RETURN_VIGILANCE_DURATION := 120.0
+const MAX_INCAPACITATION_DURATION_SEC := 300.0
 const MAX_AREA_ALERT_LEVEL := 5
 const NO_POSITION := Vector3(NAN, NAN, NAN)
 
@@ -52,12 +53,16 @@ var _relight_request_sent := false
 var _seen_anomalies: Dictionary = {}
 var _incapacitated := false
 var _incapacitated_kind: StringName = &""
+var _incapacitation_remaining := 0.0
+var _started := false
 var _target_visible := false
+var _target_visible_override := -1
 var _routine_arrived := false
 var _last_transition_reason: StringName = &""
 
 
 func _ready() -> void:
+	_started = true
 	set_physics_process(true)
 	var event_bus := _event_bus()
 	if event_bus != null:
@@ -67,6 +72,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_started = false
 	var event_bus := _event_bus()
 	if event_bus != null:
 		var callback := Callable(self, &"_on_anomaly_registered")
@@ -84,12 +90,16 @@ func tick(delta: float) -> void:
 	if not is_finite(delta) or delta < 0.0:
 		return
 	if _incapacitated:
+		_advance_incapacitation(delta)
 		return
 
 	var perception := _perception()
 	if perception != null:
 		perception.set_vigilance_multiplier(vigilance_multiplier())
 		perception.tick(delta)
+		if _state == Enums.AlertState.COMBAT and _target_visible_override < 0 and perception.target_visible():
+			_target_visible = true
+			_combat_lost_sight_elapsed = 0.0
 
 	_advance_timers(delta)
 	var stimulus := _pop_highest_stimulus()
@@ -157,7 +167,7 @@ func relight_remaining() -> float:
 
 
 func is_relight_pending() -> bool:
-	return _relight_pending and not _relight_request_sent
+	return _relight_pending
 
 
 func relight_pending() -> bool:
@@ -202,12 +212,15 @@ func target_visible() -> bool:
 
 func set_target_visible(value: bool) -> void:
 	_target_visible = value
+	_target_visible_override = 1 if value else 0
 	if value:
 		_combat_lost_sight_elapsed = 0.0
 
 
 func set_routine_arrived(value: bool) -> void:
 	_routine_arrived = value
+	if value:
+		_complete_relight_if_arrived()
 
 
 func mark_routine_arrived() -> void:
@@ -229,6 +242,11 @@ func set_target_position(position: Vector3) -> void:
 func submit_stimulus(stim: PerceptionStimulus) -> void:
 	if not _valid_stimulus(stim):
 		return
+	if _incapacitated and stim.kind == Enums.StimulusKind.NOISE and _incapacitated_kind != &"dead":
+		# Sleep/knockout/restrained enemies wake when the noise reaches their
+		# perception component.  Keep the stimulus so the normal FSM can process
+		# the waking sound on the next brain tick.
+		wake()
 	if _stimulus_buffer.size() >= MAX_STIMULI_PER_FRAME:
 		_stimulus_buffer.pop_front()
 	if stim.kind == Enums.StimulusKind.ANOMALY and stim.anomaly != null:
@@ -281,13 +299,17 @@ func force_state(state_value: Enums.AlertState, reason: StringName = &"forced") 
 
 ## Incapacitation is outside the five-state FSM.  Passing an empty kind wakes
 ## the enemy and returns it to Searching, preserving the fact that it was
-## attacked while asleep/knocked out/restrained.
-func set_incapacitated(kind: StringName) -> void:
+## attacked while asleep/knocked out/restrained.  A positive duration is
+## bounded and auto-wakes through the same path as an explicit wake call.
+func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
+	if not _started or not is_finite(duration_seconds) or duration_seconds < 0.0:
+		return false
 	if kind.is_empty():
 		if not _incapacitated:
-			return
+			return false
 		_incapacitated = false
 		_incapacitated_kind = &""
+		_incapacitation_remaining = 0.0
 		_target_visible = false
 		var wake_stimulus := PerceptionStimulus.create(
 			Enums.StimulusKind.DAMAGE,
@@ -296,16 +318,22 @@ func set_incapacitated(kind: StringName) -> void:
 			1.0,
 		)
 		_transition_to(Enums.AlertState.SEARCHING, wake_stimulus, &"incapacitated_wake")
-		return
+		return true
 	if kind not in [&"sleep", &"knockout", &"restrained", &"dead"]:
-		return
+		return false
 	_incapacitated = true
 	_incapacitated_kind = kind
+	_incapacitation_remaining = _bounded_incapacitation_duration(duration_seconds)
 	_stimulus_buffer.clear()
+	return true
 
 
-func wake() -> void:
-	set_incapacitated(&"")
+func wake() -> bool:
+	return set_incapacitated(&"")
+
+
+func incapacitation_remaining() -> float:
+	return maxf(_incapacitation_remaining, 0.0)
 
 
 ## Pure transition helper used by the table tests and by the stateful brain.
@@ -365,6 +393,15 @@ func _advance_timers(delta: float) -> void:
 		_try_request_relight()
 
 
+func _advance_incapacitation(delta: float) -> void:
+	if _incapacitation_remaining <= 0.0:
+		return
+	_incapacitation_remaining = maxf(_incapacitation_remaining - delta, 0.0)
+	if _incapacitation_remaining <= 0.0001:
+		_incapacitation_remaining = 0.0
+		wake()
+
+
 func _advance_state_without_stimulus(delta: float) -> void:
 	match _state:
 		Enums.AlertState.UNAWARE:
@@ -380,15 +417,22 @@ func _advance_state_without_stimulus(delta: float) -> void:
 			if _search_elapsed >= SEARCH_DURATION_SEC:
 				_transition_to(Enums.AlertState.RETURN, null, &"search_timeout")
 		Enums.AlertState.COMBAT:
-			# A visual stimulus is an instantaneous observation.  If no new
-			# observation arrives, the target has been lost for this frame.
+			var perception := _perception()
+			var visible := _target_visible
+			if perception != null and _target_visible_override < 0:
+				visible = perception.target_visible()
+			if visible:
+				_target_visible = true
+				_combat_lost_sight_elapsed = 0.0
+				return
+			_target_visible = false
 			_combat_lost_sight_elapsed += delta
 			if _combat_lost_sight_elapsed >= COMBAT_LOST_SIGHT_DURATION_SEC:
 				_transition_to(Enums.AlertState.SEARCHING, null, &"lost_sight")
 		Enums.AlertState.RETURN:
 			_return_elapsed += delta
-			_set_navigation_target(_routine_target())
-			if _routine_arrived or _return_elapsed >= RETURN_ARRIVAL_DURATION:
+			_set_navigation_target(_return_target())
+			if (_routine_arrived or _return_elapsed >= RETURN_ARRIVAL_DURATION) and not _relight_pending:
 				_transition_to(Enums.AlertState.UNAWARE, null, &"routine_arrived")
 
 
@@ -474,7 +518,7 @@ func _transition_to(
 	_set_navigation_target(
 		_last_known_position
 		if next == Enums.AlertState.SUSPICIOUS or next == Enums.AlertState.SEARCHING
-		else _routine_target()
+		else _return_target() if next == Enums.AlertState.RETURN else _routine_target()
 	)
 	state_changed.emit(previous, next)
 	var event_bus := _event_bus()
@@ -540,7 +584,7 @@ func _register_anomaly_memory(anomaly: Anomaly) -> void:
 
 
 func _try_request_relight() -> void:
-	if not _relight_pending or _relight_request_sent:
+	if not _relight_pending:
 		return
 	if _relight_light == null or not is_instance_valid(_relight_light):
 		_relight_pending = false
@@ -553,11 +597,28 @@ func _try_request_relight() -> void:
 	var enemy := _enemy_node()
 	if enemy == null or not enemy.is_inside_tree():
 		return
-	if _relight_light.request_relight(enemy):
-		_relight_light.set_extinguished(false)
+	if not _relight_request_sent and _relight_light.request_relight(enemy):
 		_relight_request_sent = true
-		_set_substate(&"none")
+		_set_navigation_target(_relight_light.global_position)
 		relight_requested.emit(_relight_light)
+	_complete_relight_if_arrived()
+
+
+func _complete_relight_if_arrived() -> void:
+	if not _relight_pending or not _relight_request_sent:
+		return
+	if _relight_light == null or not is_instance_valid(_relight_light):
+		_relight_pending = false
+		return
+	var enemy := _enemy_node()
+	if not enemy is Node3D or not enemy.is_inside_tree():
+		return
+	if not _relight_light.is_near_interaction((enemy as Node3D).global_position):
+		return
+	_relight_light.set_extinguished(false)
+	_relight_pending = false
+	_relight_request_sent = false
+	_set_substate(&"none")
 
 
 func _emit_anomaly_spotted(anomaly: Anomaly) -> void:
@@ -657,6 +718,12 @@ func _routine_target() -> Vector3:
 	return (enemy as Node3D).global_position if enemy is Node3D else Vector3.ZERO
 
 
+func _return_target() -> Vector3:
+	if _relight_pending and _relight_light != null and is_instance_valid(_relight_light):
+		return _relight_light.global_position
+	return _routine_target()
+
+
 func _set_navigation_target(target: Vector3) -> void:
 	if not _valid_vector(target):
 		return
@@ -702,3 +769,9 @@ static func _valid_stimulus(stim: PerceptionStimulus) -> bool:
 
 static func _valid_vector(value: Vector3) -> bool:
 	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+
+
+static func _bounded_incapacitation_duration(value: float) -> float:
+	if not is_finite(value) or value <= 0.0:
+		return 0.0
+	return clampf(value, 0.0, MAX_INCAPACITATION_DURATION_SEC)

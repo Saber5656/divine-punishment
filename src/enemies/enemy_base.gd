@@ -27,6 +27,11 @@ func alert_state() -> Enums.AlertState:
 	return enemy_brain.alert_state() if enemy_brain != null else Enums.AlertState.UNAWARE
 
 
+func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
+	var enemy_brain := brain()
+	return enemy_brain != null and enemy_brain.set_incapacitated(kind, duration_seconds)
+
+
 func hearing_position() -> Vector3:
 	var perception := get_node_or_null(NodePath("Perception")) as EnemyPerception
 	if perception != null:
