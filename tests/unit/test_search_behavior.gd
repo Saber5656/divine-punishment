@@ -100,7 +100,9 @@ func test_search_route_rejects_inaccessible_and_overhead_points() -> void:
 	var inaccessible := _add_search_point(&"Inaccessible", Vector3(0.0, 0.0, -1.0), 1.0, 0)
 	inaccessible.enemy_accessible = false
 	var overhead := _add_search_point(&"Overhead", Vector3(0.0, 5.0, -2.0), 1.0, 1)
-	overhead.enemy_accessible = false
+	# Vertical reachability must reject authored overhead geometry even when the
+	# generic accessibility flag was not configured by a level author.
+	overhead.enemy_accessible = true
 	var valid := _add_search_point(&"Ground", Vector3(0.0, 0.0, -3.0), 0.5, 2)
 	brain.submit_stimulus(PerceptionStimulus.create(
 		Enums.StimulusKind.NOISE,

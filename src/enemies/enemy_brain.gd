@@ -39,6 +39,8 @@ const MAX_SEARCH_PLAYER_CANDIDATES := 8
 const SEARCH_POINT_RADIUS := 30.0
 const SEARCH_HIDE_SPOT_RADIUS := 12.0
 const MAX_SEARCH_STEP_DELTA := 0.25
+const SEARCH_VERTICAL_REACH_TOLERANCE := 1.5
+const SEARCH_NAVIGATION_SNAP_DISTANCE := 1.5
 const MIN_SEARCH_SPEED := 3.0
 const DEFAULT_ROUTINE_SPEED := 1.5
 const MAX_ROUTINE_CLOCK_SECONDS := 86400.0
@@ -841,6 +843,8 @@ func _collect_search_points(anchor: Vector3) -> Array[SearchPoint]:
 		var point := candidate as SearchPoint
 		if point == null or not is_instance_valid(point) or not point.is_searchable():
 			continue
+		if not _search_point_is_reachable(point):
+			continue
 		var distance := point.target_position().distance_to(anchor) if _valid_vector(anchor) else 0.0
 		if not is_finite(distance) or distance > SEARCH_POINT_RADIUS:
 			continue
@@ -852,6 +856,29 @@ func _collect_search_points(anchor: Vector3) -> Array[SearchPoint]:
 	if result.size() > MAX_SEARCH_POINTS:
 		result.resize(MAX_SEARCH_POINTS)
 	return result
+
+
+func _search_point_is_reachable(point: SearchPoint) -> bool:
+	if point == null or not is_instance_valid(point) or not point.enemy_accessible:
+		return false
+	var target := point.target_position()
+	var enemy := _enemy_node() as Node3D
+	if not _valid_vector(target) or enemy == null or not _valid_vector(enemy.global_position):
+		return false
+	# SearchPoint authoring is ground-oriented. Reject roof/beam markers even
+	# before NavigationServer publishes a synchronized map.
+	if absf(target.y - enemy.global_position.y) > SEARCH_VERTICAL_REACH_TOLERANCE:
+		return false
+	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
+	if agent == null:
+		return true
+	var navigation_map := agent.get_navigation_map()
+	if not navigation_map.is_valid() or NavigationServer3D.map_get_iteration_id(navigation_map) <= 0:
+		# The explicit authoring flag plus vertical guard is the bounded fallback
+		# while the map is unavailable; no unbounded query or movement is added.
+		return true
+	var closest := NavigationServer3D.map_get_closest_point(navigation_map, target)
+	return _valid_vector(closest) and closest.distance_to(target) <= SEARCH_NAVIGATION_SNAP_DISTANCE
 
 
 func _sort_search_points(left: SearchPoint, right: SearchPoint) -> bool:
