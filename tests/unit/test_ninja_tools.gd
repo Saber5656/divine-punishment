@@ -72,7 +72,9 @@ func test_pebble_emits_one_bounded_tool_noise_at_impact() -> void:
 	assert_not_null(event)
 	assert_eq(event.kind, Enums.NoiseKind.TOOL)
 	assert_eq(event.radius, 6.0)
-	assert_eq(event.position, Vector3(1.0, 0.0, -22.0))
+	assert_almost_eq(event.position.x, 1.0, 0.001)
+	assert_almost_eq(event.position.y, -7.056, 0.001)
+	assert_almost_eq(event.position.z, -19.6, 0.001)
 
 
 func test_blow_dart_extinguishes_only_eligible_light() -> void:

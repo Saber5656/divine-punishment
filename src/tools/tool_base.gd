@@ -57,6 +57,26 @@ func _impact_hit(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> 
 			return {&"position": target_position, &"collider": explicit_target}
 	var world := _world_for_hit(hit)
 	if world != null:
+		var trajectory := _trajectory_points(safe_origin, safe_direction, bounded_distance)
+		if trajectory.size() >= 2:
+			var excluded: Array[RID] = []
+			var user: Variant = hit.get(&"user")
+			if user is CollisionObject3D:
+				excluded.append((user as CollisionObject3D).get_rid())
+			for index in range(1, trajectory.size()):
+				var query := PhysicsRayQueryParameters3D.create(
+					trajectory[index - 1],
+					trajectory[index],
+				)
+				query.collision_mask = PROJECTILE_COLLISION_MASK
+				query.collide_with_areas = true
+				query.exclude = excluded
+				var result := world.direct_space_state.intersect_ray(query)
+				if not result.is_empty():
+					var impact: Variant = result.get(&"position")
+					if impact is Vector3 and (impact as Vector3).is_finite():
+						return {&"position": impact, &"collider": result.get(&"collider")}
+			return {&"position": trajectory[trajectory.size() - 1], &"collider": null}
 		var query := PhysicsRayQueryParameters3D.create(
 			safe_origin,
 			safe_origin + safe_direction * bounded_distance,
@@ -72,6 +92,45 @@ func _impact_hit(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> 
 			if impact is Vector3 and (impact as Vector3).is_finite():
 				return {&"position": impact, &"collider": result.get(&"collider")}
 	return {&"position": safe_origin + safe_direction * bounded_distance, &"collider": null}
+
+
+func _trajectory_points(origin: Vector3, direction: Vector3, max_distance: float) -> PackedVector3Array:
+	var definition := tool_definition
+	if definition == null or not definition.supports_aiming():
+		return PackedVector3Array()
+	var speed := clampf(definition.projectile_speed, ToolDefinition.MIN_PROJECTILE_SPEED, ToolDefinition.MAX_PROJECTILE_SPEED)
+	var duration := definition.trajectory_duration()
+	var count := definition.trajectory_sample_count()
+	if not is_finite(speed) or speed <= 0.0 or duration <= 0.0 or count < 2:
+		return PackedVector3Array()
+	var points := PackedVector3Array()
+	var velocity := direction * speed
+	for index in range(count):
+		var t := duration * float(index) / float(count - 1)
+		var point := origin + velocity * t + Vector3.DOWN * (0.5 * definition.trajectory_gravity * t * t)
+		if not point.is_finite():
+			return PackedVector3Array()
+		if points.size() > 0:
+			point = _clip_trajectory_point(origin, points[points.size() - 1], point, max_distance)
+		points.append(point)
+		if point.distance_to(origin) >= max_distance - 0.0001:
+			break
+	return points
+
+
+func _clip_trajectory_point(origin: Vector3, from: Vector3, to: Vector3, max_distance: float) -> Vector3:
+	if to.distance_to(origin) <= max_distance:
+		return to
+	var low := 0.0
+	var high := 1.0
+	for _index in 12:
+		var middle := (low + high) * 0.5
+		var candidate := from.lerp(to, middle)
+		if candidate.distance_to(origin) <= max_distance:
+			low = middle
+		else:
+			high = middle
+	return from.lerp(to, low)
 
 
 func _impact_position(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> Vector3:
