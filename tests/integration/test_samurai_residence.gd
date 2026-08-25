@@ -210,6 +210,17 @@ func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
 	assert_eq(counts[&"search_points"], 12)
 	assert_eq(counts[&"checkpoints"], 3)
 	assert_eq(counts[&"anomaly_markers"], 4)
+	var door_markers := residence.get_node(^"Markers/AnomalyMarkers").get_children()
+	assert_eq(door_markers.size(), 4)
+	for marker: Node in door_markers:
+		assert_true(marker is AnomalyMarker)
+		assert_false((marker as AnomalyMarker).is_active())
+		assert_null((marker as AnomalyMarker).current_anomaly())
+	var first_door := door_markers[0] as AnomalyMarker
+	first_door.set_open(true)
+	assert_true(first_door.is_active())
+	first_door.set_open(false)
+	assert_false(first_door.is_active())
 	var has_overhead_hide_spot := false
 	for node: Node in residence.get_tree().get_nodes_in_group(&"hide_spots"):
 		if node.get_meta(&"area_id", &"") == &"overhead":

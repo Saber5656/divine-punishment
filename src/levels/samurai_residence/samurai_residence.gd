@@ -828,6 +828,11 @@ func _add_checkpoint(parent: Node3D, marker_name: StringName, position: Vector3,
 
 func _add_marker(parent: Node3D, marker_name: StringName, position: Vector3, area_id: StringName, role: StringName) -> Marker3D:
 	var marker: Marker3D = AnomalyMarker.new() if role == &"door" else Marker3D.new()
+	if marker is AnomalyMarker:
+		# Door state is owned by the eventual door interaction.  Until that
+		# integration toggles the marker explicitly, a closed authored door must
+		# not register a persistent DOOR_OPEN anomaly at scene startup.
+		(marker as AnomalyMarker).set_active(false)
 	marker.name = marker_name
 	marker.position = position
 	marker.set_meta(&"area_id", area_id)
