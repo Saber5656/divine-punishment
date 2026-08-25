@@ -1,8 +1,12 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/ui/stealth_debug_overlay.gd" id="1_debug_overlay"]
+[ext_resource type="Script" path="res://src/ui/enemy_alert_meter_hud.gd" id="2_enemy_alert_meter"]
 
 [node name="Main" type="Node"]
 
 [node name="StealthDebugOverlay" type="Node3D" parent="."]
 script = ExtResource("1_debug_overlay")
+
+[node name="EnemyAlertMeterHud" type="CanvasLayer" parent="."]
+script = ExtResource("2_enemy_alert_meter")
