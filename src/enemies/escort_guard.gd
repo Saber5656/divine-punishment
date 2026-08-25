@@ -11,6 +11,7 @@ extends EnemyBase
 const MAX_FOLLOW_OFFSET := 10.0
 const MAX_FOLLOW_SPEED := 12.0
 const DEFAULT_FOLLOW_SPEED := 2.0
+const MAX_TARGET_CANDIDATES := 64
 
 @export_node_path("Node3D") var target_path: NodePath
 @export var follow_offset := Vector3(-1.5, 0.0, 0.0):
@@ -71,17 +72,36 @@ func _physics_process(delta: float) -> void:
 
 
 func set_escort_target(target: TargetNpc) -> bool:
-	if target != null and (not is_instance_valid(target) or not target is TargetNpc):
+	if target != null and (
+		not is_instance_valid(target)
+		or not target is TargetNpc
+		or not target.is_inside_tree()
+		or target.get_tree() != get_tree()
+		or not target.global_position.is_finite()
+	):
 		return false
 	_bind_target(target)
 	return true
 
 
 func escort_target() -> TargetNpc:
-	if _escort_target != null and is_instance_valid(_escort_target):
+	if (
+		_escort_target != null
+		and is_instance_valid(_escort_target)
+		and _escort_target.is_inside_tree()
+		and _escort_target.get_tree() == get_tree()
+		and _escort_target.global_position.is_finite()
+	):
 		return _escort_target
+	_unbind_target_signal()
 	_resolve_escort_target()
-	return _escort_target if _escort_target != null and is_instance_valid(_escort_target) else null
+	return _escort_target if (
+		_escort_target != null
+		and is_instance_valid(_escort_target)
+		and _escort_target.is_inside_tree()
+		and _escort_target.get_tree() == get_tree()
+		and _escort_target.global_position.is_finite()
+	) else null
 
 
 func desired_escort_position() -> Vector3:
@@ -111,14 +131,25 @@ func _resolve_escort_target() -> void:
 		var tree := get_tree()
 		if tree != null:
 			var candidates := tree.get_nodes_in_group(&"target_npcs")
-			for node: Node in candidates:
+			var candidate_count := mini(candidates.size(), MAX_TARGET_CANDIDATES)
+			for candidate_index in candidate_count:
+				var node: Node = candidates[candidate_index]
 				if node is TargetNpc and is_instance_valid(node):
-					candidate = node as TargetNpc
-					break
+					var target := node as TargetNpc
+					if target.is_inside_tree() and target.get_tree() == get_tree() and target.global_position.is_finite():
+						candidate = target
+						break
 	_bind_target(candidate)
 
 
 func _bind_target(target: TargetNpc) -> void:
+	if target != null and (
+		not is_instance_valid(target)
+		or not target.is_inside_tree()
+		or target.get_tree() != get_tree()
+		or not target.global_position.is_finite()
+	):
+		return
 	if _escort_target == target:
 		return
 	_unbind_target_signal()

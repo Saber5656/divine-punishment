@@ -81,6 +81,9 @@ func test_escort_follows_target_and_holds_separation_anchor() -> void:
 	assert_eq(escort.follow_offset, Vector3(-1.5, 0.0, 0.0))
 	escort.separation_offset = Vector3(NAN, 0.0, 0.0)
 	assert_eq(escort.separation_offset, Vector3(0.0, 0.0, 2.0))
+	var detached_target := TargetNpc.new()
+	assert_false(escort.set_escort_target(detached_target))
+	detached_target.free()
 
 
 func test_target_defeat_emits_one_shot_mission_event_and_escort_enters_combat() -> void:
