@@ -550,22 +550,8 @@ func _build_area_markers() -> void:
 		Vector3(64.0, OVERHEAD_Y, 15.0), Vector3(70.0, PLAYER_CENTER_Y, 38.0),
 	]
 	for index: int in search_positions.size():
-		var marker := SearchPoint.new()
-		marker.name = "SearchPoint%02d" % (index + 1)
-		marker.position = search_positions[index]
-		marker.area_id = _area_for_position(search_positions[index])
-		marker.search_order = index
-		# The first authored points are the strongest likely locations.  The
-		# bounded confidence value is consumed by EnemyBrain's deterministic
-		# search route sorter and remains editable in a scene override.
-		marker.confidence = clampf(1.0 - float(index) / float(search_positions.size()), 0.0, 1.0)
-		# Roof/beam points belong to the overhead navigation layer and are not
-		# reachable by guards. Keep them authored for level inspection, but make
-		# the enemy route collector fail closed instead of direct-moving upward.
-		marker.enemy_accessible = search_positions[index].y < OVERHEAD_Y - 0.1
-		marker.set_meta(&"area_id", marker.area_id)
-		marker.set_meta(&"role", &"search")
-		search_points.add_child(marker)
+		var marker := _add_marker(search_points, "SearchPoint%02d" % (index + 1), search_positions[index], _area_for_position(search_positions[index]), &"search")
+		marker.add_to_group(&"search_points")
 
 	var checkpoints := _new_marker_root(&"Checkpoints")
 	_add_checkpoint(checkpoints, &"CheckpointInsidePerimeter", Vector3(16.0, PLAYER_CENTER_Y, 24.0), &"perimeter_reached")
