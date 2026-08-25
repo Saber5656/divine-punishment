@@ -64,3 +64,43 @@ func test_meter_hud_candidate_and_meter_counts_are_bounded() -> void:
 	hud.set_enemy_candidates(candidates)
 	assert_lte(hud._candidate_nodes().size(), EnemyAlertMeterHudScript.MAX_ENEMY_CANDIDATES)
 	assert_lte(hud._entries.size(), EnemyAlertMeterHudScript.MAX_METERS)
+
+
+func test_meter_hud_evicts_stale_entries_under_candidate_churn() -> void:
+	var camera := Camera3D.new()
+	add_child_autofree(camera)
+	camera.current = true
+	var hud := EnemyAlertMeterHudScript.new() as EnemyAlertMeterHud
+	add_child_autofree(hud)
+	hud.set_camera(camera)
+
+	var first_batch: Array[Node] = []
+	for index in EnemyAlertMeterHudScript.MAX_METERS + 8:
+		var enemy := EnemyScene.instantiate() as EnemyBase
+		enemy.position = Vector3(0.0, 0.0, -5.0)
+		add_child_autofree(enemy)
+		(enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
+		(enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"meter_churn")
+		first_batch.append(enemy)
+	hud.set_enemy_candidates(first_batch)
+	await get_tree().process_frame
+	hud.refresh()
+	assert_lte(hud._entries.size(), EnemyAlertMeterHudScript.MAX_METERS)
+	var old_id := first_batch[0].get_instance_id()
+	var old_holder := (hud._entries.get(old_id) as Dictionary).get(&"holder") as Control
+
+	var second_batch: Array[Node] = []
+	for index in EnemyAlertMeterHudScript.MAX_METERS + 8:
+		var enemy := EnemyScene.instantiate() as EnemyBase
+		enemy.position = Vector3(0.0, 0.0, -5.0)
+		add_child_autofree(enemy)
+		(enemy.get_node("Perception") as EnemyPerception).set("_meter", 1.5)
+		(enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.SUSPICIOUS, &"meter_churn")
+		second_batch.append(enemy)
+	hud.set_enemy_candidates(second_batch)
+	await get_tree().process_frame
+	hud.refresh()
+	assert_lte(hud._entries.size(), EnemyAlertMeterHudScript.MAX_METERS)
+	assert_false(hud._entries.has(old_id))
+	await get_tree().process_frame
+	assert_false(is_instance_valid(old_holder))

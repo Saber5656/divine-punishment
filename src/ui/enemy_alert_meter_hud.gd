@@ -16,6 +16,7 @@ const METER_HEIGHT := 6.0
 const METER_OFFSET_Y := 14.0
 const SCREEN_MARGIN := 8.0
 const MIN_VIEWPORT_SIZE := 1.0
+const MAX_WORLD_COORDINATE := 10000.0
 
 const SUSPICIOUS_COLOR := Color(0.96, 0.96, 0.92, 0.96)
 const SEARCHING_COLOR := Color(1.0, 0.78, 0.12, 0.98)
@@ -99,7 +100,7 @@ func refresh() -> void:
 		seen[instance_id] = true
 		var data := _enemy_meter_data(enemy)
 		if data.is_empty():
-			_hide_entry(instance_id)
+			_remove_entry(instance_id)
 			continue
 		accepted += 1
 		var entry := _entry_for(instance_id)
@@ -114,7 +115,7 @@ func refresh() -> void:
 		_update_entry(entry, projection[&"position"], data[&"meter"], data[&"state"])
 	for instance_id: Variant in _entries.keys():
 		if not seen.has(instance_id):
-			_hide_entry(instance_id)
+			_remove_entry(instance_id)
 
 
 func meter_count() -> int:
@@ -171,7 +172,7 @@ static func project_anchor(
 	if (
 		camera_node == null
 		or not is_instance_valid(camera_node)
-		or not _valid_vector(world_position)
+		or not _valid_world_position(world_position)
 		or not _valid_vector2(viewport_size)
 		or viewport_size.x < MIN_VIEWPORT_SIZE
 		or viewport_size.y < MIN_VIEWPORT_SIZE
@@ -218,8 +219,10 @@ func _enemy_meter_data(enemy: Node) -> Dictionary:
 		or not brain.has_method(&"alert_state")
 	):
 		return {}
+	if _is_incapacitated(brain):
+		return {}
 	var anchor := enemy.get_node_or_null(NodePath("MeterAnchor")) as Node3D
-	if anchor == null or not _valid_vector(anchor.global_position):
+	if anchor == null or not _valid_world_position(anchor.global_position):
 		return {}
 	var meter_value: Variant = perception.call(&"meter")
 	var state_value: Variant = brain.call(&"alert_state")
@@ -248,8 +251,14 @@ func _enemy_meter_data(enemy: Node) -> Dictionary:
 
 func _entry_for(instance_id: int) -> Dictionary:
 	var existing: Variant = _entries.get(instance_id)
-	if existing is Dictionary:
+	if existing is Dictionary and is_instance_valid((existing as Dictionary).get(&"holder")):
 		return existing as Dictionary
+	if existing is Dictionary:
+		_entries.erase(instance_id)
+	if _entries.size() >= MAX_METERS:
+		var eviction_id: Variant = _entries.keys()[0] if not _entries.is_empty() else null
+		if eviction_id != null:
+			_remove_entry(eviction_id)
 	var holder := Control.new()
 	holder.name = "EnemyMeter_%d" % instance_id
 	holder.size = Vector2(METER_WIDTH, METER_HEIGHT + METER_OFFSET_Y)
@@ -308,6 +317,15 @@ func _hide_entry(instance_id: int) -> void:
 		holder.visible = false
 
 
+func _remove_entry(instance_id: Variant) -> void:
+	var entry: Variant = _entries.get(instance_id)
+	if entry is Dictionary:
+		var holder := (entry as Dictionary).get(&"holder") as Control
+		if holder != null and is_instance_valid(holder):
+			holder.queue_free()
+	_entries.erase(instance_id)
+
+
 func _clear_entries() -> void:
 	for entry: Dictionary in _entries.values():
 		var holder := entry.get(&"holder") as Control
@@ -329,12 +347,32 @@ func _resolve_camera() -> Camera3D:
 	return viewport.get_camera_3d() if viewport != null else null
 
 
-static func _valid_enemy(enemy: Node) -> bool:
-	return enemy != null and is_instance_valid(enemy) and enemy is Node3D
+func _valid_enemy(enemy: Node) -> bool:
+	return (
+		enemy != null
+		and is_instance_valid(enemy)
+		and enemy is Node3D
+		and is_inside_tree()
+		and enemy.get_tree() == get_tree()
+		and _valid_world_position((enemy as Node3D).global_position)
+	)
 
 
 static func _valid_vector(value: Vector3) -> bool:
 	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+
+
+static func _valid_world_position(value: Vector3) -> bool:
+	return (
+		_valid_vector(value)
+		and absf(value.x) <= MAX_WORLD_COORDINATE
+		and absf(value.y) <= MAX_WORLD_COORDINATE
+		and absf(value.z) <= MAX_WORLD_COORDINATE
+	)
+
+
+static func _is_incapacitated(brain: Node) -> bool:
+	return brain != null and brain.has_method(&"is_incapacitated") and bool(brain.call(&"is_incapacitated"))
 
 
 static func _valid_vector2(value: Vector2) -> bool:
