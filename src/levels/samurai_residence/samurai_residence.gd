@@ -827,7 +827,7 @@ func _add_checkpoint(parent: Node3D, marker_name: StringName, position: Vector3,
 
 
 func _add_marker(parent: Node3D, marker_name: StringName, position: Vector3, area_id: StringName, role: StringName) -> Marker3D:
-	var marker := Marker3D.new()
+	var marker: Marker3D = AnomalyMarker.new() if role == &"door" else Marker3D.new()
 	marker.name = marker_name
 	marker.position = position
 	marker.set_meta(&"area_id", area_id)

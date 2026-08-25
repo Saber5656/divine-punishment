@@ -15,6 +15,7 @@ const CENTRAL_VIEW_DEGREES := 35.0
 const MAX_DETECTION_POINTS := 3
 const MAX_RAYCASTS_PER_UPDATE := MAX_DETECTION_POINTS
 const MAX_SMOKE_VOLUMES := 16
+const MAX_SCANNED_ANOMALIES := 64
 const MAX_METER := 3.0
 
 signal stimulus(stim: PerceptionStimulus)
@@ -71,6 +72,7 @@ func tick(delta: float) -> void:
 	var step_delta := _elapsed
 	_elapsed = 0.0
 	_evaluate_visual(step_delta, target)
+	_scan_persistent_anomalies()
 
 
 func on_noise(event: NoiseEvent) -> void:
@@ -116,8 +118,19 @@ func on_noise(event: NoiseEvent) -> void:
 ## sighting.  Apply the same range, FOV, and world occlusion checks as visual
 ## perception before handing an anomaly to the brain.
 func on_anomaly(anomaly: Anomaly) -> void:
-	if anomaly == null or not _valid_config():
+	if anomaly == null or not _valid_anomaly(anomaly) or not _valid_config():
 		return
+	if _is_self_anomaly(anomaly.node):
+		return
+	if anomaly.node != null:
+		if (
+			not is_instance_valid(anomaly.node)
+			or not anomaly.node.is_inside_tree()
+			or anomaly.node.get_tree() != get_tree()
+		):
+			return
+		if anomaly.node.has_method(&"is_geometry_valid") and not bool(anomaly.node.call(&"is_geometry_valid")):
+			return
 	if not _valid_vector(anomaly.position):
 		return
 	var visible := _anomaly_visible(anomaly.position, anomaly.node)
@@ -146,6 +159,64 @@ func on_anomaly(anomaly: Anomaly) -> void:
 
 func _on_anomaly_registered(anomaly: Anomaly) -> void:
 	on_anomaly(anomaly)
+
+
+## EventBus delivers anomalies that are created after this component subscribes.
+## Persistent markers, extinguished lights, and dead bodies also need a bounded
+## periodic scan so an enemy that enters a scene later still reacts visually.
+func _scan_persistent_anomalies() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var owner := get_parent()
+	var seen_nodes: Dictionary = {}
+	var examined := 0
+	for group_name in [&"anomaly_markers", &"lights", &"enemies"]:
+		for candidate in tree.get_nodes_in_group(group_name):
+			if examined >= MAX_SCANNED_ANOMALIES:
+				return
+			examined += 1
+			if candidate == null or not is_instance_valid(candidate) or not candidate is Node3D:
+				continue
+			if candidate == owner:
+				continue
+			var node := candidate as Node3D
+			var node_id := node.get_instance_id()
+			if seen_nodes.has(node_id):
+				continue
+			seen_nodes[node_id] = true
+			var anomaly := _persistent_anomaly_for(node)
+			if anomaly != null:
+				on_anomaly(anomaly)
+
+
+func _persistent_anomaly_for(node: Node3D) -> Anomaly:
+	if node == null or not is_instance_valid(node):
+		return null
+	for method_name in [&"current_anomaly", &"corpse_anomaly", &"anomaly"]:
+		if not node.has_method(method_name):
+			continue
+		var result: Variant = node.call(method_name)
+		if result is Anomaly:
+			return result as Anomaly
+	return null
+
+
+func _valid_anomaly(anomaly: Anomaly) -> bool:
+	if anomaly == null:
+		return false
+	if (
+		anomaly.kind < Enums.AnomalyKind.CORPSE
+		or anomaly.kind > Enums.AnomalyKind.KNOCKOUT
+		or anomaly.severity < 1
+		or anomaly.severity > 3
+		or not is_finite(anomaly.expires_at)
+		or anomaly.expires_at < 0.0
+	):
+		return false
+	return anomaly.expires_at <= 0.0 or Time.get_ticks_msec() / 1000.0 < anomaly.expires_at
 
 
 func meter() -> float:
@@ -536,6 +607,13 @@ func _event_bus() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null(NodePath("EventBus"))
+
+
+func _is_self_anomaly(source: Node) -> bool:
+	var owner := get_parent()
+	if source == null or not is_instance_valid(source) or owner == null:
+		return false
+	return source == owner or (source.is_inside_tree() and owner.is_ancestor_of(source))
 
 
 func _is_self_noise(source: Node) -> bool:

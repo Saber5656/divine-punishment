@@ -658,6 +658,25 @@ func set_extinguished(extinguished: bool) -> void
 - 成功時は `_is_on` を更新してから render `Light3D.visible` を更新し、gameplay contribution を同じフレームから 0 とする。その後 `Anomaly.create(AnomalyKind.LIGHT_OUT, light.global_position, light, 1)` を `EventBus.anomaly_registered`、状態変化を `EventBus.light_extinguished` へ通知する。既に消灯中の再試行はイベントを重複発行しない。
 - `request_relight(requester)` は消灯中かつ同一 SceneTree の有効な requester の場合だけ `RelightRequest { light, requester, position }` を `EventBus.light_relight_requested` へ渡す。依頼自体はライトを点灯せず、敵 AI が到着した時点で `set_extinguished(false)` を呼ぶ。
 
+### 10.6.1 AnomalyMarker / 警戒レベル付き RoutineStop
+
+`AnomalyMarker` は `anomaly_markers` グループへ登録される永続的な視覚異常ノードである。敵が後からエリアへ入った場合も `EnemyPerception` が 10 Hz（遠距離は 2 Hz）の有界スキャンで拾うため、`EventBus.anomaly_registered` の瞬間通知だけを視認成立の根拠にしない。
+
+```gdscript
+@export var anomaly_kind: Enums.AnomalyKind
+@export_range(1, 3, 1) var severity: int
+@export_range(0.0, 86400.0, 0.1) var expires_in_seconds: float
+@export var active: bool
+
+func current_anomaly() -> Anomaly
+func set_active(value: bool) -> void
+func is_geometry_valid() -> bool
+```
+
+位置・severity・有効期限は有限値かつ上限内でなければ無効として扱い、無効な異常は視覚刺激・シグナルを発生させない。`EnemyBase.corpse_anomaly()` は死亡個体に安定した `Anomaly` を返し、MissionDirector は物理個体の identity で `bodies_found` と area alert +1 を一度だけ処理する。
+
+`RoutineStop.min_alert_level`（0–5、`required_alert_level` 等の互換 alias を含む）は永久エリア警戒レベルの下限である。`PatrolPath.stops_for_alert_level()` と `next_stop_index_for_alert()` は下限未満の stop を候補から除外し、`EnemyBrain` は `EventBus.area_alert_changed` を受けて stricter stop へ切り替える。警戒値・候補数・巡回ステップはいずれも既存の上限で clamp し、未同期の Navigation map や不正 geometry では直接移動・空候補へ fail-closed する。
+
 ### 10.7 忍具フレームワーク（Issue #32）
 
 - `ToolDefinition` は `data/tools/*.tres` のデータ正本であり、所持初期数・投射可否・効果シーン・効果パラメータ・照準チューニングを持つ。個別の効果処理は `effect_scene` の `ToolBase` 派生へ分離する（小石・吹き矢・煙玉などの実装は Issue #33 以降）。
