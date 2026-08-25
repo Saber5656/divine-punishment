@@ -181,14 +181,13 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 	if visibility_value <= 0.0:
 		_advance_meter(delta, 0.0, false, center)
 		return
-	if _is_smoke_blocked(eye.global_position, center):
-		_advance_meter(delta, 0.0, false, center)
-		return
 
 	var exclusions := _ray_exclusions(target)
 	var visible_points := 0
 	for point_index in points.size():
 		var point := points[point_index] as Node3D
+		if _is_smoke_blocked(eye.global_position, point.global_position):
+			continue
 		if _point_visible(eye.global_position, point.global_position, exclusions):
 			visible_points += 1
 
