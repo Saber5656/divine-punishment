@@ -441,9 +441,11 @@ func _advance_state_without_stimulus(delta: float) -> void:
 			if _combat_lost_sight_elapsed >= COMBAT_LOST_SIGHT_DURATION_SEC:
 				_transition_to(Enums.AlertState.SEARCHING, null, &"lost_sight")
 		Enums.AlertState.RETURN:
-			_return_elapsed += delta
 			_set_navigation_target(_return_target())
-			if (_routine_arrived or _return_elapsed >= RETURN_ARRIVAL_DURATION) and not _relight_pending:
+			if (
+				not _relight_pending
+				and (_routine_arrived or _navigation_has_reached(_routine_target()))
+			):
 				_transition_to(Enums.AlertState.UNAWARE, null, &"routine_arrived")
 
 

@@ -129,6 +129,7 @@ func test_extinguished_light_is_requested_and_relit_after_bounded_delay() -> voi
 func test_return_vigilance_multiplier_expires_and_scales_perception_hook() -> void:
 	var enemy := _spawn_enemy()
 	var brain := enemy.get_node("Brain") as EnemyBrain
+	_add_routine_target(enemy, Vector3(20.0, 0.0, 0.0))
 	brain.force_state(Enums.AlertState.RETURN, &"test")
 	assert_true(brain.residual_alert_active())
 	assert_eq(brain.vigilance_multiplier(), 1.5)
@@ -140,6 +141,19 @@ func test_return_vigilance_multiplier_expires_and_scales_perception_hook() -> vo
 	brain._physics_process(0.1)
 	assert_false(brain.residual_alert_active())
 	assert_eq(brain.detection_multiplier(), 1.0)
+
+
+func test_return_waits_for_routine_navigation_arrival() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.get_node("Brain") as EnemyBrain
+	_add_routine_target(enemy, Vector3(20.0, 0.0, 0.0))
+	brain.force_state(Enums.AlertState.RETURN, &"test")
+	brain._physics_process(EnemyBrain.RETURN_ARRIVAL_DURATION + 1.0)
+	assert_eq(brain.alert_state(), Enums.AlertState.RETURN)
+
+	brain.mark_routine_arrived()
+	brain._physics_process(0.016)
+	assert_eq(brain.alert_state(), Enums.AlertState.UNAWARE)
 
 
 func test_incapacitation_stops_fsm_until_recovery() -> void:
@@ -226,6 +240,14 @@ func _spawn_enemy() -> EnemyBase:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)
 	return enemy
+
+
+func _add_routine_target(enemy: EnemyBase, position: Vector3) -> Node3D:
+	var target := Marker3D.new()
+	target.name = "RoutineTarget"
+	target.position = position
+	enemy.add_child(target)
+	return target
 
 
 func _stimulus(priority: int, position: Vector3) -> PerceptionStimulus:
