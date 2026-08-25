@@ -16,6 +16,7 @@ func test_static_resolve_accepts_all_four_tuned_contexts() -> void:
 		# the optional tuning resource is not available yet.
 		config = ConfigScript.new() as Resource
 	assert_not_null(config)
+	assert_eq(config.get("presentation_duration_seconds"), 1.0)
 	assert_eq(config.get("back_max_distance_m"), 1.5)
 	assert_eq(config.get("above_max_distance_m"), 4.0)
 	assert_eq(config.get("below_max_angle_degrees"), 45.0)

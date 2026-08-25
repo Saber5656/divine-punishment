@@ -9,7 +9,7 @@ extends Resource
 ## the pure judgment function.  Alert arrays contain Enums.AlertState values;
 ## COMBAT is intentionally absent from the default lists.
 
-@export_range(0.1, 5.0, 0.05) var presentation_duration_seconds: float = 0.75
+@export_range(0.1, 5.0, 0.05) var presentation_duration_seconds: float = 1.0
 @export_range(0.1, 5.0, 0.05) var back_max_distance_m: float = 1.5
 @export_range(0.0, 180.0, 1.0) var back_max_angle_degrees: float = 70.0
 @export var back_allowed_alert_states: Array[int] = [0, 1, 2, 4]
@@ -82,4 +82,4 @@ func _finite_angle(value: float, fallback: float) -> float:
 
 
 func presentation_duration() -> float:
-	return presentation_duration_seconds if is_finite(presentation_duration_seconds) else 0.75
+	return presentation_duration_seconds if is_finite(presentation_duration_seconds) else 1.0
