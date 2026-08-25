@@ -126,6 +126,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_refresh_water_membership()
+	if state_machine.current_state() == PlayerStateMachine.STATE_ASSASSINATE:
+		# AssassinationResolver owns the short presentation lock.  Movement and
+		# traversal input must not move the player until release() is called.
+		velocity = Vector3.ZERO
+		return
 	if _water_recovery_pending:
 		velocity = Vector3.ZERO
 		return
@@ -530,6 +535,8 @@ func try_enter_wall_cling() -> bool:
 
 
 func _update_state_from_input() -> void:
+	if state_machine.current_state() == PlayerStateMachine.STATE_ASSASSINATE:
+		return
 	var interact_pressed := Input.is_action_pressed(&"interact")
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
 	_interact_was_pressed = interact_pressed
