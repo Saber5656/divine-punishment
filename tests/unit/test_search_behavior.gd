@@ -2,6 +2,7 @@ extends GutTest
 
 
 const EnemyScene := preload("res://src/enemies/enemy_base.tscn")
+const PlayerScene := preload("res://src/player/player.tscn")
 
 
 func test_search_point_contract_bounds_group_and_gizmo() -> void:
@@ -76,6 +77,25 @@ func test_search_inspects_bounded_hide_spots_through_perception_gate() -> void:
 	assert_gte(brain.visible_search_hide_spot_count(), 1)
 
 
+func test_search_inspection_reveals_hidden_player_and_enters_combat() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.brain()
+	var hide_spot := _add_hide_spot(&"OccupiedHide", Vector3(0.0, 0.0, -1.0))
+	_add_floor()
+	var player := PlayerScene.instantiate() as PlayerController
+	player.position = hide_spot.position
+	add_child_autofree(player)
+	await _await_player_grounded(player)
+	assert_true(player.try_enter_hide_spot(hide_spot))
+	assert_true(player.is_hidden())
+
+	brain._inspect_hide_spots_at(hide_spot.global_position)
+	assert_false(player.is_hidden())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CROUCH)
+	brain.tick(0.016)
+	assert_eq(brain.alert_state(), Enums.AlertState.COMBAT)
+
+
 func test_search_visibility_gate_rejects_out_of_fov_position() -> void:
 	var enemy := _spawn_enemy()
 	var perception := enemy.get_node(^"Perception") as EnemyPerception
@@ -106,3 +126,25 @@ func _add_hide_spot(spot_name: StringName, position: Vector3) -> HideSpot:
 	hide_spot.position = position
 	add_child_autofree(hide_spot)
 	return hide_spot
+
+
+func _add_floor() -> StaticBody3D:
+	var floor_body := StaticBody3D.new()
+	floor_body.collision_layer = 1
+	floor_body.collision_mask = 0
+	floor_body.position = Vector3(0.0, -0.95, 0.0)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(10.0, 0.2, 10.0)
+	collision.shape = shape
+	floor_body.add_child(collision)
+	add_child_autofree(floor_body)
+	return floor_body
+
+
+func _await_player_grounded(player: PlayerController) -> void:
+	for _frame in 8:
+		await get_tree().physics_frame
+		if player.is_on_floor():
+			return
+	assert_true(player.is_on_floor())

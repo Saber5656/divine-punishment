@@ -33,6 +33,7 @@ const MAX_SEARCH_POINTS := 32
 const MAX_SEARCH_POINT_CANDIDATES := 128
 const MAX_SEARCH_HIDE_SPOTS := 8
 const MAX_SEARCH_HIDE_SPOT_CANDIDATES := 64
+const MAX_SEARCH_PLAYER_CANDIDATES := 8
 const SEARCH_POINT_RADIUS := 30.0
 const SEARCH_HIDE_SPOT_RADIUS := 12.0
 const MAX_SEARCH_STEP_DELTA := 0.25
@@ -918,13 +919,46 @@ func _inspect_hide_spots_at(position: Vector3) -> void:
 			break
 		_search_hide_spot_checks += 1
 		_last_search_hide_spot = hide_spot
-		_last_search_hide_spot_visible = (
+		var visible_by_perception := (
 			perception != null
 			and perception.can_see_position(hide_spot.entry_world_position())
 		)
+		var hidden_player := _detect_hidden_player(hide_spot) if visible_by_perception else null
+		_last_search_hide_spot_visible = visible_by_perception or hidden_player != null
 		if _last_search_hide_spot_visible:
 			_search_hide_spot_visible_count += 1
+		if hidden_player != null and _valid_vector(hidden_player.global_position):
+			submit_stimulus(PerceptionStimulus.create(
+				Enums.StimulusKind.VISUAL,
+				4,
+				hidden_player.global_position,
+				1.0,
+			))
 		search_hide_spot_inspected.emit(hide_spot, _last_search_hide_spot_visible)
+
+
+func _detect_hidden_player(hide_spot: HideSpot) -> Node3D:
+	if hide_spot == null or not is_instance_valid(hide_spot):
+		return null
+	var tree := get_tree()
+	if tree == null:
+		return null
+	var examined := 0
+	for candidate in tree.get_nodes_in_group(&"player"):
+		if examined >= MAX_SEARCH_PLAYER_CANDIDATES:
+			break
+		examined += 1
+		var player := candidate as Node3D
+		if player == null or not is_instance_valid(player):
+			continue
+		if not player.has_method(&"is_hidden") or not bool(player.call(&"is_hidden")):
+			continue
+		if not player.has_method(&"active_hide_spot") or player.call(&"active_hide_spot") != hide_spot:
+			continue
+		if player.has_method(&"invalidate_hidden_if_close_range_seen"):
+			player.call(&"invalidate_hidden_if_close_range_seen", true)
+		return player
+	return null
 
 
 func _sort_hide_spots(left: HideSpot, right: HideSpot) -> bool:
