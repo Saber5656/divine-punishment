@@ -15,6 +15,7 @@ const CENTRAL_VIEW_DEGREES := 35.0
 const MAX_DETECTION_POINTS := 3
 const MAX_RAYCASTS_PER_UPDATE := MAX_DETECTION_POINTS
 const MAX_SMOKE_VOLUMES := 16
+const MAX_SCANNED_ANOMALIES := 64
 const MAX_METER := 3.0
 
 signal stimulus(stim: PerceptionStimulus)
@@ -29,6 +30,8 @@ var _player_override: Node3D
 var _uses_tuning := false
 var _manual_vigilance_multiplier := 1.0
 var _target_visible := false
+var _anomaly_scan_group_index := 0
+var _anomaly_scan_offsets: Dictionary = {}
 
 
 func _ready() -> void:
@@ -71,6 +74,7 @@ func tick(delta: float) -> void:
 	var step_delta := _elapsed
 	_elapsed = 0.0
 	_evaluate_visual(step_delta, target)
+	_scan_persistent_anomalies()
 
 
 func on_noise(event: NoiseEvent) -> void:
@@ -116,8 +120,19 @@ func on_noise(event: NoiseEvent) -> void:
 ## sighting.  Apply the same range, FOV, and world occlusion checks as visual
 ## perception before handing an anomaly to the brain.
 func on_anomaly(anomaly: Anomaly) -> void:
-	if anomaly == null or not _valid_config():
+	if anomaly == null or not _valid_anomaly(anomaly) or not _valid_config():
 		return
+	if _is_self_anomaly(anomaly.node):
+		return
+	if anomaly.node != null:
+		if (
+			not is_instance_valid(anomaly.node)
+			or not anomaly.node.is_inside_tree()
+			or anomaly.node.get_tree() != get_tree()
+		):
+			return
+		if anomaly.node.has_method(&"is_geometry_valid") and not bool(anomaly.node.call(&"is_geometry_valid")):
+			return
 	if not _valid_vector(anomaly.position):
 		return
 	var visible := _anomaly_visible(anomaly.position, anomaly.node)
@@ -148,12 +163,122 @@ func _on_anomaly_registered(anomaly: Anomaly) -> void:
 	on_anomaly(anomaly)
 
 
+## EventBus delivers anomalies that are created after this component subscribes.
+## Persistent markers, extinguished lights, and dead bodies also need a bounded
+## periodic scan so an enemy that enters a scene later still reacts visually.
+func _scan_persistent_anomalies() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var owner := get_parent()
+	var groups: Array[StringName] = [&"anomaly_markers", &"lights", &"enemies"]
+	var group_nodes: Array = []
+	for group_name: StringName in groups:
+		# The tree owns these arrays; do not retain or grow a cross-group work
+		# list.  The rotating cursors below keep per-update processing bounded
+		# even when an authored group contains many nodes.
+		group_nodes.append(tree.get_nodes_in_group(group_name))
+	var seen_nodes: Dictionary = {}
+	var examined := 0
+	var empty_group_rounds := 0
+	while examined < MAX_SCANNED_ANOMALIES and empty_group_rounds < groups.size():
+		var group_index := _anomaly_scan_group_index
+		_anomaly_scan_group_index = posmod(_anomaly_scan_group_index + 1, groups.size())
+		var group_name: StringName = groups[group_index]
+		var nodes: Array = group_nodes[group_index]
+		if nodes.is_empty():
+			empty_group_rounds += 1
+			continue
+		empty_group_rounds = 0
+		var offset := int(_anomaly_scan_offsets.get(group_name, 0))
+		if offset >= nodes.size():
+			offset = 0
+		var candidate: Variant = nodes[offset]
+		_anomaly_scan_offsets[group_name] = posmod(offset + 1, nodes.size())
+		examined += 1
+		if candidate == null or not is_instance_valid(candidate) or not candidate is Node3D:
+			continue
+		if candidate == owner:
+			continue
+		var node := candidate as Node3D
+		var node_id := node.get_instance_id()
+		if seen_nodes.has(node_id):
+			continue
+		seen_nodes[node_id] = true
+		var anomaly := _persistent_anomaly_for(node)
+		if anomaly != null:
+			on_anomaly(anomaly)
+
+
+func _persistent_anomaly_for(node: Node3D) -> Anomaly:
+	if node == null or not is_instance_valid(node):
+		return null
+	for method_name in [&"current_anomaly", &"corpse_anomaly", &"anomaly"]:
+		if not node.has_method(method_name):
+			continue
+		var result: Variant = node.call(method_name)
+		if result is Anomaly:
+			return result as Anomaly
+	return null
+
+
+func _valid_anomaly(anomaly: Anomaly) -> bool:
+	if anomaly == null:
+		return false
+	if (
+		anomaly.kind < Enums.AnomalyKind.CORPSE
+		or anomaly.kind > Enums.AnomalyKind.KNOCKOUT
+		or anomaly.severity < 1
+		or anomaly.severity > 3
+		or not is_finite(anomaly.expires_at)
+		or anomaly.expires_at < 0.0
+	):
+		return false
+	return anomaly.expires_at <= 0.0 or Time.get_ticks_msec() / 1000.0 < anomaly.expires_at
+
+
 func meter() -> float:
 	return _meter
 
 
 func target_visible() -> bool:
 	return _target_visible
+
+
+## Check an authored search target using the same bounded FOV, smoke, and
+## world-occlusion rules as anomaly perception.  Search logic must not treat a
+## nearby marker as automatically visible because distance alone is not sight.
+func can_see_position(position: Vector3) -> bool:
+	if not _valid_config() or not _valid_vector(position):
+		return false
+	var eye := _eye_point()
+	var owner := get_parent() as Node3D
+	if eye == null or owner == null or not is_inside_tree() or not _valid_vector(eye.global_position):
+		return false
+	var to_target := position - eye.global_position
+	var distance := to_target.length()
+	if not is_finite(distance) or distance <= 0.0 or distance > perception_config.view_distance_m:
+		return false
+	var forward: Vector3 = -owner.global_transform.basis.z
+	if not _valid_vector(forward) or forward.length_squared() <= 0.000001:
+		return false
+	forward = forward.normalized()
+	var horizontal_forward := Vector3(forward.x, 0.0, forward.z)
+	var horizontal_target := Vector3(to_target.x, 0.0, to_target.z)
+	if horizontal_forward.length_squared() <= 0.000001:
+		return false
+	if horizontal_target.length_squared() > 0.000001:
+		horizontal_forward = horizontal_forward.normalized()
+		horizontal_target = horizontal_target.normalized()
+		var dot_value := clampf(horizontal_forward.dot(horizontal_target), -1.0, 1.0)
+		var angle_degrees := rad_to_deg(acos(dot_value))
+		if not is_finite(angle_degrees) or angle_degrees > perception_config.fov_degrees * 0.5:
+			return false
+	if _is_smoke_blocked(eye.global_position, position):
+		return false
+	return _point_visible(eye.global_position, position, _ray_exclusions(null))
 
 
 func set_vigilance_multiplier(value: float) -> void:
@@ -536,6 +661,13 @@ func _event_bus() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null(NodePath("EventBus"))
+
+
+func _is_self_anomaly(source: Node) -> bool:
+	var owner := get_parent()
+	if source == null or not is_instance_valid(source) or owner == null:
+		return false
+	return source == owner or (source.is_inside_tree() and owner.is_ancestor_of(source))
 
 
 func _is_self_noise(source: Node) -> bool:

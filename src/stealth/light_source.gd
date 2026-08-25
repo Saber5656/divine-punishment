@@ -30,6 +30,7 @@ const INTERACTION_SHAPE_NODE_NAME := &"_InteractionShape"
 var _interaction_shape: CollisionShape3D
 var _expected_interaction_shape: SphereShape3D
 var _is_on := true
+var _anomaly: Anomaly
 
 
 func _enter_tree() -> void:
@@ -60,19 +61,30 @@ func set_extinguished(extinguished: bool) -> void:
 		return
 	_is_on = not extinguished
 	_sync_render_light()
+	if _is_on:
+		_anomaly = null
+	else:
+		_anomaly = _new_light_anomaly() if is_geometry_valid() else null
 	if not is_inside_tree() or not has_node("/root/EventBus"):
 		return
 	if _is_on:
 		EventBus.light_relit.emit(self)
 	else:
-		var anomaly := Anomaly.create(
-			Enums.AnomalyKind.LIGHT_OUT,
-			global_position,
-			self,
-			1,
-		)
-		EventBus.anomaly_registered.emit(anomaly)
+		if _anomaly != null:
+			EventBus.anomaly_registered.emit(_anomaly)
 		EventBus.light_extinguished.emit(self)
+
+
+## Return the persistent visual anomaly while this light is extinguished.
+## EnemyPerception uses this for observers that enter the scene after the
+## original extinction event.
+func current_anomaly() -> Anomaly:
+	if _is_on or not is_geometry_valid():
+		return null
+	if _anomaly == null:
+		_anomaly = _new_light_anomaly()
+	_anomaly.position = global_position
+	return _anomaly
 
 
 func can_accept_body(body: CollisionObject3D) -> bool:
@@ -179,6 +191,15 @@ func _find_render_light() -> Light3D:
 func _sync_render_light() -> void:
 	if render_light != null:
 		render_light.visible = _is_on
+
+
+func _new_light_anomaly() -> Anomaly:
+	return Anomaly.create(
+		Enums.AnomalyKind.LIGHT_OUT,
+		global_position,
+		self,
+		1,
+	)
 
 
 func _ensure_interaction_shape() -> void:

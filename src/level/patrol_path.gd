@@ -132,6 +132,21 @@ func stops() -> Array[RoutineStop]:
 	return ordered_stops()
 
 
+## Return authored stops available at the permanent area-alert level.  The
+## result is bounded by the same MAX_STOP_COUNT contract as ordered_stops().
+func stops_for_alert_level(area_alert_level: int = 0) -> Array[RoutineStop]:
+	var result: Array[RoutineStop] = []
+	var bounded_level := clampi(area_alert_level, 0, RoutineStop.MAX_AREA_ALERT_LEVEL)
+	for stop: RoutineStop in ordered_stops():
+		if stop != null and stop.is_available_at(bounded_level):
+			result.append(stop)
+	return result
+
+
+func eligible_stops(area_alert_level: int = 0) -> Array[RoutineStop]:
+	return stops_for_alert_level(area_alert_level)
+
+
 func stop_count() -> int:
 	return ordered_stops().size()
 
@@ -164,6 +179,28 @@ func next_stop_index(current_index: int, forward := true) -> int:
 	if looped:
 		return posmod(next, count)
 	return clampi(next, 0, count - 1)
+
+
+func next_stop_index_for_alert(
+	current_index: int,
+	area_alert_level: int = 0,
+	forward := true,
+) -> int:
+	var route_stops := ordered_stops()
+	if route_stops.is_empty():
+		return -1
+	var bounded_level := clampi(area_alert_level, 0, RoutineStop.MAX_AREA_ALERT_LEVEL)
+	var current := clampi(current_index, 0, route_stops.size() - 1)
+	for offset in range(1, route_stops.size() + 1):
+		var candidate_index := current + (offset if forward else -offset)
+		if looped:
+			candidate_index = posmod(candidate_index, route_stops.size())
+		elif candidate_index < 0 or candidate_index >= route_stops.size():
+			break
+		var candidate := route_stops[candidate_index]
+		if candidate != null and candidate.is_available_at(bounded_level):
+			return candidate_index
+	return -1
 
 
 func world_position_at_distance(distance: float) -> Vector3:
