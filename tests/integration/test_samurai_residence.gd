@@ -158,6 +158,14 @@ func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
 		(residence.get_node(^"Markers/Water/W2_WestWaterway") as WaterVolume).surface_world_y(),
 		0.001,
 	)
+	var corridor := residence.get_node(^"Geometry/MainHouseFirstFloor/WoodCorridor") as StaticBody3D
+	var creaky_section := residence.get_node(^"Geometry/MainHouseFirstFloor/CreakyCorridorPlanks") as StaticBody3D
+	var creaky_shoin := residence.get_node(^"Geometry/MainHouseFirstFloor/CreakyShoinPlank") as StaticBody3D
+	assert_eq(corridor.get_meta(&"floor_material"), &"wood")
+	assert_eq(creaky_section.get_meta(&"floor_material"), &"creaky_wood")
+	assert_eq(creaky_shoin.get_meta(&"floor_material"), &"creaky_wood")
+	assert_almost_eq((creaky_section.get_meta(&"graybox_bounds") as Vector3).x, 4.0, 0.001)
+	assert_almost_eq((creaky_shoin.get_meta(&"graybox_bounds") as Vector3).x, 1.0, 0.001)
 
 	var entry := residence.get_node(^"Markers/ClimbEdges/C1_NorthWallEntry") as ClimbEdge
 	var first_beam := residence.get_node(^"Markers/BeamPaths/B_Overhead_North") as BeamPath

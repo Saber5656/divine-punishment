@@ -351,7 +351,9 @@ func _build_geometry() -> void:
 
 	_add_box(house, &"MainHouseFloor", Vector3(58.0, -0.9, 19.0), Vector3(30.0, 0.2, 20.0), &"tatami", &"tatami")
 	_add_box(house, &"SouthVeranda", Vector3(40.0, -0.78, 17.0), Vector3(26.0, 0.2, 3.0), &"wood", &"wood")
-	_add_box(house, &"CreakyCorridor", Vector3(51.0, -0.68, 17.0), Vector3(12.0, 0.2, 2.0), &"creaky_wood", &"creaky_wood")
+	_add_box(house, &"WoodCorridor", Vector3(51.0, -0.78, 17.0), Vector3(12.0, 0.2, 2.0), &"wood", &"wood")
+	_add_box(house, &"CreakyCorridorPlanks", Vector3(48.0, -0.68, 17.0), Vector3(4.0, 0.2, 2.0), &"creaky_wood", &"creaky_wood")
+	_add_box(house, &"CreakyShoinPlank", Vector3(56.0, -0.68, 18.0), Vector3(1.0, 0.2, 1.0), &"creaky_wood", &"creaky_wood")
 	_add_box(house, &"NorthHouseWall", Vector3(58.0, 0.5, 9.0), Vector3(30.0, 3.0, 0.4), &"", &"wall")
 	_add_box(house, &"EastHouseWall", Vector3(73.0, 0.5, 19.0), Vector3(0.4, 3.0, 20.0), &"", &"wall")
 	# Leave the south-veranda opening clear so Route A can enter the house.
