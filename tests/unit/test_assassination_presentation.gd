@@ -76,6 +76,19 @@ func test_duration_is_bounded_and_missing_assets_complete_safely() -> void:
 	assert_false(get_tree().paused)
 
 
+func test_large_frame_delta_does_not_stretch_presentation_lock() -> void:
+	var presentation := _presentation()
+	var enemy := _enemy()
+	presentation.duration_sec = 2.0
+	assert_true(presentation.begin(enemy, &"back"))
+	assert_true(presentation.advance(1.0))
+	assert_true(presentation.is_active())
+	assert_eq(presentation.audio_phase(), &"beat")
+	assert_true(presentation.advance(1.0))
+	assert_false(presentation.is_active())
+	assert_eq(presentation.audio_phase(), &"ambient")
+
+
 func test_other_enemy_perception_runs_during_presentation() -> void:
 	var presentation := _presentation()
 	var target := _enemy()

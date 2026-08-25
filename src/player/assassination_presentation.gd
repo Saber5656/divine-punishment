@@ -9,7 +9,6 @@ extends Node
 const MIN_DURATION_SEC := 1.0
 const MAX_DURATION_SEC := 2.0
 const DEFAULT_DURATION_SEC := 1.25
-const MAX_ADVANCE_STEP_SEC := 0.25
 const AUDIO_BEAT_RATIO := 0.35
 
 const CONTEXT_BACK: StringName = &"back"
@@ -87,8 +86,9 @@ func advance(delta_sec: float) -> bool:
 		return false
 	if not is_finite(delta_sec) or delta_sec < 0.0:
 		return false
-	var step := minf(delta_sec, MAX_ADVANCE_STEP_SEC)
-	_elapsed_sec = minf(_elapsed_sec + step, _duration_sec)
+	# Preserve the full elapsed frame time so a stalled/low-FPS frame cannot
+	# stretch the player lock beyond the authored 1–2 second presentation.
+	_elapsed_sec = minf(_elapsed_sec + delta_sec, _duration_sec)
 	_update_camera_progress()
 	if _audio_phase == &"silence" and _elapsed_sec >= _duration_sec * AUDIO_BEAT_RATIO:
 		_set_audio_phase(&"beat")
