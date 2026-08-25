@@ -5,6 +5,17 @@ var _definition: MissionDefinition
 var _stats: MissionStats = MissionStats.new()
 var _current_objective_index: int = 0
 var _failed_reason: StringName = &""
+var _spotted_corpse_anomalies: Dictionary = {}
+
+
+func _ready() -> void:
+	if not EventBus.anomaly_spotted.is_connected(_on_anomaly_spotted):
+		EventBus.anomaly_spotted.connect(_on_anomaly_spotted)
+
+
+func _exit_tree() -> void:
+	if EventBus.anomaly_spotted.is_connected(_on_anomaly_spotted):
+		EventBus.anomaly_spotted.disconnect(_on_anomaly_spotted)
 
 
 func start_mission(def: MissionDefinition) -> void:
@@ -12,6 +23,7 @@ func start_mission(def: MissionDefinition) -> void:
 	_stats = MissionStats.new()
 	_current_objective_index = 0
 	_failed_reason = &""
+	_spotted_corpse_anomalies.clear()
 	if def != null:
 		GameState.reset_for_mission(def.id)
 	push_warning("MissionDirector.start_mission is a M0 skeleton")
@@ -41,6 +53,18 @@ func current_objective() -> ObjectiveData:
 
 func stats() -> MissionStats:
 	return _stats
+
+
+func _on_anomaly_spotted(anomaly: Anomaly, _by: Node) -> void:
+	if anomaly == null or anomaly.kind != Enums.AnomalyKind.CORPSE:
+		return
+	var anomaly_id := anomaly.get_instance_id()
+	if _spotted_corpse_anomalies.has(anomaly_id):
+		return
+	_spotted_corpse_anomalies[anomaly_id] = true
+	_stats.bodies_found += 1
+	GameState.area_alert_level = mini(int(GameState.area_alert_level) + 1, 5)
+	EventBus.area_alert_changed.emit(GameState.area_alert_level)
 
 
 func build_result() -> MissionResult:
