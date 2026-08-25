@@ -160,7 +160,7 @@ func floor_materials() -> Array[StringName]:
 	var authored: Array[StringName] = []
 	for node: Node in find_children("*", "StaticBody3D", true, false):
 		var material: Variant = node.get_meta(&"floor_material", &"")
-		if material is StringName and not authored.has(material):
+		if material is StringName and not material.is_empty() and not authored.has(material):
 			authored.append(material as StringName)
 	var materials: Array[StringName] = []
 	for required: StringName in REQUIRED_FLOOR_MATERIALS:
