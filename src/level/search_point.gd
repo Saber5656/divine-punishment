@@ -35,6 +35,10 @@ const UNIT_SCALE_TOLERANCE := 0.001
 	set(value):
 		enabled = value
 		_update_editor_state()
+@export var enemy_accessible := true:
+	set(value):
+		enemy_accessible = value
+		_update_editor_state()
 
 
 func _enter_tree() -> void:
@@ -67,7 +71,7 @@ func is_geometry_valid() -> bool:
 
 
 func is_searchable() -> bool:
-	return enabled and is_geometry_valid()
+	return enabled and enemy_accessible and is_geometry_valid()
 
 
 func target_position() -> Vector3:
