@@ -1,9 +1,8 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/enemy_base.gd" id="1_enemy"]
 [ext_resource type="Script" path="res://src/enemies/enemy_brain.gd" id="2_brain"]
 [ext_resource type="Script" path="res://src/enemies/enemy_perception.gd" id="3_perception"]
-[ext_resource type="Resource" path="res://data/tuning/perception_ashigaru.tres" id="4_perception"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_enemy"]
 radius = 0.35
@@ -29,7 +28,6 @@ script = ExtResource("2_brain")
 
 [node name="Perception" type="Node" parent="."]
 script = ExtResource("3_perception")
-perception_config = ExtResource("4_perception")
 
 [node name="EyePoint" type="Marker3D" parent="Perception"]
 position = Vector3(0, 1.5, 0)

@@ -18,18 +18,25 @@ const MAX_METER := 3.0
 
 signal stimulus(stim: PerceptionStimulus)
 
-@export var perception_config: PerceptionConfig = PerceptionConfig.new()
+@export var perception_config: PerceptionConfig
+@export var tuning_kind: StringName = &"ashigaru"
 @export var player_path: NodePath
 
 var _meter := 0.0
 var _elapsed := 0.0
 var _player_override: Node3D
+var _uses_tuning := false
 
 
 func _ready() -> void:
 	# The brain owns the update loop.  Perception is deliberately not driven by
 	# _process so a brain can apply the 10 Hz / 2 Hz distance LOD centrally.
 	set_process(false)
+	_bind_tuning_default()
+
+
+func _exit_tree() -> void:
+	_disconnect_tuning()
 
 
 func tick(delta: float) -> void:
@@ -97,6 +104,7 @@ func set_player_target(target: Node3D) -> void:
 
 
 func set_perception_config(config: PerceptionConfig) -> void:
+	_disconnect_tuning()
 	perception_config = config
 
 
@@ -261,6 +269,48 @@ func _valid_config() -> bool:
 		and is_finite(perception_config.hearing_multiplier)
 		and perception_config.hearing_multiplier >= 0.0
 	)
+
+
+func _bind_tuning_default() -> void:
+	if perception_config != null:
+		return
+	var tuning := _tuning_service()
+	if tuning == null or not tuning.has_method(&"perception"):
+		return
+	_uses_tuning = true
+	_refresh_tuning()
+	var callback := Callable(self, &"_refresh_tuning")
+	if not tuning.is_connected(&"reloaded", callback):
+		tuning.connect(&"reloaded", callback)
+
+
+func _refresh_tuning() -> void:
+	if not _uses_tuning:
+		return
+	var tuning := _tuning_service()
+	if tuning == null:
+		return
+	var config := tuning.call(&"perception", tuning_kind) as PerceptionConfig
+	if config != null:
+		perception_config = config
+
+
+func _disconnect_tuning() -> void:
+	if not _uses_tuning:
+		return
+	var tuning := _tuning_service()
+	if tuning != null:
+		var callback := Callable(self, &"_refresh_tuning")
+		if tuning.is_connected(&"reloaded", callback):
+			tuning.disconnect(&"reloaded", callback)
+	_uses_tuning = false
+
+
+func _tuning_service() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(NodePath("Tuning"))
 
 
 func _eye_point() -> Node3D:

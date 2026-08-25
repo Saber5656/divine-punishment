@@ -63,6 +63,24 @@ func test_enemy_scene_contains_perception_eye_and_fsm_sink() -> void:
 	assert_true(assassination_shape.shape is SphereShape3D)
 
 
+func test_default_perception_uses_tuning_and_refreshes() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var perception := enemy.get_node("Perception") as EnemyPerception
+	var tuning := get_node("/root/Tuning") as TuningService
+	var original := tuning._perceptions[&"ashigaru"] as PerceptionConfig
+	assert_eq(perception.perception_config, original)
+	assert_true(tuning.is_connected(&"reloaded", Callable(perception, &"_refresh_tuning")))
+
+	var replacement := PerceptionConfig.new()
+	replacement.view_distance_m = 42.0
+	tuning._perceptions[&"ashigaru"] = replacement
+	tuning.reloaded.emit()
+	assert_eq(perception.perception_config, replacement)
+	tuning._perceptions[&"ashigaru"] = original
+	tuning.reloaded.emit()
+
+
 func test_noise_is_forwarded_to_brain_without_raw_event_bus_subscription() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)
