@@ -20,6 +20,9 @@ func test_search_point_contract_bounds_group_and_gizmo() -> void:
 	point.enabled = false
 	assert_true(point.is_geometry_valid())
 	assert_false(point.is_searchable())
+	point.enabled = true
+	point.enemy_accessible = false
+	assert_false(point.is_searchable())
 	point.scale = Vector3(2.0, 1.0, 1.0)
 	assert_false(point.is_geometry_valid())
 	assert_true(point.gizmo_segments().is_empty())
@@ -53,6 +56,24 @@ func test_search_route_orders_confidence_then_distance_and_advances_after_arriva
 	enemy.global_position = high_far.global_position
 	brain.tick(0.016)
 	assert_eq(brain.current_search_point(), low)
+
+
+func test_search_route_keeps_best_candidates_after_irrelevant_markers() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.brain()
+	for index in EnemyBrain.MAX_SEARCH_POINT_CANDIDATES + 8:
+		_add_search_point("Far%03d" % index, Vector3(100.0 + float(index), 0.0, 0.0), 0.1, index)
+	var valid := _add_search_point(&"Valid", Vector3(0.0, 0.0, -1.0), 1.0, 0)
+	brain.submit_stimulus(PerceptionStimulus.create(
+		Enums.StimulusKind.NOISE,
+		3,
+		valid.global_position,
+		1.0,
+	))
+	brain.tick(0.016)
+
+	assert_eq(brain.search_point_count(), 1)
+	assert_eq(brain.current_search_point(), valid)
 
 
 func test_search_inspects_bounded_hide_spots_through_perception_gate() -> void:

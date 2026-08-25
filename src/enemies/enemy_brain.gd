@@ -31,8 +31,10 @@ const SEARCH_PROPAGATION_RADIUS := 12.0
 const MAX_PROPAGATED_ENEMIES := 64
 const MAX_SEARCH_POINTS := 32
 const MAX_SEARCH_POINT_CANDIDATES := 128
+const MAX_SEARCH_POINT_SCAN := 1024
 const MAX_SEARCH_HIDE_SPOTS := 8
 const MAX_SEARCH_HIDE_SPOT_CANDIDATES := 64
+const MAX_SEARCH_HIDE_SPOT_SCAN := 256
 const MAX_SEARCH_PLAYER_CANDIDATES := 8
 const SEARCH_POINT_RADIUS := 30.0
 const SEARCH_HIDE_SPOT_RADIUS := 12.0
@@ -830,11 +832,11 @@ func _collect_search_points(anchor: Vector3) -> Array[SearchPoint]:
 	var tree := get_tree()
 	if tree == null:
 		return result
-	var examined := 0
+	var scanned := 0
 	for candidate in tree.get_nodes_in_group(&"search_points"):
-		if examined >= MAX_SEARCH_POINT_CANDIDATES:
+		if scanned >= MAX_SEARCH_POINT_SCAN:
 			break
-		examined += 1
+		scanned += 1
 		var point := candidate as SearchPoint
 		if point == null or not is_instance_valid(point) or not point.is_searchable():
 			continue
@@ -842,6 +844,9 @@ func _collect_search_points(anchor: Vector3) -> Array[SearchPoint]:
 		if not is_finite(distance) or distance > SEARCH_POINT_RADIUS:
 			continue
 		result.append(point)
+		if result.size() > MAX_SEARCH_POINT_CANDIDATES:
+			result.sort_custom(_sort_search_points)
+			result.resize(MAX_SEARCH_POINT_CANDIDATES)
 	result.sort_custom(_sort_search_points)
 	if result.size() > MAX_SEARCH_POINTS:
 		result.resize(MAX_SEARCH_POINTS)
@@ -900,11 +905,11 @@ func _inspect_hide_spots_at(position: Vector3) -> void:
 	if tree == null:
 		return
 	var candidates: Array[HideSpot] = []
-	var examined := 0
+	var scanned := 0
 	for candidate in tree.get_nodes_in_group(&"hide_spots"):
-		if examined >= MAX_SEARCH_HIDE_SPOT_CANDIDATES:
+		if scanned >= MAX_SEARCH_HIDE_SPOT_SCAN:
 			break
-		examined += 1
+		scanned += 1
 		var hide_spot := candidate as HideSpot
 		if hide_spot == null or not is_instance_valid(hide_spot) or not hide_spot.is_geometry_valid():
 			continue
@@ -912,6 +917,9 @@ func _inspect_hide_spots_at(position: Vector3) -> void:
 		if not is_finite(distance) or distance > SEARCH_HIDE_SPOT_RADIUS:
 			continue
 		candidates.append(hide_spot)
+		if candidates.size() > MAX_SEARCH_HIDE_SPOT_CANDIDATES:
+			candidates.sort_custom(_sort_hide_spots)
+			candidates.resize(MAX_SEARCH_HIDE_SPOT_CANDIDATES)
 	candidates.sort_custom(_sort_hide_spots)
 	var perception := _perception()
 	for hide_spot: HideSpot in candidates:
