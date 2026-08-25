@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/enemy_base.gd" id="1_enemy"]
 [ext_resource type="Script" path="res://src/enemies/enemy_brain.gd" id="2_brain"]
@@ -8,6 +8,9 @@
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_enemy"]
 radius = 0.35
 height = 1.8
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_assassinate"]
+radius = 0.45
 
 [node name="EnemyBase" type="CharacterBody3D" groups=["enemies"]]
 collision_layer = 4
@@ -38,6 +41,10 @@ position = Vector3(0, 1.5, 0)
 [node name="AssassinateTarget" type="Area3D" parent="."]
 collision_layer = 1024
 collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AssassinateTarget"]
+position = Vector3(0, 1.0, 0)
+shape = SubResource("SphereShape3D_assassinate")
 
 [node name="MeterAnchor" type="Marker3D" parent="."]
 position = Vector3(0, 2.0, 0)

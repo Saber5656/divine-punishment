@@ -58,6 +58,9 @@ func test_enemy_scene_contains_perception_eye_and_fsm_sink() -> void:
 	assert_eq(perception.perception_config.view_distance_m, 15.0)
 	assert_not_null(enemy.get_node("Perception/EyePoint") as Node3D)
 	assert_true(enemy.is_in_group("enemies"))
+	var assassination_shape := enemy.get_node("AssassinateTarget/CollisionShape3D") as CollisionShape3D
+	assert_not_null(assassination_shape)
+	assert_true(assassination_shape.shape is SphereShape3D)
 
 
 func test_noise_is_forwarded_to_brain_without_raw_event_bus_subscription() -> void:
