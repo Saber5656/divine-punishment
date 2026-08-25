@@ -19,7 +19,6 @@ extends Node3D
 const DEBUG_TOGGLE_ACTION: StringName = &"debug_overlay_toggle"
 const DEFAULT_NOISE_LIFETIME := 1.5
 const MAX_NOISE_RINGS := 64
-const LIGHT_RING_SEGMENTS := 32
 const NOISE_RING_SEGMENTS := 32
 const VISION_CONE_SEGMENTS := 16
 const DEFAULT_ENEMY_METER_MAX := 3.0
@@ -29,7 +28,7 @@ const MIN_RADIUS := 0.001
 @export var visible_by_default := false
 @export_range(0.1, 10.0, 0.1) var noise_lifetime := DEFAULT_NOISE_LIFETIME
 @export_range(0.1, 10.0, 0.1) var enemy_meter_max := DEFAULT_ENEMY_METER_MAX
-@export var player_path: NodePath
+@export var player_path: NodePath = NodePath("")
 
 var _debug_visible := false
 var _elapsed := 0.0
@@ -52,7 +51,6 @@ var _meter_material := _make_material(Color(1.0, 0.85, 0.2, 0.95))
 func _ready() -> void:
 	_mesh_instance.mesh = _mesh
 	_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_mesh_instance.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	add_child(_mesh_instance)
 
 	_canvas_layer.layer = 100
@@ -97,7 +95,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func set_debug_visible(value: bool) -> void:
-	_debug_visible = value
+	_debug_visible = value and OS.is_debug_build()
 	_refresh_visibility()
 	if _debug_visible:
 		_rebuild_geometry()
@@ -124,6 +122,14 @@ func player() -> Node:
 		return _player
 	_player = _discover_player()
 	return _player
+
+
+func player_visibility_value() -> Variant:
+	return _player_visibility(player())
+
+
+func status_text() -> String:
+	return _status_label.text
 
 
 ## Register a perception component or enemy root for future M3 vision output.
@@ -432,7 +438,9 @@ func _node_forward(node: Node) -> Vector3:
 
 
 func _vector_from(value: Variant, fallback: Vector3) -> Vector3:
-	return value as Vector3 if value is Vector3 else fallback
+	if value is Vector3:
+		return value
+	return fallback
 
 
 func _finite_float(value: Variant, fallback: float) -> float:

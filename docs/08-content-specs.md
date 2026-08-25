@@ -344,6 +344,21 @@ func meter() -> float                                 # 発見メーター現在
 static func vision_gain(v: float, dist: float, view_dist: float,
         central: bool, base_gain: float) -> float     # pure, §2.3 の式そのもの
 
+# ── src/ui/stealth_debug_overlay.gd (Node3D, Main シーン直下)
+class_name StealthDebugOverlay
+func set_debug_visible(value: bool) -> void            # デバッグビルドの F3 toggle と同じ状態を設定
+func is_debug_visible() -> bool
+func set_player(player: Node) -> void                  # PlayerVisibility.visibility() の読取対象を明示
+func register_enemy(enemy: Node) -> void               # M3 の視野コーン/メーター実装を後付け可能にする
+func set_enemy_debug_provider(provider: Callable) -> void
+func record_noise_event(event: NoiseEvent) -> void     # EventBus telemetry の 3D 半径表示（最大64件）
+
+# Debug overlay enemy provider payload:
+# `set_enemy_debug_provider` は登録済み enemy ごとに次の Dictionary を返す。
+# `origin`, `forward`, `fov_degrees`, `view_distance` があれば視野コーンを描画し、
+# `meter`/`meter_max` があれば発見メーターを描画する。未実装の敵は空 Dictionary
+# を返してよく、overlay は敵知覚の実装・filtered noise dispatch を所有しない。
+
 # ── src/enemies/perception_stimulus.gd (RefCounted)
 class_name PerceptionStimulus
 var kind: Enums.StimulusKind
