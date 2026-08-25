@@ -103,6 +103,9 @@ func test_trajectory_is_finite_bounded_and_hud_reads_inventory() -> void:
 	add_child_autofree(user)
 	assert_true(rig.use_selected(user))
 	assert_eq(rig.remaining_count(), 2)
+	var child_count_after_use := rig.get_child_count()
+	assert_true(rig.use_selected(user))
+	assert_eq(rig.get_child_count(), child_count_after_use)
 
 	var display := TrajectoryDisplayScript.new() as TrajectoryDisplay
 	add_child_autofree(display)
@@ -127,6 +130,31 @@ func test_aim_arc_converts_world_trajectory_to_local_points() -> void:
 	assert_eq(local_points.size(), world_points.size())
 	assert_eq(local_points[0], display.to_local(world_points[0]))
 	assert_eq(local_points[0], Vector3.ZERO)
+
+
+func test_sparse_inventory_is_preserved_and_profile_slot_count_reaches_hud() -> void:
+	var rig := ToolRigScript.new() as ToolRig
+	add_child_autofree(rig)
+	var rope := _definition(&"rope", 2, false)
+	rig.inventory.set_slot(1, rope)
+	rig.call("_load_default_definitions_if_empty")
+	assert_null(rig.inventory.definition_at(0))
+	assert_eq(rig.inventory.definition_at(1), rope)
+
+	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	var profile := PlayerProfile.new()
+	profile.tool_slots = 5
+	player.player_profile = profile
+	add_child_autofree(player)
+	await get_tree().process_frame
+	assert_eq(player.tool_rig.inventory.slot_count(), 5)
+	assert_eq(player.swim_hud.tool_slot_count(), 5)
+
+	var replacement := ToolInventoryScript.new() as ToolInventory
+	var stone := _definition(&"replacement", 1)
+	replacement.configure([stone], 1)
+	assert_true(player.tool_rig.set_inventory(replacement))
+	assert_eq(player.swim_hud.tool_slot_definition(0), stone)
 
 
 func test_player_scene_exposes_tool_rig_and_aim_arc_contract() -> void:

@@ -10,6 +10,7 @@ const AIM_DISTANCE := 24.0
 signal tool_changed(index: int, definition: ToolDefinition, remaining: int)
 signal tool_count_changed(index: int, definition: ToolDefinition, remaining: int)
 signal aiming_changed(active: bool)
+signal inventory_changed(inventory: ToolInventory)
 
 @export_range(1.0, 100.0, 0.5) var aim_distance := AIM_DISTANCE
 @export var inventory: ToolInventory
@@ -35,6 +36,7 @@ func _ready() -> void:
 	if not inventory.count_changed.is_connected(_on_inventory_count_changed):
 		inventory.count_changed.connect(_on_inventory_count_changed)
 	_camera = _find_camera()
+	_apply_player_slot_limit()
 	_load_default_definitions_if_empty()
 	_update_trajectory()
 
@@ -75,6 +77,7 @@ func set_inventory(next_inventory: ToolInventory) -> bool:
 		inventory.slot_changed.connect(_on_inventory_slot_changed)
 	if not inventory.count_changed.is_connected(_on_inventory_count_changed):
 		inventory.count_changed.connect(_on_inventory_count_changed)
+	inventory_changed.emit(inventory)
 	_update_trajectory()
 	return true
 
@@ -169,6 +172,7 @@ func use_selected(user: Node3D = null) -> bool:
 	var effect := _create_effect(definition)
 	if effect == null:
 		return false
+	var fallback_effect := definition.effect_scene == null
 	var attached := effect.get_parent() != null
 	if not attached:
 		add_child(effect)
@@ -183,6 +187,9 @@ func use_selected(user: Node3D = null) -> bool:
 			remove_child(effect)
 		effect.queue_free()
 		return false
+	if fallback_effect and effect.get_parent() == self:
+		remove_child(effect)
+		effect.queue_free()
 	return true
 
 
@@ -218,7 +225,7 @@ func _create_effect(definition: ToolDefinition) -> ToolBase:
 
 
 func _load_default_definitions_if_empty() -> void:
-	if inventory.current_definition() != null:
+	if _has_any_definition():
 		return
 	var paths := [
 		"res://data/tools/stone.tres",
@@ -232,6 +239,29 @@ func _load_default_definitions_if_empty() -> void:
 			definitions.append(loaded)
 	if not definitions.is_empty():
 		inventory.configure(definitions, inventory.slot_limit)
+
+
+func _has_any_definition() -> bool:
+	for index in inventory.slot_count():
+		if inventory.definition_at(index) != null:
+			return true
+	return false
+
+
+func _apply_player_slot_limit() -> void:
+	var player := get_parent()
+	if player == null:
+		return
+	var profile := player.get("player_profile") as PlayerProfile
+	if profile == null:
+		return
+	var requested := clampi(profile.tool_slots, 1, ToolInventory.MAX_SLOT_COUNT)
+	if requested == inventory.slot_limit:
+		return
+	var definitions: Array[ToolDefinition] = []
+	for index in inventory.slot_count():
+		definitions.append(inventory.definition_at(index))
+	inventory.configure(definitions, requested)
 
 
 func _update_trajectory() -> void:

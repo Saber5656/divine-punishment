@@ -12,6 +12,7 @@ extends CanvasLayer
 var _player: Node
 var _visibility_source: PlayerVisibility
 var _tool_inventory: ToolInventory
+var _tool_rig: Node
 
 
 func _ready() -> void:
@@ -34,6 +35,11 @@ func _exit_tree() -> void:
 	if EventBus.noise_emitted.is_connected(_on_noise_emitted):
 		EventBus.noise_emitted.disconnect(_on_noise_emitted)
 	_unbind_tool_inventory()
+	if _tool_rig != null:
+		var callback := Callable(self, &"_on_tool_inventory_changed")
+		if _tool_rig.is_connected(&"inventory_changed", callback):
+			_tool_rig.disconnect(&"inventory_changed", callback)
+		_tool_rig = null
 
 
 func set_underwater(active: bool, remaining: float, capacity: float) -> void:
@@ -146,6 +152,10 @@ func _bind_player_tools() -> void:
 	var tool_rig := _player.get_node_or_null("ToolRig")
 	if tool_rig == null:
 		return
+	_tool_rig = tool_rig
+	var callback := Callable(self, &"_on_tool_inventory_changed")
+	if tool_rig.has_signal(&"inventory_changed") and not tool_rig.is_connected(&"inventory_changed", callback):
+		tool_rig.connect(&"inventory_changed", callback)
 	var inventory: ToolInventory = tool_rig.get("inventory") as ToolInventory
 	if inventory != null:
 		bind_tool_inventory(inventory)
@@ -162,6 +172,18 @@ func _unbind_tool_inventory() -> void:
 
 
 func _render_tool_slots() -> void:
+	var desired := _tool_inventory.slot_count() if _tool_inventory != null else 3
+	while tool_slots.get_child_count() < desired:
+		var template := tool_slots.get_child(0) as Control
+		if template == null:
+			break
+		var duplicate := template.duplicate() as Control
+		duplicate.name = "Slot%d" % (tool_slots.get_child_count() + 1)
+		tool_slots.add_child(duplicate)
+	while tool_slots.get_child_count() > desired:
+		var extra := tool_slots.get_child(tool_slots.get_child_count() - 1)
+		tool_slots.remove_child(extra)
+		extra.queue_free()
 	for index in tool_slots.get_child_count():
 		_render_tool_slot(index)
 
@@ -190,6 +212,10 @@ func _on_tool_slot_changed(_index: int, _definition: ToolDefinition, _remaining:
 
 func _on_tool_count_changed(index: int, _definition: ToolDefinition, _remaining: int) -> void:
 	_render_tool_slot(index)
+
+
+func _on_tool_inventory_changed(inventory: ToolInventory) -> void:
+	bind_tool_inventory(inventory)
 
 
 func _is_local_player_source(source: Node) -> bool:
