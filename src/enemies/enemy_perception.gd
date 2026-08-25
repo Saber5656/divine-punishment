@@ -30,6 +30,8 @@ var _player_override: Node3D
 var _uses_tuning := false
 var _manual_vigilance_multiplier := 1.0
 var _target_visible := false
+var _anomaly_scan_group_index := 0
+var _anomaly_scan_offsets: Dictionary = {}
 
 
 func _ready() -> void:
@@ -171,25 +173,43 @@ func _scan_persistent_anomalies() -> void:
 	if tree == null:
 		return
 	var owner := get_parent()
+	var groups: Array[StringName] = [&"anomaly_markers", &"lights", &"enemies"]
+	var group_nodes: Array = []
+	for group_name: StringName in groups:
+		# The tree owns these arrays; do not retain or grow a cross-group work
+		# list.  The rotating cursors below keep per-update processing bounded
+		# even when an authored group contains many nodes.
+		group_nodes.append(tree.get_nodes_in_group(group_name))
 	var seen_nodes: Dictionary = {}
 	var examined := 0
-	for group_name in [&"anomaly_markers", &"lights", &"enemies"]:
-		for candidate in tree.get_nodes_in_group(group_name):
-			if examined >= MAX_SCANNED_ANOMALIES:
-				return
-			examined += 1
-			if candidate == null or not is_instance_valid(candidate) or not candidate is Node3D:
-				continue
-			if candidate == owner:
-				continue
-			var node := candidate as Node3D
-			var node_id := node.get_instance_id()
-			if seen_nodes.has(node_id):
-				continue
-			seen_nodes[node_id] = true
-			var anomaly := _persistent_anomaly_for(node)
-			if anomaly != null:
-				on_anomaly(anomaly)
+	var empty_group_rounds := 0
+	while examined < MAX_SCANNED_ANOMALIES and empty_group_rounds < groups.size():
+		var group_index := _anomaly_scan_group_index
+		_anomaly_scan_group_index = posmod(_anomaly_scan_group_index + 1, groups.size())
+		var group_name: StringName = groups[group_index]
+		var nodes: Array = group_nodes[group_index]
+		if nodes.is_empty():
+			empty_group_rounds += 1
+			continue
+		empty_group_rounds = 0
+		var offset := int(_anomaly_scan_offsets.get(group_name, 0))
+		if offset >= nodes.size():
+			offset = 0
+		var candidate: Variant = nodes[offset]
+		_anomaly_scan_offsets[group_name] = posmod(offset + 1, nodes.size())
+		examined += 1
+		if candidate == null or not is_instance_valid(candidate) or not candidate is Node3D:
+			continue
+		if candidate == owner:
+			continue
+		var node := candidate as Node3D
+		var node_id := node.get_instance_id()
+		if seen_nodes.has(node_id):
+			continue
+		seen_nodes[node_id] = true
+		var anomaly := _persistent_anomaly_for(node)
+		if anomaly != null:
+			on_anomaly(anomaly)
 
 
 func _persistent_anomaly_for(node: Node3D) -> Anomaly:

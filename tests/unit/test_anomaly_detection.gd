@@ -164,6 +164,30 @@ func test_late_routine_binding_applies_existing_alert_level() -> void:
 	GameState.area_alert_level = original_alert
 
 
+func test_persistent_scan_rotates_across_anomaly_groups() -> void:
+	var original_alert := GameState.area_alert_level
+	GameState.area_alert_level = 0
+	var marker_root := Node3D.new()
+	add_child_autofree(marker_root)
+	for index in 64:
+		var marker := AnomalyMarker.new()
+		marker.position = Vector3(1000.0 + index, 1.5, 1000.0)
+		marker_root.add_child(marker)
+	var observer := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(observer)
+	var corpse := EnemyScene.instantiate() as EnemyBase
+	corpse.position = Vector3(0.0, 0.0, -3.0)
+	add_child_autofree(corpse)
+	assert_true(corpse.set_incapacitated(&"dead"))
+	await get_tree().physics_frame
+
+	var brain := observer.brain()
+	brain.tick(0.1)
+	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
+	assert_eq(GameState.area_alert_level, 1)
+	GameState.area_alert_level = original_alert
+
+
 func _add_stop(path: PatrolPath, index: int, position: Vector3) -> RoutineStop:
 	var stop := RoutineStop.new()
 	stop.route_index = index
