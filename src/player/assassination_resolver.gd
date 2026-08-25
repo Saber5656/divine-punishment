@@ -5,10 +5,18 @@ extends Node
 const AssassinationConfigScript := preload("res://src/core/tuning/assassination_config.gd")
 const DEFAULT_CONFIG_PATH := "res://data/tuning/assassination.tres"
 const MAX_TARGET_CANDIDATES := 64
+const MAX_ASSASSINATION_PATH_HITS := 8
+const MAX_SUPPORT_SURFACE_SKIPS := 2
 const MAX_WORLD_COORDINATE := 10000.0
 const EPSILON_SQUARED := 0.000001
+const SUPPORT_SURFACE_MAX_DISTANCE := 1.0
+const SUPPORT_SURFACE_MIN_NORMAL_Y := 0.5
 const ASSASSINATE_TARGET_LAYER := 1 << 10
+const ASSASSINATION_OCCLUSION_MASK := (1 << 0) | (1 << 4)
+const DEFAULT_PRESENTATION_DURATION_SECONDS := 1.0
+const MAX_ASSASSINATION_DELTA_SECONDS := 0.5
 const CONFIG_PROPERTY_NAMES := [
+	&"presentation_duration_seconds",
 	&"back_max_distance_m",
 	&"back_max_angle_degrees",
 	&"back_allowed_alert_states",
@@ -40,15 +48,54 @@ var _prompt_enemy: EnemyBase
 var _prompt_context: StringName = &""
 var _active_enemy: EnemyBase
 var _active_context: StringName = &""
+var _active_origin_state: StringName = PlayerStateMachine.STATE_GROUND
+var _active_elapsed_seconds := 0.0
+var _tuning_service: Node
+var _config_override: Resource
 
 
 func _ready() -> void:
-	if config == null:
-		config = ResourceLoader.load(DEFAULT_CONFIG_PATH) as Resource
-	if not _config_is_compatible(config):
-		config = AssassinationConfigScript.new()
+	if _config_is_compatible(config) and not _is_default_config_resource(config):
+		_config_override = config
+	_refresh_config()
+	_tuning_service = _find_tuning_service()
+	if _tuning_service != null and _tuning_service.has_signal(&"reloaded"):
+		var callback := Callable(self, &"_refresh_config")
+		if not _tuning_service.is_connected(&"reloaded", callback):
+			_tuning_service.connect(&"reloaded", callback)
 	set_process(true)
 	set_process_unhandled_input(true)
+
+
+func _exit_tree() -> void:
+	if _tuning_service != null and _tuning_service.has_signal(&"reloaded"):
+		var callback := Callable(self, &"_refresh_config")
+		if _tuning_service.is_connected(&"reloaded", callback):
+			_tuning_service.disconnect(&"reloaded", callback)
+
+
+func _refresh_config() -> void:
+	if _config_override != null:
+		config = _config_override
+		return
+	var candidate: Resource
+	var tuning := _find_tuning_service()
+	if tuning != null and tuning.has_method(&"assassination"):
+		candidate = tuning.call(&"assassination") as Resource
+	if candidate == null:
+		candidate = ResourceLoader.load(
+			DEFAULT_CONFIG_PATH,
+			"",
+			ResourceLoader.CACHE_MODE_IGNORE,
+		) as Resource
+	config = candidate if _config_is_compatible(candidate) else AssassinationConfigScript.new()
+
+
+func _find_tuning_service() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(NodePath("Tuning"))
 
 
 static func _config_is_compatible(candidate: Resource) -> bool:
@@ -60,11 +107,26 @@ static func _config_is_compatible(candidate: Resource) -> bool:
 	return true
 
 
-func _process(_delta: float) -> void:
-	if _active_enemy != null and is_instance_valid(_active_enemy):
-		# The resolver remains locked for the short assassination presentation.
-		# There is no animation player in the foundation scene yet, so the
-		# explicit release() API is the future presentation hand-off point.
+func _is_default_config_resource(candidate: Resource) -> bool:
+	return candidate != null and candidate.resource_path == DEFAULT_CONFIG_PATH
+
+
+func _process(delta: float) -> void:
+	if _active_enemy != null:
+		var state_machine := _state_machine()
+		if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
+			_active_enemy = null
+			_active_context = &""
+			_active_origin_state = PlayerStateMachine.STATE_GROUND
+			_active_elapsed_seconds = 0.0
+			return
+		# The production foundation has no animation player yet.  Keep the
+		# presentation lock bounded and complete it through the same release path
+		# that a future animation callback will use.
+		if is_finite(delta) and delta >= 0.0:
+			_active_elapsed_seconds += minf(delta, MAX_ASSASSINATION_DELTA_SECONDS)
+		if _active_elapsed_seconds >= _presentation_duration_seconds():
+			release()
 		return
 	var candidate := _nearest_valid_target()
 	if candidate == null:
@@ -96,7 +158,7 @@ func execute(enemy: EnemyBase, context: StringName) -> void:
 
 
 func try_execute(enemy: EnemyBase, context: StringName = &"") -> bool:
-	if _active_enemy != null and is_instance_valid(_active_enemy):
+	if _active_enemy != null:
 		return false
 	if enemy == null or not is_instance_valid(enemy):
 		return false
@@ -108,6 +170,7 @@ func try_execute(enemy: EnemyBase, context: StringName = &"") -> bool:
 	var state_machine := _state_machine()
 	if state_machine == null:
 		return false
+	var origin_state := state_machine.current_state()
 	if not state_machine.change_state(PlayerStateMachine.STATE_ASSASSINATE):
 		return false
 	if not enemy.has_method(&"begin_assassination") or not bool(
@@ -116,10 +179,12 @@ func try_execute(enemy: EnemyBase, context: StringName = &"") -> bool:
 		# begin_assassination is validated before the normal path, but retain a
 		# best-effort rollback if a custom enemy implementation rejects it.
 		if state_machine.current_state() == PlayerStateMachine.STATE_ASSASSINATE:
-			state_machine.change_state(PlayerStateMachine.STATE_GROUND)
+			state_machine.change_state(_release_state_for_origin(origin_state))
 		return false
 	_active_enemy = enemy
 	_active_context = resolved_context
+	_active_origin_state = origin_state
+	_active_elapsed_seconds = 0.0
 	_set_prompt(null, &"")
 	return true
 
@@ -152,14 +217,37 @@ func active_context() -> StringName:
 ## Release the player-side lock after the presentation/animation hand-off.
 ## The enemy remains dead and cannot be targeted again.
 func release() -> bool:
-	if _active_enemy == null or not is_instance_valid(_active_enemy):
+	if _active_enemy == null:
 		return false
 	var state_machine := _state_machine()
 	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
 		return false
+	var release_state := _release_state_for_origin(_active_origin_state)
 	_active_enemy = null
 	_active_context = &""
-	return state_machine.change_state(PlayerStateMachine.STATE_GROUND)
+	_active_origin_state = PlayerStateMachine.STATE_GROUND
+	_active_elapsed_seconds = 0.0
+	return state_machine.change_state(release_state)
+
+
+func _release_state_for_origin(origin_state: StringName) -> StringName:
+	return (
+		PlayerStateMachine.STATE_CRAWLSPACE
+		if origin_state == PlayerStateMachine.STATE_CRAWLSPACE
+		else PlayerStateMachine.STATE_GROUND
+	)
+
+
+func _presentation_duration_seconds() -> float:
+	var value: Variant = _resource_value(
+		config,
+		"presentation_duration_seconds",
+		DEFAULT_PRESENTATION_DURATION_SECONDS,
+	)
+	if not value is float and not value is int:
+		return DEFAULT_PRESENTATION_DURATION_SECONDS
+	var duration := float(value)
+	return clampf(duration, 0.1, 5.0) if is_finite(duration) else DEFAULT_PRESENTATION_DURATION_SECONDS
 
 
 ## Pure deterministic judgment required by docs/08-content-specs.md §10.
@@ -301,6 +389,7 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 		or not enemy.is_inside_tree()
 		or enemy.get_tree() != player.get_tree()
 		or not _target_area_is_valid(enemy)
+		or not _sensor_overlaps_enemy(player, enemy)
 	):
 		return &""
 	if enemy.has_method(&"can_be_assassinated") and not bool(enemy.call(&"can_be_assassinated")):
@@ -309,13 +398,18 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 		return &""
 	var to_enemy_local := player.global_transform.affine_inverse() * enemy.global_position
 	var seen := _enemy_sees_player(enemy)
-	return resolve(
+	var context := resolve(
 		_state_name(),
 		to_enemy_local,
 		enemy.alert_state(),
 		seen,
 		config,
 	)
+	if context == &"" or not _assassination_path_is_clear(player, enemy, context):
+		return &""
+	if context == CONTEXT_BACK and not _enemy_facing_allows_backstab(player, enemy):
+		return &""
+	return context
 
 
 func _state_name() -> StringName:
@@ -336,18 +430,12 @@ func _nearest_valid_target() -> EnemyBase:
 	var seen_ids: Dictionary = {}
 	var interactor := player.get_node_or_null(NodePath("Interactor")) as Area3D
 	if interactor != null:
-		for area: Area3D in interactor.get_overlapping_areas():
-			var enemy := _enemy_from_area(area)
-			if enemy != null and not seen_ids.has(enemy.get_instance_id()):
-				seen_ids[enemy.get_instance_id()] = true
-				candidates.append(enemy)
-	if candidates.is_empty() and player.get_tree() != null:
 		var examined := 0
-		for candidate: Node in player.get_tree().get_nodes_in_group(&"enemies"):
+		for area: Area3D in interactor.get_overlapping_areas():
 			if examined >= MAX_TARGET_CANDIDATES:
 				break
 			examined += 1
-			var enemy := candidate as EnemyBase
+			var enemy := _enemy_from_area(area)
 			if enemy != null and not seen_ids.has(enemy.get_instance_id()):
 				seen_ids[enemy.get_instance_id()] = true
 				candidates.append(enemy)
@@ -386,6 +474,113 @@ func _target_area_is_valid(enemy: EnemyBase) -> bool:
 		and target_area.collision_layer == ASSASSINATE_TARGET_LAYER
 		and target_area.collision_mask == 0
 	)
+
+
+func _sensor_overlaps_enemy(player: Node3D, enemy: EnemyBase) -> bool:
+	var interactor := player.get_node_or_null(NodePath("Interactor")) as Area3D
+	var target_area := enemy.get_node_or_null(NodePath("AssassinateTarget")) as Area3D
+	if (
+		interactor == null
+		or not interactor.monitoring
+		or target_area == null
+		or not target_area.is_inside_tree()
+		or not target_area.monitorable
+	):
+		return false
+	# Prompt discovery is bounded below, but evaluating an explicitly requested
+	# enemy must not depend on the shared overlap list's iteration order.  The
+	# physics server performs this direct pair query without truncating unrelated
+	# Interactor overlaps first.
+	return interactor.overlaps_area(target_area)
+
+
+func _assassination_path_is_clear(
+	player: Node3D,
+	enemy: EnemyBase,
+	context: StringName = &"",
+) -> bool:
+	var target_area := enemy.get_node_or_null(NodePath("AssassinateTarget")) as Area3D
+	if target_area == null or not target_area.is_inside_tree():
+		return false
+	var from := player.global_position
+	var to := target_area.global_position
+	if not _valid_vector(from) or not _valid_vector(to) or from.distance_squared_to(to) <= EPSILON_SQUARED:
+		return false
+	var world := player.get_world_3d()
+	if world == null:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = ASSASSINATION_OCCLUSION_MASK
+	var excluded := _assassination_ray_exclusions(player, enemy)
+	var support_skips := 0
+	for _hit_index in MAX_ASSASSINATION_PATH_HITS:
+		query.exclude = excluded
+		var hit := world.direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			return true
+		if (
+			context != CONTEXT_ABOVE
+			or support_skips >= MAX_SUPPORT_SURFACE_SKIPS
+			or not _is_immediate_support_surface(hit, from)
+		):
+			return false
+		var hit_rid: RID = hit.get("rid", RID())
+		if not hit_rid.is_valid():
+			return false
+		excluded.append(hit_rid)
+		support_skips += 1
+	return false
+
+
+func _is_immediate_support_surface(hit: Dictionary, from: Vector3) -> bool:
+	var hit_position: Variant = hit.get("position")
+	var hit_normal: Variant = hit.get("normal")
+	var collider := hit.get("collider") as CollisionObject3D
+	if (
+		not hit_position is Vector3
+		or not hit_normal is Vector3
+		or collider == null
+		or (collider.collision_layer & (1 << 0)) == 0
+	):
+		return false
+	var position := hit_position as Vector3
+	var normal := hit_normal as Vector3
+	if not _valid_vector(position) or not _valid_vector(normal):
+		return false
+	var distance := from.distance_to(position)
+	return (
+		is_finite(distance)
+		and distance <= SUPPORT_SURFACE_MAX_DISTANCE
+		and position.y <= from.y + 0.05
+		and normal.y >= SUPPORT_SURFACE_MIN_NORMAL_Y
+	)
+
+
+func _assassination_ray_exclusions(player: Node3D, enemy: EnemyBase) -> Array[RID]:
+	var result: Array[RID] = []
+	if player is CollisionObject3D:
+		result.append((player as CollisionObject3D).get_rid())
+	if enemy is CollisionObject3D:
+		result.append((enemy as CollisionObject3D).get_rid())
+	var target_area := enemy.get_node_or_null(NodePath("AssassinateTarget")) as Area3D
+	if target_area != null:
+		result.append(target_area.get_rid())
+	return result
+
+
+func _enemy_facing_allows_backstab(player: Node3D, enemy: EnemyBase) -> bool:
+	var enemy_forward := -enemy.global_transform.basis.z
+	var enemy_to_player := player.global_position - enemy.global_position
+	var horizontal_forward := Vector3(enemy_forward.x, 0.0, enemy_forward.z)
+	var horizontal_to_player := Vector3(enemy_to_player.x, 0.0, enemy_to_player.z)
+	if (
+		not _valid_vector(horizontal_forward)
+		or not _valid_vector(horizontal_to_player)
+		or horizontal_forward.length_squared() <= EPSILON_SQUARED
+		or horizontal_to_player.length_squared() <= EPSILON_SQUARED
+	):
+		return false
+	return horizontal_forward.normalized().dot(horizontal_to_player.normalized()) < 0.0
 
 
 func _enemy_sees_player(enemy: EnemyBase) -> bool:
