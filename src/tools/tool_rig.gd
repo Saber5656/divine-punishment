@@ -106,6 +106,8 @@ func remaining_count() -> int:
 
 func set_aiming(active: bool) -> bool:
 	var next := bool(active)
+	if next and _tools_blocked():
+		next = false
 	if next and selected_definition() == null:
 		next = false
 	if _aiming == next:
@@ -156,6 +158,8 @@ func use_selected(user: Node3D = null) -> bool:
 	var actor := user if user != null else _default_user()
 	if actor == null:
 		return false
+	if _tools_blocked(actor):
+		return false
 	var effect := _create_effect(definition)
 	if effect == null:
 		return false
@@ -199,6 +203,17 @@ func _find_camera() -> Camera3D:
 func _default_user() -> Node3D:
 	var candidate := owner as Node3D
 	return candidate if candidate != null else (get_parent() as Node3D)
+
+
+func _tools_blocked(actor: Node3D = null) -> bool:
+	var candidate := actor if actor != null else _default_user()
+	if candidate == null or not is_instance_valid(candidate):
+		return false
+	if candidate.has_method(&"can_use_ninja_tools"):
+		return not bool(candidate.call(&"can_use_ninja_tools"))
+	if candidate.has_method(&"is_carrying_body"):
+		return bool(candidate.call(&"is_carrying_body"))
+	return false
 
 
 func _create_effect(definition: ToolDefinition) -> ToolBase:
