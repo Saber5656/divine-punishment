@@ -1057,15 +1057,40 @@ func _emit_ground_noise(delta: float, was_on_floor: bool) -> void:
 	if horizontal_speed <= 0.001:
 		return
 	var material := noise_emitter.floor_material
-	var floor_collision: KinematicCollision3D = get_floor_collision()
-	if floor_collision != null:
-		material = NoiseEmitter.floor_material_for(floor_collision.get_collider(), material)
+	var floor_collider := _floor_collider_from_slide_collisions()
+	if floor_collider != null:
+		material = NoiseEmitter.floor_material_for(floor_collider, material)
 	if not is_finite(delta) or delta <= 0.0:
 		return
 	_footstep_distance += horizontal_speed * minf(delta, MAX_NOISE_DELTA)
 	if _footstep_distance >= NOISE_FOOTSTEP_DISTANCE:
 		_footstep_distance = fmod(_footstep_distance, NOISE_FOOTSTEP_DISTANCE)
 		noise_emitter.emit_footstep(state_machine.stance(), material)
+
+
+func _floor_collider_from_slide_collisions() -> Object:
+	var floor_normal := get_floor_normal()
+	if floor_normal.is_zero_approx():
+		floor_normal = up_direction
+	if floor_normal.is_zero_approx():
+		return null
+	floor_normal = floor_normal.normalized()
+	var minimum_floor_alignment := cos(floor_max_angle)
+	var best_alignment := minimum_floor_alignment
+	var best_collider: Object = null
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		if collision == null:
+			continue
+		var normal := collision.get_normal()
+		if normal.is_zero_approx():
+			continue
+		var alignment := normal.normalized().dot(floor_normal)
+		if alignment < best_alignment:
+			continue
+		best_alignment = alignment
+		best_collider = collision.get_collider()
+	return best_collider
 
 
 func _apply_swim_presentation(state: StringName) -> void:
