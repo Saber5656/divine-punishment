@@ -817,6 +817,16 @@ func _advance_state_without_stimulus(delta: float) -> void:
 
 
 func _process_stimulus(stim: PerceptionStimulus) -> void:
+	if not _valid_stimulus(stim):
+		_discard_stale_stimulus_memory(stim)
+		return
+	if (
+		stim.kind == Enums.StimulusKind.ANOMALY
+		and stim.anomaly != null
+		and not _anomaly_is_relevant(stim.anomaly)
+	):
+		_discard_stale_stimulus_memory(stim)
+		return
 	var priority := _effective_priority(stim)
 	_stimulus_memory = stim
 	_last_known_position = stim.position
@@ -842,6 +852,21 @@ func _process_stimulus(stim: PerceptionStimulus) -> void:
 	elif _state == Enums.AlertState.RETURN and priority <= 1:
 		_investigation_elapsed = 0.0
 	_transition_to(next, stim, &"stimulus")
+
+
+func _discard_stale_stimulus_memory(stim: PerceptionStimulus) -> void:
+	if stim == null or _stimulus_memory == null:
+		return
+	var same_stimulus := _stimulus_memory == stim
+	var same_anomaly := (
+		stim.anomaly != null
+		and _stimulus_memory.anomaly != null
+		and _stimulus_memory.anomaly == stim.anomaly
+	)
+	if not same_stimulus and not same_anomaly:
+		return
+	_stimulus_memory = null
+	_has_last_known_position = false
 
 
 func _complete_investigation() -> void:
@@ -1295,8 +1320,14 @@ func _anomaly_is_relevant(anomaly: Anomaly) -> bool:
 		or anomaly.expires_at < 0.0
 		or (anomaly.expires_at > 0.0 and Time.get_ticks_msec() / 1000.0 >= anomaly.expires_at)
 		or not _valid_vector(anomaly.position)
-	):
+		):
 		return false
+	if anomaly.kind == Enums.AnomalyKind.CORPSE and anomaly.node != null:
+		if not is_instance_valid(anomaly.node) or not anomaly.node.is_inside_tree():
+			return false
+		if anomaly.node.has_method(&"is_corpse_anomaly_current"):
+			if not bool(anomaly.node.call(&"is_corpse_anomaly_current", anomaly)):
+				return false
 	var enemy_position := _enemy_position()
 	if not _valid_vector(enemy_position):
 		return true

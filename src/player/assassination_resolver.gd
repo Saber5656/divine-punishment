@@ -188,6 +188,8 @@ func execute(enemy: EnemyBase, context: StringName) -> void:
 func try_execute(enemy: EnemyBase, context: StringName = &"") -> bool:
 	if _active_enemy != null:
 		return false
+	if _player_is_carrying_body():
+		return false
 	if enemy == null or not is_instance_valid(enemy):
 		return false
 	var resolved_context := _context_for_enemy(enemy)
@@ -448,6 +450,7 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 	var player := get_parent() as Node3D
 	if (
 		player == null
+		or _player_is_carrying_body()
 		or not player.is_inside_tree()
 		or not enemy.is_inside_tree()
 		or enemy.get_tree() != player.get_tree()
@@ -473,6 +476,15 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 	if context == CONTEXT_BACK and not _enemy_facing_allows_backstab(player, enemy):
 		return &""
 	return context
+
+
+func _player_is_carrying_body() -> bool:
+	var player := get_parent()
+	return (
+		player != null
+		and player.has_method(&"is_carrying_body")
+		and bool(player.call(&"is_carrying_body"))
+	)
 
 
 func _state_name() -> StringName:

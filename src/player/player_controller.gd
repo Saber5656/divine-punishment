@@ -8,8 +8,18 @@ const CrawlRules := preload("res://src/player/player_crawl.gd")
 const SwimRules := preload("res://src/player/player_swim.gd")
 const NOISE_FOOTSTEP_DISTANCE := 1.5
 const MAX_NOISE_DELTA := 0.5
+const CARRY_SPEED_MULTIPLIER := 0.6
+const CARRY_INTERACTION_RADIUS := 1.5
+const CARRY_DROP_DISTANCE := 0.8
+const MAX_CARRYABLE_BODY_CANDIDATES := 64
+const MAX_STORAGE_HIDE_SPOT_CANDIDATES := 64
 const HideRules := preload("res://src/player/player_hide.gd")
 const WORLD_COLLISION_MASK := 1
+const DROP_COLLISION_MASK := WORLD_COLLISION_MASK | (1 << 2) | (1 << 8)
+const DROP_MOTION_SAFE_FRACTION := 0.9999
+const DROP_SUPPORT_RAY_HEIGHT := 4.0
+const DROP_SUPPORT_RAY_DEPTH := 8.0
+const DROP_SUPPORT_CLEARANCE_EPSILON := 0.02
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
 const MIN_WALL_PROBE_HEIGHT := 0.0
@@ -62,6 +72,7 @@ var _active_beam_path: BeamPath
 var _active_crawl_entrance: CrawlEntrance
 var _active_water_volume: WaterVolume
 var _active_hide_spot: HideSpot
+var _carried_body: Node3D
 var _crawl_contract_outside_position := Vector3.ZERO
 var _crawl_contract_inside_position := Vector3.ZERO
 var _crawl_contract_transform := Transform3D.IDENTITY
@@ -273,6 +284,8 @@ func traversal_distance() -> float:
 
 
 func try_enter_water(volume: WaterVolume = null) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current not in [
 		PlayerStateMachine.STATE_GROUND,
@@ -437,6 +450,8 @@ func try_enter_hide_spot(
 	hide_spot: HideSpot = null,
 	close_range_seen: bool = false,
 ) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
@@ -480,6 +495,136 @@ func try_exit_hide_spot(hide_spot: HideSpot = null) -> bool:
 	return false
 
 
+func is_carrying_body() -> bool:
+	if (
+		_carried_body == null
+		or not is_instance_valid(_carried_body)
+		or not _carried_body.is_inside_tree()
+		or _carried_body.get_tree() != get_tree()
+		or _carried_body.get_parent() != self
+		or not _carried_body.has_method(&"is_being_carried")
+		or not bool(_carried_body.call(&"is_being_carried"))
+	):
+		_carried_body = null
+		return false
+	return true
+
+
+func carried_body() -> Node3D:
+	return _carried_body if is_carrying_body() else null
+
+
+func can_use_ninja_tools() -> bool:
+	return not is_carrying_body()
+
+
+func try_pick_up_body(body: Node3D = null) -> bool:
+	var current := state_machine.current_state()
+	if (
+		current != PlayerStateMachine.STATE_GROUND
+		and current != PlayerStateMachine.STATE_CROUCH
+	):
+		return false
+	if is_inside_tree() and not is_on_floor():
+		return false
+	if is_carrying_body():
+		return false
+	var candidate := body if body != null else _nearest_carryable_body()
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.is_inside_tree()
+		or candidate.get_tree() != get_tree()
+		or not candidate.global_position.is_finite()
+		or not candidate.has_method(&"is_body_carryable")
+		or not candidate.has_method(&"begin_carry")
+		or not bool(candidate.call(&"is_body_carryable"))
+	):
+		return false
+	if global_position.distance_squared_to(candidate.global_position) > CARRY_INTERACTION_RADIUS * CARRY_INTERACTION_RADIUS:
+		return false
+	if not bool(candidate.call(&"begin_carry", self)):
+		return false
+	_carried_body = candidate
+	if tool_rig != null:
+		tool_rig.set_aiming(false)
+	return true
+
+
+func try_drop_carried_body() -> bool:
+	if not is_carrying_body():
+		return false
+	var candidate := _carried_body
+	var forward := -global_transform.basis.z
+	if not forward.is_finite() or forward.length_squared() <= 0.000001:
+		return false
+	forward = forward.normalized()
+	var drop_position := global_position + forward * CARRY_DROP_DISTANCE
+	if not HideRules.is_safe_world_position(drop_position):
+		return false
+	drop_position = _drop_position_on_support(candidate, drop_position)
+	if not HideRules.is_safe_world_position(drop_position):
+		return false
+	if not _drop_path_is_clear(candidate, drop_position):
+		return false
+	var drop_succeeded := candidate.has_method(&"end_carry") and bool(candidate.call(&"end_carry", drop_position))
+	if not drop_succeeded:
+		return false
+	_carried_body = null
+	return true
+
+
+func try_store_carried_body(hide_spot: HideSpot = null) -> bool:
+	if not is_carrying_body():
+		return false
+	var candidate := hide_spot if hide_spot != null else _nearest_storage_hide_spot()
+	var stored_body := _carried_body
+	if (
+		candidate == null
+		or not is_instance_valid(candidate)
+		or not candidate.is_near_entry(global_position)
+		or not candidate.can_store_body(stored_body)
+		or not candidate.store_body(stored_body)
+	):
+		return false
+	if state_machine.current_state() != PlayerStateMachine.STATE_CROUCH:
+		if not state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
+			var restored := candidate.retrieve_body(self)
+			if restored == stored_body:
+				_carried_body = restored
+			return false
+	_carried_body = null
+	return true
+
+
+func try_retrieve_stored_body(hide_spot: HideSpot = null) -> bool:
+	if is_carrying_body():
+		return false
+	var candidate := hide_spot if hide_spot != null else _nearest_storage_hide_spot(true)
+	if candidate == null or not candidate.has_stored_body():
+		return false
+	var body := candidate.retrieve_body(self)
+	# HideSpot.retrieve_body(self) performs the validated storage->carry
+	# transition atomically, so a body cannot be exposed between retrieval and
+	# reattachment to this player.
+	if body == null or not body.has_method(&"is_being_carried") or not bool(body.call(&"is_being_carried")):
+		return false
+	_carried_body = body
+	if tool_rig != null:
+		tool_rig.set_aiming(false)
+	return true
+
+
+func _handle_body_interaction() -> bool:
+	if is_carrying_body():
+		if try_store_carried_body():
+			return true
+		return try_drop_carried_body()
+	if try_retrieve_stored_body():
+		return true
+	return try_pick_up_body()
+
+
 func invalidate_hidden_if_close_range_seen(close_range_seen: bool) -> bool:
 	if not close_range_seen or state_machine.current_state() != PlayerStateMachine.STATE_HIDDEN:
 		return false
@@ -487,6 +632,8 @@ func invalidate_hidden_if_close_range_seen(close_range_seen: bool) -> bool:
 
 
 func try_enter_climb(edge: ClimbEdge = null) -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if (
 		current != PlayerStateMachine.STATE_GROUND
@@ -537,6 +684,8 @@ func advance_traversal(axis: float, delta: float) -> void:
 
 
 func try_enter_wall_cling() -> bool:
+	if is_carrying_body():
+		return false
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
@@ -598,8 +747,16 @@ func _update_state_from_input() -> void:
 		return
 
 	if interact_just_pressed:
+		# A carried corpse follows the player through the crawlspace.  Give the
+		# traversal contract precedence over storage/drop interaction; if no
+		# valid entrance is available, the normal interaction path still drops
+		# or stores the body.
+		if is_carrying_body() and try_enter_crawlspace():
+			return
 		var close_range_seen := _close_range_seen
 		_close_range_seen = false
+		if _handle_body_interaction():
+			return
 		if try_enter_hide_spot(null, close_range_seen):
 			return
 
@@ -631,6 +788,11 @@ func _update_state_from_input() -> void:
 		return
 
 	if interact_just_pressed and try_extinguish_adjacent_light():
+		return
+
+	if is_carrying_body():
+		if state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
+			state_machine.resume_from_sprint()
 		return
 
 	if not Input.is_action_pressed(&"sprint") and state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
@@ -677,6 +839,14 @@ func _initialize_collision_shape() -> void:
 
 
 func _on_state_changed(from: StringName, to: StringName) -> void:
+	if is_carrying_body() and to in [
+		PlayerStateMachine.STATE_ASSASSINATE,
+		PlayerStateMachine.STATE_SPRINT,
+	]:
+		state_machine.change_state(from)
+		return
+	if to == PlayerStateMachine.STATE_DEAD and is_carrying_body():
+		try_drop_carried_body()
 	if from == PlayerStateMachine.STATE_WALL_CLING and to != PlayerStateMachine.STATE_WALL_CLING:
 		_wall_normal = Vector3.ZERO
 		reset_camera_peek_offset()
@@ -825,6 +995,103 @@ func _has_capsule_path_clear(
 	query.margin = 0.001
 	var result := get_world_3d().direct_space_state.cast_motion(query)
 	return result.size() >= 2 and result[0] >= CRAWL_MOTION_SAFE_FRACTION
+
+
+func _drop_path_is_clear(body: Node3D, drop_position: Vector3) -> bool:
+	if (
+		body == null
+		or not is_instance_valid(body)
+		or not body.is_inside_tree()
+		or body.get_tree() != get_tree()
+		or not drop_position.is_finite()
+		or not is_inside_tree()
+		or get_world_3d() == null
+	):
+		return false
+	var body_shape_node := body.get_node_or_null(NodePath("CollisionShape3D")) as CollisionShape3D
+	if body_shape_node == null or body_shape_node.shape == null or body_shape_node.disabled:
+		return false
+	var source_body_transform := body.global_transform
+	var target_body_transform := body.global_transform
+	target_body_transform.origin = drop_position
+	var source_shape_transform := source_body_transform * body_shape_node.transform
+	var target_shape_transform := target_body_transform * body_shape_node.transform
+	var excluded: Array[RID] = [get_rid()]
+	if body is CollisionObject3D:
+		excluded.append((body as CollisionObject3D).get_rid())
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = body_shape_node.shape
+	query.transform = source_shape_transform
+	query.motion = drop_position - body.global_position
+	query.collision_mask = DROP_COLLISION_MASK
+	query.exclude = excluded
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.margin = 0.001
+	var motion_result := get_world_3d().direct_space_state.cast_motion(query)
+	if motion_result.size() < 2 or motion_result[0] < DROP_MOTION_SAFE_FRACTION:
+		return false
+	var final_query := PhysicsShapeQueryParameters3D.new()
+	final_query.shape = body_shape_node.shape
+	final_query.transform = target_shape_transform
+	final_query.collision_mask = DROP_COLLISION_MASK
+	final_query.exclude = excluded
+	final_query.collide_with_areas = false
+	final_query.collide_with_bodies = true
+	final_query.margin = 0.001
+	return get_world_3d().direct_space_state.intersect_shape(final_query, 1).is_empty()
+
+
+func _drop_position_on_support(body: Node3D, requested_position: Vector3) -> Vector3:
+	if (
+		body == null
+		or not is_instance_valid(body)
+		or not requested_position.is_finite()
+		or not is_inside_tree()
+		or get_world_3d() == null
+	):
+		return Vector3(NAN, NAN, NAN)
+	var body_shape_node := body.get_node_or_null(NodePath("CollisionShape3D")) as CollisionShape3D
+	if body_shape_node == null or body_shape_node.shape == null or body_shape_node.disabled:
+		return requested_position
+	var half_height := _shape_vertical_half_extent(body_shape_node.shape)
+	if not is_finite(half_height) or half_height <= 0.0:
+		return requested_position
+	var query := PhysicsRayQueryParameters3D.create(
+		requested_position + Vector3.UP * DROP_SUPPORT_RAY_HEIGHT,
+		requested_position - Vector3.UP * DROP_SUPPORT_RAY_DEPTH,
+	)
+	query.collision_mask = WORLD_COLLISION_MASK
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var excluded: Array[RID] = [get_rid()]
+	if body is CollisionObject3D:
+		excluded.append((body as CollisionObject3D).get_rid())
+	query.exclude = excluded
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var normal: Variant = hit.get(&"normal")
+	var hit_position: Variant = hit.get(&"position")
+	if (
+		not hit_position is Vector3
+		or not normal is Vector3
+		or not (hit_position as Vector3).is_finite()
+		or not (normal as Vector3).is_finite()
+		or (normal as Vector3).y < 0.5
+	):
+		return requested_position
+	var supported := requested_position
+	supported.y = (hit_position as Vector3).y + half_height + DROP_SUPPORT_CLEARANCE_EPSILON
+	return supported if HideRules.is_safe_world_position(supported) else requested_position
+
+
+static func _shape_vertical_half_extent(shape: Shape3D) -> float:
+	if shape is CapsuleShape3D:
+		return (shape as CapsuleShape3D).height * 0.5
+	if shape is BoxShape3D:
+		return (shape as BoxShape3D).size.y * 0.5
+	if shape is SphereShape3D:
+		return (shape as SphereShape3D).radius
+	return 0.0
 
 
 func _capture_crawl_contract(entrance: CrawlEntrance) -> void:
@@ -1450,12 +1717,19 @@ func _apply_movement() -> void:
 		if world_direction.length_squared() > 0.0:
 			world_direction = world_direction.normalized() * input_vector.length()
 
-	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
+	var speed := movement_speed()
 	if _is_water_state() and not SwimRules.is_swim_speed_valid(speed):
 		velocity = Vector3.ZERO
 		return
 	velocity.x = world_direction.x * speed
 	velocity.z = world_direction.z * speed
+
+
+func movement_speed() -> float:
+	var speed := float(state_machine.movement_params().get(&"speed", 0.0))
+	if not is_finite(speed) or speed < 0.0:
+		return 0.0
+	return speed * CARRY_SPEED_MULTIPLIER if is_carrying_body() else speed
 
 
 func _move_swimming(delta: float) -> void:
@@ -1786,6 +2060,65 @@ func _nearest_hide_spot() -> HideSpot:
 		if distance_squared < nearest_distance_squared:
 			nearest = hide_spot
 			nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_carryable_body() -> Node3D:
+	if (
+		not is_inside_tree()
+		or get_tree() == null
+		or not HideRules.is_safe_world_position(global_position)
+	):
+		return null
+	var bodies := get_tree().get_nodes_in_group(&"enemies")
+	if bodies.size() > MAX_CARRYABLE_BODY_CANDIDATES:
+		return null
+	var nearest: Node3D
+	var nearest_distance_squared := CARRY_INTERACTION_RADIUS * CARRY_INTERACTION_RADIUS
+	for node: Node in bodies:
+		var body := node as Node3D
+		if (
+			body == null
+			or not is_instance_valid(body)
+			or body.get_tree() != get_tree()
+			or not body.global_position.is_finite()
+			or not body.has_method(&"is_body_carryable")
+			or not bool(body.call(&"is_body_carryable"))
+		):
+			continue
+		var distance_squared := global_position.distance_squared_to(body.global_position)
+		if not is_finite(distance_squared) or distance_squared > nearest_distance_squared:
+			continue
+		nearest = body
+		nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_storage_hide_spot(require_stored_body: bool = false) -> HideSpot:
+	if not is_inside_tree() or get_tree() == null or not global_position.is_finite():
+		return null
+	var spots := get_tree().get_nodes_in_group(&"hide_spots")
+	if spots.size() > MAX_STORAGE_HIDE_SPOT_CANDIDATES:
+		return null
+	var nearest: HideSpot
+	var nearest_distance_squared := INF
+	for node: Node in spots:
+		var spot := node as HideSpot
+		if (
+			spot == null
+			or not is_instance_valid(spot)
+			or spot.get_tree() != get_tree()
+			or not spot.is_geometry_valid()
+			or not spot.is_near_entry(global_position)
+			or (require_stored_body and not spot.has_stored_body())
+			or (not require_stored_body and spot.has_stored_body())
+		):
+			continue
+		var distance_squared := global_position.distance_squared_to(spot.entry_world_position())
+		if not is_finite(distance_squared) or distance_squared >= nearest_distance_squared:
+			continue
+		nearest = spot
+		nearest_distance_squared = distance_squared
 	return nearest
 
 

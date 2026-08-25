@@ -2,11 +2,19 @@ class_name EnemyBase
 extends CharacterBody3D
 
 
+const HideRules := preload("res://src/player/player_hide.gd")
+
 var _assassination_locked := false
 var _assassinated := false
 var _assassination_context: StringName = &""
 var _corpse_anomaly: Anomaly
 var _corpse_anomaly_registered := false
+var _carried_by: Node3D
+var _stored_by: Node3D
+var _carry_original_parent: Node
+var _carry_original_collision_layer := 0
+var _carry_original_collision_mask := 0
+var _carry_original_process_mode := Node.PROCESS_MODE_INHERIT
 
 
 const MIN_ROUTINE_SPEED := 0.1
@@ -16,6 +24,8 @@ const MAX_NAVIGATION_STEP_DELTA := 0.25
 const NAVIGATION_ARRIVAL_TOLERANCE := 0.5
 const NAVIGATION_POINT_TOLERANCE := 0.5
 const NAVIGATION_MIN_PROGRESS := 0.0001
+const CORPSE_LAYER := 1 << 8
+const CARRY_LOCAL_OFFSET := Vector3(0.0, 0.85, 0.35)
 
 @export var routine_type: StringName = &"guard"
 @export_node_path("Path3D") var patrol_path_path: NodePath
@@ -211,7 +221,16 @@ func alert_state() -> Enums.AlertState:
 
 func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	var enemy_brain := brain()
-	return enemy_brain != null and enemy_brain.set_incapacitated(kind, duration_seconds)
+	if enemy_brain == null or not enemy_brain.set_incapacitated(kind, duration_seconds):
+		return false
+	if kind == &"dead":
+		_activate_corpse_layer()
+	return true
+
+
+func _activate_corpse_layer() -> void:
+	if _carried_by == null and _stored_by == null and _carry_original_parent == null:
+		collision_layer = CORPSE_LAYER
 
 
 ## Persistent body anomaly exposed to visual observers.  The object identity is
@@ -222,9 +241,16 @@ func corpse_anomaly() -> Anomaly:
 	if (
 		enemy_brain == null
 		or enemy_brain.incapacitated_kind() != &"dead"
+		or _carried_by != null
+		or _stored_by != null
 		or not global_position.is_finite()
 	):
 		return null
+	# Exposed bodies occupy the dedicated corpse layer.  Carried/stored bodies
+	# take part in neither collision nor anomaly discovery (see transitions
+	# below), so visual observers cannot discover a hidden corpse indirectly.
+	if _carry_original_parent == null:
+		collision_layer = CORPSE_LAYER
 	if _corpse_anomaly == null:
 		_corpse_anomaly = Anomaly.create(
 			Enums.AnomalyKind.CORPSE,
@@ -240,6 +266,227 @@ func corpse_anomaly() -> Anomaly:
 			event_bus.emit_signal(&"anomaly_registered", _corpse_anomaly)
 			_corpse_anomaly_registered = true
 	return _corpse_anomaly
+
+
+func is_corpse_anomaly_current(candidate: Anomaly) -> bool:
+	var enemy_brain := brain()
+	return (
+		candidate != null
+		and candidate == _corpse_anomaly
+		and enemy_brain != null
+		and enemy_brain.incapacitated_kind() == &"dead"
+		and _carried_by == null
+		and _stored_by == null
+		and _carry_original_parent == null
+		and global_position.is_finite()
+	)
+
+
+func is_body_carryable() -> bool:
+	var enemy_brain := brain()
+	return (
+		is_inside_tree()
+		and enemy_brain != null
+		and enemy_brain.incapacitated_kind() == &"dead"
+		and _carried_by == null
+		and _stored_by == null
+		and _carry_original_parent == null
+		and get_parent() != null
+		and global_position.is_finite()
+	)
+
+
+## Compatibility alias for interaction systems that use the shorter name.
+func is_carryable() -> bool:
+	return is_body_carryable()
+
+
+func is_being_carried() -> bool:
+	return (
+		_carried_by != null
+		and is_instance_valid(_carried_by)
+		and get_parent() == _carried_by
+	)
+
+
+func is_stored() -> bool:
+	return (
+		_stored_by != null
+		and is_instance_valid(_stored_by)
+		and get_parent() == _stored_by
+	)
+
+
+func carried_by() -> Node3D:
+	return _carried_by
+
+
+func stored_by() -> Node3D:
+	return _stored_by
+
+
+func begin_carry(carrier: Node3D) -> bool:
+	if (
+		carrier == null
+		or not is_instance_valid(carrier)
+		or carrier == self
+		or not carrier.is_inside_tree()
+		or carrier.get_tree() != get_tree()
+		or is_ancestor_of(carrier)
+		or not is_body_carryable()
+		or not carrier.global_position.is_finite()
+	):
+		return false
+	var original_parent := get_parent()
+	if original_parent == null or not original_parent.is_inside_tree():
+		return false
+	_carry_original_parent = original_parent
+	_carry_original_collision_layer = collision_layer
+	_carry_original_collision_mask = collision_mask
+	_carry_original_process_mode = process_mode
+	reparent(carrier, true)
+	if get_parent() != carrier:
+		_restore_carry_context()
+		return false
+	_carried_by = carrier
+	_clear_corpse_anomaly()
+	collision_layer = 0
+	collision_mask = 0
+	process_mode = Node.PROCESS_MODE_DISABLED
+	position = CARRY_LOCAL_OFFSET
+	return true
+
+
+func end_carry(drop_position: Vector3) -> bool:
+	if (
+		_carried_by == null
+		or not is_instance_valid(_carried_by)
+		or _carry_original_parent == null
+		or not is_instance_valid(_carry_original_parent)
+		or not _carry_original_parent.is_inside_tree()
+		or not drop_position.is_finite()
+		or not HideRules.is_safe_world_position(drop_position)
+	):
+		return false
+	var original_parent := _carry_original_parent
+	reparent(original_parent, true)
+	if get_parent() != original_parent:
+		return false
+	_carried_by = null
+	_restore_carry_context()
+	global_position = drop_position
+	_clear_corpse_anomaly()
+	corpse_anomaly()
+	return true
+
+
+func begin_storage(storage: Node3D) -> bool:
+	if (
+		storage == null
+		or not is_instance_valid(storage)
+		or storage == self
+		or not storage.is_inside_tree()
+		or storage.get_tree() != get_tree()
+		or _carried_by == null
+		or _stored_by != null
+		or _carry_original_parent == null
+		or not is_instance_valid(_carry_original_parent)
+		or not _carry_original_parent.is_inside_tree()
+	):
+		return false
+	var storage_position := storage.global_position
+	if storage.has_method(&"storage_world_position"):
+		var candidate: Variant = storage.call(&"storage_world_position")
+		if not candidate is Vector3:
+			return false
+		storage_position = candidate as Vector3
+	if not storage_position.is_finite():
+		return false
+	var original_parent := _carry_original_parent
+	reparent(storage, true)
+	if get_parent() != storage:
+		reparent(original_parent, true)
+		return false
+	_clear_corpse_anomaly()
+	_stored_by = storage
+	_carried_by = null
+	collision_layer = 0
+	collision_mask = 0
+	process_mode = Node.PROCESS_MODE_DISABLED
+	global_position = storage_position
+	return true
+
+
+func end_storage(receiver: Node3D = null) -> bool:
+	if (
+		_stored_by == null
+		or not is_instance_valid(_stored_by)
+		or _carry_original_parent == null
+		or not is_instance_valid(_carry_original_parent)
+		or not _carry_original_parent.is_inside_tree()
+	):
+		return false
+	if receiver != null and (
+		not is_instance_valid(receiver)
+		or not receiver.is_inside_tree()
+		or receiver.get_tree() != get_tree()
+		or receiver == self
+		or is_ancestor_of(receiver)
+		or not receiver.global_position.is_finite()
+	):
+		return false
+	var storage := _stored_by
+	var original_parent := _carry_original_parent
+	var original_collision_layer := _carry_original_collision_layer
+	var original_collision_mask := _carry_original_collision_mask
+	var original_process_mode := _carry_original_process_mode
+	reparent(original_parent, true)
+	if get_parent() != original_parent:
+		return false
+	_stored_by = null
+	_restore_carry_context()
+	if receiver != null:
+		if begin_carry(receiver):
+			return true
+		# A receiver can become invalid between validation and the transition.
+		# Restore the stored contract if possible; otherwise expose the body and
+		# recreate its anomaly rather than leaving HideSpot/state metadata stale.
+		if is_instance_valid(storage) and storage.is_inside_tree():
+			reparent(storage, true)
+		if get_parent() == storage:
+			_stored_by = storage
+			_carried_by = null
+			_carry_original_parent = original_parent
+			_carry_original_collision_layer = original_collision_layer
+			_carry_original_collision_mask = original_collision_mask
+			_carry_original_process_mode = original_process_mode
+			collision_layer = 0
+			collision_mask = 0
+			process_mode = Node.PROCESS_MODE_DISABLED
+			return false
+		_clear_corpse_anomaly()
+		corpse_anomaly()
+		return false
+	_clear_corpse_anomaly()
+	corpse_anomaly()
+	return true
+
+
+func _restore_carry_context() -> void:
+	collision_layer = _carry_original_collision_layer
+	collision_mask = _carry_original_collision_mask
+	process_mode = _carry_original_process_mode
+	_carry_original_parent = null
+	_carry_original_collision_layer = 0
+	_carry_original_collision_mask = 0
+	_carry_original_process_mode = Node.PROCESS_MODE_INHERIT
+
+
+func _clear_corpse_anomaly() -> void:
+	# Keep the stable object identity across concealment transitions.  The
+	# carried/stored guards in corpse_anomaly() suppress exposure while this
+	# reference is retained; re-exposure only re-registers the same object.
+	_corpse_anomaly_registered = false
 
 
 func set_incapacitation_wake_by_noise(value: bool) -> void:

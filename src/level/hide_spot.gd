@@ -10,11 +10,16 @@ const PLAYER_BODY_LAYER := 1 << 1
 const ENEMY_BODY_LAYER := 1 << 2
 const MIN_ENTRY_RADIUS := 0.1
 const MAX_ENTRY_RADIUS := 2.0
+const MAX_STORED_BODIES := 1
+const MAX_STORAGE_OFFSET := 2.0
 const UNIT_SCALE_TOLERANCE := 0.001
 const ENTRY_COLLISION_SHAPE_NODE_NAME := &"_EntryInteractionShape"
 
 var _entry_collision_shape: CollisionShape3D
 var _expected_entry_shape: SphereShape3D
+var _stored_body: Node3D
+
+@export var storage_offset := Vector3.ZERO
 
 @export_range(MIN_ENTRY_RADIUS, MAX_ENTRY_RADIUS, 0.05) var entry_radius := 0.75:
 	set(value):
@@ -64,6 +69,31 @@ func entry_world_position() -> Vector3:
 	return global_position
 
 
+func storage_world_position() -> Vector3:
+	if not storage_offset.is_finite() or not global_position.is_finite():
+		return Vector3(NAN, NAN, NAN)
+	return global_position + global_transform.basis * storage_offset
+
+
+func stored_body() -> Node3D:
+	return _stored_body if has_stored_body() else null
+
+
+func has_stored_body() -> bool:
+	if (
+		_stored_body == null
+		or not is_instance_valid(_stored_body)
+		or not _stored_body.is_inside_tree()
+		or _stored_body.get_tree() != get_tree()
+		or _stored_body.get_parent() != self
+		or not _stored_body.has_method(&"is_stored")
+		or not bool(_stored_body.call(&"is_stored"))
+	):
+		_stored_body = null
+		return false
+	return true
+
+
 func entry_shape_identity() -> int:
 	if not is_instance_valid(_expected_entry_shape):
 		return 0
@@ -78,6 +108,9 @@ func is_geometry_valid() -> bool:
 		and entry_radius >= MIN_ENTRY_RADIUS
 		and entry_radius <= MAX_ENTRY_RADIUS
 		and HideRules.is_safe_world_position(entry_world_position())
+		and storage_offset.is_finite()
+		and storage_offset.length() <= MAX_STORAGE_OFFSET
+		and HideRules.is_safe_world_position(storage_world_position())
 		and _is_entry_collision_shape_valid()
 	)
 
@@ -128,6 +161,81 @@ func can_accept_body(body: CollisionObject3D) -> bool:
 		and (body.collision_layer & ENEMY_BODY_LAYER) == 0
 		and (body.collision_layer & HIDE_SPOT_LAYER) == 0
 	)
+
+
+func can_store_body(body: Node3D) -> bool:
+	if (
+		body == null
+		or not is_instance_valid(body)
+		or not body.is_inside_tree()
+		or body.get_tree() != get_tree()
+		or not is_geometry_valid()
+		or has_stored_body()
+		or not body.global_position.is_finite()
+		or not body.has_method(&"is_body_carryable")
+		or not body.has_method(&"is_being_carried")
+		or not body.has_method(&"carried_by")
+		or not body.has_method(&"begin_storage")
+		or not bool(body.call(&"is_being_carried"))
+		or bool(body.call(&"is_body_carryable"))
+	):
+		return false
+	var carrier := body.call(&"carried_by") as Node3D
+	return (
+		carrier != null
+		and is_instance_valid(carrier)
+		and carrier.is_inside_tree()
+		and carrier.get_tree() == get_tree()
+		and carrier.global_position.is_finite()
+		and is_near_entry(carrier.global_position)
+	)
+
+
+func store_body(body: Node3D) -> bool:
+	if not can_store_body(body):
+		return false
+	if not bool(body.call(&"begin_storage", self)):
+		return false
+	if body.get_parent() != self or not bool(body.call(&"is_stored")):
+		if body.has_method(&"end_storage"):
+			body.call(&"end_storage")
+		return false
+	_stored_body = body
+	return true
+
+
+func can_retrieve_body(receiver: Node3D = null) -> bool:
+	if not has_stored_body() or not is_geometry_valid():
+		return false
+	if receiver == null:
+		return true
+	return (
+		is_instance_valid(receiver)
+		and receiver.is_inside_tree()
+		and receiver.get_tree() == get_tree()
+		and receiver.global_position.is_finite()
+		and is_near_entry(receiver.global_position)
+	)
+
+
+func retrieve_body(receiver: Node3D = null) -> Node3D:
+	if not can_retrieve_body(receiver):
+		return null
+	var body := _stored_body
+	if not body.has_method(&"end_storage") or not bool(body.call(&"end_storage", receiver)):
+		# Keep the occupancy pointer only when the body really remains stored.
+		# This covers a failed reparent/receiver transition without retaining a
+		# stale HideSpot reference to an exposed body.
+		if (
+			not is_instance_valid(body)
+			or body.get_parent() != self
+			or not body.has_method(&"is_stored")
+			or not bool(body.call(&"is_stored"))
+		):
+			_stored_body = null
+		return null
+	_stored_body = null
+	return body
 
 
 func is_near_entry(world_position: Vector3) -> bool:
