@@ -140,6 +140,11 @@ func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
 	assert_eq(counts[&"search_points"], 12)
 	assert_eq(counts[&"checkpoints"], 3)
 	assert_eq(counts[&"anomaly_markers"], 4)
+	var has_overhead_hide_spot := false
+	for node: Node in residence.get_tree().get_nodes_in_group(&"hide_spots"):
+		if node.get_meta(&"area_id", &"") == &"overhead":
+			has_overhead_hide_spot = true
+	assert_true(has_overhead_hide_spot, "Overhead route must have a re-stealth HideSpot")
 
 	var lights := residence.light_counts()
 	assert_eq(lights[&"outdoor"], 6)

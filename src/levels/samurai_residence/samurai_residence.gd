@@ -517,7 +517,7 @@ func _build_area_markers() -> void:
 	var hide_positions := [
 		Vector3(6.0, PLAYER_CENTER_Y, 8.0), Vector3(24.0, PLAYER_CENTER_Y, 10.0),
 		Vector3(40.0, PLAYER_CENTER_Y, 25.0), Vector3(66.0, PLAYER_CENTER_Y, 25.0),
-		Vector3(80.0, PLAYER_CENTER_Y, 14.0), Vector3(48.0, PLAYER_CENTER_Y, 13.0),
+		Vector3(20.0, OVERHEAD_Y, 4.0), Vector3(48.0, PLAYER_CENTER_Y, 13.0),
 		Vector3(64.0, PLAYER_CENTER_Y, 13.0), Vector3(70.0, PLAYER_CENTER_Y, 37.0),
 		Vector3(76.0, PLAYER_CENTER_Y, 37.0), Vector3(64.0, PLAYER_CENTER_Y, 24.0),
 	]
