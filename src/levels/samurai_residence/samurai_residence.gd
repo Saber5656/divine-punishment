@@ -369,8 +369,8 @@ func _build_geometry() -> void:
 
 	_add_box(overhead, &"OuterRoofPlatform", Vector3(26.0, 3.9, 5.0), Vector3(32.0, 0.2, 3.0), &"wood", &"roof")
 	# Route B lands on the veranda roof before crossing to the house roof.
-	# Raise the landing platform with the overhead layer so a standing capsule clears the roof.
-	_add_box(overhead, &"VerandaRoofPlatform", Vector3(40.0, OVERHEAD_Y - 0.1, 8.0), Vector3(8.0, 0.2, 4.0), &"wood", &"roof")
+	# Keep the platform top at y=4.0; OVERHEAD_Y=5.0 leaves the standing capsule clear.
+	_add_box(overhead, &"VerandaRoofPlatform", Vector3(40.0, 3.9, 8.0), Vector3(8.0, 0.2, 4.0), &"wood", &"roof")
 	_add_box(overhead, &"HouseRoofPlatform", Vector3(58.0, 3.9, 19.0), Vector3(30.0, 0.2, 20.0), &"wood", &"roof")
 	_add_box(overhead, &"ShoinBeamSupport", Vector3(58.0, 3.7, 19.0), Vector3(4.0, 0.2, 16.0), &"creaky_wood", &"roof")
 
