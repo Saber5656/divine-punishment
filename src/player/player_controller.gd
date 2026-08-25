@@ -659,7 +659,13 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 	if to != PlayerStateMachine.STATE_BEAM:
 		_active_beam_path = null
 		_beam_axis_direction = 1.0
-	if to != PlayerStateMachine.STATE_CRAWLSPACE:
+	if (
+		to != PlayerStateMachine.STATE_CRAWLSPACE
+		and not (
+			from == PlayerStateMachine.STATE_CRAWLSPACE
+			and to == PlayerStateMachine.STATE_ASSASSINATE
+		)
+	):
 		_clear_crawl_contract()
 	if to != PlayerStateMachine.STATE_HIDDEN:
 		_clear_hide_contract()
@@ -667,8 +673,11 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 		_clear_water_contract()
 	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
 		_traversal_distance = 0.0
-	_apply_collision_shape_for_state(to)
-	_apply_camera_posture_for_state(to)
+	var posture_state := to
+	if from == PlayerStateMachine.STATE_CRAWLSPACE and to == PlayerStateMachine.STATE_ASSASSINATE:
+		posture_state = PlayerStateMachine.STATE_CRAWLSPACE
+	_apply_collision_shape_for_state(posture_state)
+	_apply_camera_posture_for_state(posture_state)
 	_apply_swim_presentation(to)
 
 
