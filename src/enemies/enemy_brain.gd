@@ -877,6 +877,10 @@ func _search_point_is_reachable(point: SearchPoint) -> bool:
 		# The explicit authoring flag plus vertical guard is the bounded fallback
 		# while the map is unavailable; no unbounded query or movement is added.
 		return true
+	# A valid RID can exist before any navigation regions are baked. Treat that
+	# empty map as unsynchronized so isolated/test scenes retain authored points.
+	if NavigationServer3D.map_get_regions(navigation_map).is_empty():
+		return true
 	var closest := NavigationServer3D.map_get_closest_point(navigation_map, target)
 	return _valid_vector(closest) and closest.distance_to(target) <= SEARCH_NAVIGATION_SNAP_DISTANCE
 
