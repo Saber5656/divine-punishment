@@ -8,6 +8,20 @@ const MAX_TARGET_CANDIDATES := 64
 const MAX_WORLD_COORDINATE := 10000.0
 const EPSILON_SQUARED := 0.000001
 const ASSASSINATE_TARGET_LAYER := 1 << 10
+const CONFIG_PROPERTY_NAMES := [
+	&"back_max_distance_m",
+	&"back_max_angle_degrees",
+	&"back_allowed_alert_states",
+	&"above_max_distance_m",
+	&"above_max_angle_degrees",
+	&"above_allowed_alert_states",
+	&"below_max_distance_m",
+	&"below_max_angle_degrees",
+	&"below_allowed_alert_states",
+	&"corner_max_distance_m",
+	&"corner_max_angle_degrees",
+	&"corner_allowed_alert_states",
+]
 
 const CONTEXT_BACK: StringName = &"back"
 const CONTEXT_ABOVE: StringName = &"above"
@@ -31,10 +45,19 @@ var _active_context: StringName = &""
 func _ready() -> void:
 	if config == null:
 		config = ResourceLoader.load(DEFAULT_CONFIG_PATH) as Resource
-	if config == null:
+	if not _config_is_compatible(config):
 		config = AssassinationConfigScript.new()
 	set_process(true)
 	set_process_unhandled_input(true)
+
+
+static func _config_is_compatible(candidate: Resource) -> bool:
+	if candidate == null:
+		return false
+	for property_name: StringName in CONFIG_PROPERTY_NAMES:
+		if candidate.get(property_name) == null:
+			return false
+	return true
 
 
 func _process(_delta: float) -> void:
