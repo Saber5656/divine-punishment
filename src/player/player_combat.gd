@@ -80,7 +80,7 @@ func tick(delta: float) -> void:
 
 
 func start_attack() -> bool:
-	if _defeated or _attack_elapsed >= 0.0:
+	if _defeated or _attack_elapsed >= 0.0 or _attack_recovery_remaining > 0.0:
 		return false
 	if not _ensure_combat_state():
 		return false

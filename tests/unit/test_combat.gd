@@ -54,6 +54,7 @@ func test_three_slash_combo_damages_enemy_once_per_hit_and_defeats_it() -> void:
 		assert_true(player_combat.is_attack_active())
 		assert_true(player_combat.resolve_attack(enemy))
 		player_combat.tick(0.3)
+		player_combat.tick(0.25)
 	assert_eq(enemy_combat.health(), 0)
 	assert_true(enemy_combat.is_defeated())
 
@@ -63,6 +64,7 @@ func test_combo_window_resets_after_timeout() -> void:
 	player_combat.tick(0.1)
 	player_combat.tick(0.3)
 	assert_eq(player_combat.combo_index(), 1)
+	assert_false(player_combat.start_attack())
 	player_combat.tick(0.8)
 	assert_eq(player_combat.combo_index(), 0)
 	assert_true(player_combat.start_attack())
