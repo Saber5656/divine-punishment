@@ -1572,8 +1572,9 @@ func _set_navigation_target(target: Vector3) -> void:
 	if enemy == null:
 		return
 	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
-	if agent != null:
-		agent.target_position = target
+	if agent == null or not EnemyBase._navigation_map_ready(agent):
+		return
+	agent.target_position = target
 
 
 func _navigation_has_reached(target: Vector3) -> bool:

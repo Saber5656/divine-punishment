@@ -14,6 +14,8 @@ const MAX_ROUTINE_SPEED := 12.0
 const DEFAULT_ROUTINE_SPEED := 1.5
 const MAX_NAVIGATION_STEP_DELTA := 0.25
 const NAVIGATION_ARRIVAL_TOLERANCE := 0.5
+const NAVIGATION_POINT_TOLERANCE := 0.5
+const NAVIGATION_MIN_PROGRESS := 0.0001
 
 @export var routine_type: StringName = &"guard"
 @export_node_path("Path3D") var patrol_path_path: NodePath
@@ -102,13 +104,18 @@ func current_routine_stop() -> RoutineStop:
 
 
 func advance_navigation(delta: float, target: Vector3, speed: float = DEFAULT_ROUTINE_SPEED) -> bool:
+	# Navigation is fail-closed: never retain a stale velocity or move toward
+	# an authored target without a synchronized, non-empty navmesh route.
+	velocity = Vector3.ZERO
 	if not is_finite(delta) or delta <= 0.0 or not target.is_finite() or not is_finite(speed) or speed <= 0.0:
 		return false
 	var bounded_delta := minf(delta, MAX_NAVIGATION_STEP_DELTA)
 	var bounded_speed := clampf(speed, MIN_ROUTINE_SPEED, MAX_ROUTINE_SPEED)
 	var agent := get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
+	if agent == null or not _navigation_map_ready(agent):
+		return false
 	var tolerance := NAVIGATION_ARRIVAL_TOLERANCE
-	if agent != null and is_finite(agent.target_desired_distance):
+	if is_finite(agent.target_desired_distance):
 		# Do not let the engine's broad default desired distance (often 1 m)
 		# advance a multi-stop patrol before it reaches the authored point.
 		tolerance = minf(maxf(tolerance, agent.target_desired_distance), NAVIGATION_ARRIVAL_TOLERANCE)
@@ -116,54 +123,72 @@ func advance_navigation(delta: float, target: Vector3, speed: float = DEFAULT_RO
 	if not is_finite(distance):
 		return false
 	if distance <= tolerance:
-		velocity = Vector3.ZERO
 		return true
-	var next_position := target
-	if agent != null and _navigation_map_ready(agent):
-		agent.target_position = target
-		var candidate := agent.get_next_path_position()
-		# An unmapped NavigationAgent3D can return its previous map origin.  Use
-		# it only when it is a finite step that actually gets closer to the
-		# authored target; otherwise the bounded direct fallback keeps fixtures
-		# and agents outside a synchronized NavigationRegion3D moving safely.
-		var current_target_distance := global_position.distance_to(target)
-		var candidate_target_distance := candidate.distance_to(target) if candidate.is_finite() else INF
-		if (
-			candidate.is_finite()
-			and candidate.distance_to(global_position) > 0.000001
-			and is_finite(candidate_target_distance)
-			and candidate_target_distance < current_target_distance
-		):
-			next_position = candidate
+	agent.target_position = target
+	var candidate := agent.get_next_path_position()
+	if not _navigation_point_is_valid(agent, candidate) or not _navigation_candidate_is_progress(global_position, target, candidate):
+		return false
+	var next_position := candidate
 	var direction := next_position - global_position
 	if not direction.is_finite() or direction.length_squared() <= 0.000001:
-		direction = target - global_position
-	if direction.length_squared() <= 0.000001:
-		velocity = Vector3.ZERO
-		return true
+		return false
 	direction = direction.normalized()
 	# `move_and_slide()` derives its step from the engine physics clock.  Brain
 	# ticks are also driven by deterministic callers (tests, cut-scenes, and
 	# low-frequency AI updates), so use the bounded routine delta explicitly
 	# while retaining CharacterBody collision resolution.
+	var previous_position := global_position
+	var previous_distance := distance
 	var motion := direction * bounded_speed * bounded_delta
 	velocity = motion / bounded_delta
 	move_and_collide(motion, false, 0.001, false, 1)
 	velocity = Vector3.ZERO
-	return global_position.distance_to(target) <= tolerance
+	var remaining_distance := global_position.distance_to(target)
+	if not is_finite(remaining_distance) or remaining_distance > previous_distance - NAVIGATION_MIN_PROGRESS:
+		global_position = previous_position
+		return false
+	return remaining_distance <= tolerance
 
 
 ## NavigationAgent3D emits runtime errors when path queries happen before its
-## map has completed at least one synchronization iteration.  Route fixtures
-## and enemies outside a NavigationRegion3D intentionally use the bounded
-## direct-target fallback until the map is ready.
+## map has completed at least one synchronization iteration. An empty map is
+## also not a usable route, so both cases retain the last valid actor position.
 static func _navigation_map_ready(agent: NavigationAgent3D) -> bool:
 	if agent == null or not is_instance_valid(agent):
 		return false
 	var navigation_map := agent.get_navigation_map()
 	if not navigation_map.is_valid():
 		return false
-	return NavigationServer3D.map_get_iteration_id(navigation_map) > 0
+	if NavigationServer3D.map_get_iteration_id(navigation_map) <= 0:
+		return false
+	return not NavigationServer3D.map_get_regions(navigation_map).is_empty()
+
+
+static func _navigation_candidate_is_progress(current: Vector3, target: Vector3, candidate: Vector3) -> bool:
+	if not current.is_finite() or not target.is_finite() or not candidate.is_finite():
+		return false
+	var current_distance := current.distance_to(target)
+	var candidate_distance := candidate.distance_to(target)
+	return (
+		is_finite(current_distance)
+		and is_finite(candidate_distance)
+		and candidate.distance_to(current) > 0.000001
+		and candidate_distance < current_distance
+	)
+
+
+static func _navigation_point_is_valid(agent: NavigationAgent3D, point: Vector3) -> bool:
+	if agent == null or not is_instance_valid(agent) or not point.is_finite():
+		return false
+	var navigation_map := agent.get_navigation_map()
+	if not navigation_map.is_valid() or NavigationServer3D.map_get_iteration_id(navigation_map) <= 0:
+		return false
+	if NavigationServer3D.map_get_regions(navigation_map).is_empty():
+		return false
+	var closest := NavigationServer3D.map_get_closest_point(navigation_map, point)
+	return closest.is_finite() and is_finite(closest.distance_to(point)) and closest.distance_to(point) <= NAVIGATION_POINT_TOLERANCE
+
+
 func face_routine_direction(direction: Vector3, delta: float = 0.016) -> void:
 	if not direction.is_finite() or direction.length_squared() <= 0.000001 or not is_finite(delta) or delta <= 0.0:
 		return
