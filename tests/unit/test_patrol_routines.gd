@@ -66,6 +66,48 @@ func test_patrol_path_supports_curve_only_routes_with_bounded_gizmo() -> void:
 	assert_gt(path.gizmo_segments().size(), 0)
 
 
+func test_patrol_path_gizmo_rejects_unbounded_curve_controls() -> void:
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var route := Curve3D.new()
+	route.bake_interval = 0.2
+	route.add_point(Vector3.ZERO)
+	route.add_point(Vector3(PatrolPath.MAX_LOCAL_POINT_DISTANCE + 1.0, 0.0, 0.0))
+	path.path_curve = route
+
+	assert_false(path.is_geometry_valid())
+	assert_true(path.gizmo_segments().is_empty())
+
+
+func test_patrol_path_gizmo_rejects_invalid_stop_coordinates() -> void:
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	_add_stop(path, 0, Vector3(NAN, 0.0, 0.0))
+	_add_stop(path, 1, Vector3(2.0, 0.0, 0.0))
+
+	assert_false(path.is_geometry_valid())
+	assert_true(path.gizmo_segments().is_empty())
+
+
+func test_patrol_path_gizmo_rejects_huge_finite_stop_coordinates() -> void:
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	_add_stop(path, 0, Vector3.ZERO)
+	_add_stop(path, 1, Vector3(PatrolPath.MAX_LOCAL_POINT_DISTANCE + 1.0, 0.0, 0.0))
+
+	assert_true(path.is_geometry_valid())
+	assert_true(path.gizmo_segments().is_empty())
+
+
+func test_patrol_path_gizmo_rejects_stop_marker_endpoint_overflow() -> void:
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var stop := _add_stop(path, 0, Vector3(PatrolPath.MAX_LOCAL_POINT_DISTANCE - 0.1, 0.0, 0.0))
+
+	assert_true(stop.is_geometry_valid())
+	assert_true(path.gizmo_segments().is_empty())
+
+
 func test_enemy_brain_uses_navigation_agent_for_patrol_and_guard_holds_final_stop() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)

@@ -51,6 +51,7 @@ const SWIM_DEPTH_EPSILON := 0.001
 @onready var swim_hud: SwimHud = $Visibility/SwimHud as SwimHud
 @onready var noise_emitter: NoiseEmitter = $NoiseEmitter as NoiseEmitter
 @onready var tool_rig: ToolRig = $ToolRig as ToolRig
+@onready var combat: PlayerCombat = $AssassinationResolver/Combat as PlayerCombat
 
 var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
@@ -135,6 +136,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	_update_state_from_input()
+	if state_machine.current_state() == PlayerStateMachine.STATE_DEAD:
+		velocity = Vector3.ZERO
+		return
 	if state_machine.current_state() == PlayerStateMachine.STATE_HIDDEN:
 		velocity = Vector3.ZERO
 		return
@@ -170,6 +174,22 @@ func current_tool_definition() -> ToolDefinition:
 
 func current_tool_remaining() -> int:
 	return tool_rig.remaining_count() if tool_rig != null else 0
+
+
+func receive_combat_damage(amount: int, source: Node = null) -> int:
+	return combat.receive_damage(amount, source) if combat != null else 0
+
+
+func health() -> int:
+	return combat.health() if combat != null else 0
+
+
+func max_health() -> int:
+	return combat.max_health() if combat != null else 0
+
+
+func is_defeated() -> bool:
+	return combat != null and combat.is_defeated()
 
 
 func set_tool_aiming(active: bool) -> bool:
@@ -535,7 +555,13 @@ func try_enter_wall_cling() -> bool:
 
 
 func _update_state_from_input() -> void:
-	if state_machine.current_state() == PlayerStateMachine.STATE_ASSASSINATE:
+	var current_state := state_machine.current_state()
+	if current_state == PlayerStateMachine.STATE_ASSASSINATE:
+		return
+	if current_state == PlayerStateMachine.STATE_DEAD:
+		return
+	if current_state == PlayerStateMachine.STATE_COMBAT:
+		# Combat owns attack/parry/dodge input; movement remains available.
 		return
 	var interact_pressed := Input.is_action_pressed(&"interact")
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed

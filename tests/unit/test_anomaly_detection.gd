@@ -164,6 +164,49 @@ func test_late_routine_binding_applies_existing_alert_level() -> void:
 	GameState.area_alert_level = original_alert
 
 
+func test_brain_skips_disabled_initial_stop_for_current_target() -> void:
+	var original_alert := GameState.area_alert_level
+	GameState.area_alert_level = 0
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var disabled := _add_stop(path, 0, Vector3(1.0, 0.0, 0.0))
+	disabled.enabled = false
+	var eligible := _add_stop(path, 1, Vector3(2.0, 0.0, 0.0))
+	var brain := enemy.brain()
+
+	assert_true(brain.set_patrol_path(path))
+	assert_eq(brain.current_routine_stop(), eligible)
+	assert_eq(brain.current_routine_stop_index(), 1)
+	assert_eq(brain.routine_target(), eligible.global_position)
+	assert_ne(brain.routine_target(), disabled.global_position)
+	GameState.area_alert_level = original_alert
+
+
+func test_brain_reselects_when_current_stop_becomes_unavailable() -> void:
+	var original_alert := GameState.area_alert_level
+	GameState.area_alert_level = 0
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var first := _add_stop(path, 0, Vector3(1.0, 0.0, 0.0))
+	var second := _add_stop(path, 1, Vector3(2.0, 0.0, 0.0))
+	var brain := enemy.brain()
+
+	assert_true(brain.set_patrol_path(path))
+	assert_eq(brain.current_routine_stop(), first)
+	first.enabled = false
+	assert_eq(brain.current_routine_stop(), second)
+	assert_eq(brain.current_routine_stop_index(), 1)
+	assert_eq(brain.routine_target(), second.global_position)
+	second.enabled = false
+	assert_null(brain.current_routine_stop())
+	assert_eq(brain.routine_target(), enemy.global_position)
+	GameState.area_alert_level = original_alert
+
+
 func test_persistent_scan_rotates_across_anomaly_groups() -> void:
 	var original_alert := GameState.area_alert_level
 	GameState.area_alert_level = 0

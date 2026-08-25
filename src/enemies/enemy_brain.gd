@@ -383,7 +383,15 @@ func current_stop_index() -> int:
 func current_routine_stop() -> RoutineStop:
 	var path := routine_path()
 	_sync_routine_alert_level()
-	return path.stop_at(_routine_stop_index) if path != null else null
+	if path == null or not is_instance_valid(path):
+		return null
+	var stops := path.ordered_stops()
+	if stops.is_empty():
+		return null
+	var bounded_index := clampi(_routine_stop_index, 0, stops.size() - 1)
+	var stop := stops[bounded_index]
+	var level := _area_alert_level()
+	return stop if stop != null and is_instance_valid(stop) and stop.is_available_at(level) else null
 
 
 func routine_target() -> Vector3:
@@ -1278,12 +1286,11 @@ func _area_alert_level() -> int:
 
 func _sync_routine_alert_level() -> void:
 	var level := _area_alert_level()
-	if _last_area_alert_level == level:
-		return
 	# A newly bound brain has no prior event to compare with.  Treat its
 	# baseline as calm so a late-spawned enemy immediately selects the strictest
 	# stop already eligible for the current permanent alert level.
-	var previous := maxi(_last_area_alert_level, 0)
+	var previous_level := _last_area_alert_level
+	var previous := maxi(previous_level, 0)
 	_last_area_alert_level = level
 	var path := _routine_path
 	if path == null or not is_instance_valid(path):
@@ -1293,6 +1300,16 @@ func _sync_routine_alert_level() -> void:
 		return
 	var current_index := clampi(_routine_stop_index, 0, stops.size() - 1)
 	var current_stop := stops[current_index]
+	var current_available := (
+		current_stop != null
+		and is_instance_valid(current_stop)
+		and current_stop.is_available_at(level)
+	)
+	if previous_level == level and current_available:
+		return
+	# Re-evaluate the current stop even when the alert level did not change.
+	# Designers can disable a stop at runtime, and retaining its index would
+	# otherwise send the enemy toward an unavailable target.
 	var candidate_index := -1
 
 	# On an alert rise, select the strictest newly eligible stop.  This lets a
@@ -1302,7 +1319,11 @@ func _sync_routine_alert_level() -> void:
 		var highest_threshold := previous
 		for index in stops.size():
 			var stop := stops[index]
-			if stop == null or not is_instance_valid(stop):
+			if (
+				stop == null
+				or not is_instance_valid(stop)
+				or not stop.is_available_at(level)
+			):
 				continue
 			var threshold := stop.alert_level_required()
 			if threshold > highest_threshold and threshold <= level:
@@ -1311,14 +1332,10 @@ func _sync_routine_alert_level() -> void:
 
 	# Initial binding, alert reduction, or an authored stop that is no longer
 	# eligible must always fail closed to the first eligible stop.
-	if candidate_index < 0 and (
-		current_stop == null
-		or not is_instance_valid(current_stop)
-		or current_stop.alert_level_required() > level
-	):
+	if candidate_index < 0 and not current_available:
 		for index in stops.size():
 			var stop := stops[index]
-			if stop != null and is_instance_valid(stop) and stop.alert_level_required() <= level:
+			if stop != null and is_instance_valid(stop) and stop.is_available_at(level):
 				candidate_index = index
 				break
 
@@ -1337,7 +1354,13 @@ func _routine_target() -> Vector3:
 		var route_stops := path.ordered_stops()
 		if not route_stops.is_empty():
 			var bounded_index := clampi(_routine_stop_index, 0, route_stops.size() - 1)
-			return route_stops[bounded_index].target_position()
+			var stop := route_stops[bounded_index]
+			if stop != null and is_instance_valid(stop) and stop.is_available_at(_area_alert_level()):
+				return stop.target_position()
+			# No authored stop is currently usable.  Staying at the enemy's
+			# position is safer than navigating to a disabled/invalid target.
+			var idle_position := _enemy_position()
+			return idle_position if _valid_vector(idle_position) else Vector3.ZERO
 		var length := path.route_length()
 		if length > 0.0:
 			return path.world_position_at_distance(_routine_curve_distance)

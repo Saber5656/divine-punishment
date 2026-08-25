@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CombatConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/tuning/combat_config.gd" id="1_combat"]
+
+[resource]
+script = ExtResource("1_combat")
+combo_window_seconds = 0.75
+attack_startup_seconds = 0.1
+attack_active_seconds = 0.2
+attack_recovery_seconds = 0.25
+attack_range_m = 2.2
+combo_damage = Array[int]([1, 1, 1])
+parry_window_seconds = 0.25
+parry_cooldown_seconds = 0.35
+dodge_invulnerability_seconds = 0.35
+dodge_cooldown_seconds = 0.8
+dodge_distance_m = 2.5
+player_max_health = 3
+hit_invulnerability_seconds = 0.2
+enemy_max_health = 3
+enemy_attack_power = 1
+enemy_attack_cooldown_seconds = 1.0
+enemy_attack_range_m = 2.0
+reinforcement_radius_m = 12.0
+max_reinforcements = 8
