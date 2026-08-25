@@ -218,36 +218,58 @@ func gizmo_segments() -> PackedVector3Array:
 	if not is_inside_tree() or not is_world_transform_within_contract(global_transform):
 		return PackedVector3Array()
 	var segments := PackedVector3Array()
-	if curve != null and curve.point_count >= MIN_POINT_COUNT:
+	if curve != null and curve.point_count > 0:
+		if (
+			curve.point_count < MIN_POINT_COUNT
+			or curve.point_count > MAX_POINT_COUNT
+			or not _curve_is_valid()
+		):
+			return PackedVector3Array()
 		var length := curve.get_baked_length()
-		if is_finite(length) and length > 0.0:
-			var sample_count := mini(MAX_GIZMO_SAMPLES, maxi(2, ceili(length / 2.0)))
-			var previous := curve.sample_baked(0.0, true)
-			for index in range(1, sample_count):
-				var current := curve.sample_baked(length * float(index) / float(sample_count - 1), true)
-				if _is_finite_vector(previous) and _is_finite_vector(current):
-					segments.append(previous)
-					segments.append(current)
-				previous = current
+		if not is_finite(length) or length <= 0.0 or length > MAX_ROUTE_LENGTH:
+			return PackedVector3Array()
+		var sample_count := mini(MAX_GIZMO_SAMPLES, maxi(2, ceili(length / 2.0)))
+		var previous := curve.sample_baked(0.0, true)
+		if not _is_safe_gizmo_local_position(previous):
+			return PackedVector3Array()
+		for index in range(1, sample_count):
+			var current := curve.sample_baked(length * float(index) / float(sample_count - 1), true)
+			if not _is_safe_gizmo_local_position(current):
+				return PackedVector3Array()
+			if segments.size() + 2 > MAX_GIZMO_SEGMENTS * 2:
+				return PackedVector3Array()
+			segments.append(previous)
+			segments.append(current)
+			previous = current
 	var route_stops := ordered_stops()
-	for index in range(route_stops.size()):
-		var stop := route_stops[index]
+	if route_stops.size() > MAX_STOP_COUNT:
+		return PackedVector3Array()
+	var local_stop_positions: Array[Vector3] = []
+	for stop: RoutineStop in route_stops:
+		if stop == null or not is_instance_valid(stop) or not stop.is_geometry_valid():
+			return PackedVector3Array()
 		var local_position := to_local(stop.global_position)
-		if not _is_finite_vector(local_position):
-			continue
+		if not _is_safe_gizmo_local_position(local_position):
+			return PackedVector3Array()
+		local_stop_positions.append(local_position)
+	var stop_sampling_complete := true
+	for index in range(route_stops.size()):
+		var local_position := local_stop_positions[index]
+		var required_segments := 4 + (2 if index > 0 else 0)
+		if segments.size() + required_segments > MAX_GIZMO_SEGMENTS * 2:
+			stop_sampling_complete = false
+			break
 		var size := 0.35
 		segments.append(local_position + Vector3.LEFT * size)
 		segments.append(local_position + Vector3.RIGHT * size)
 		segments.append(local_position + Vector3.FORWARD * size)
 		segments.append(local_position + Vector3.BACK * size)
 		if index > 0:
-			segments.append(to_local(route_stops[index - 1].global_position))
+			segments.append(local_stop_positions[index - 1])
 			segments.append(local_position)
-		if segments.size() >= MAX_GIZMO_SEGMENTS * 2:
-			break
-	if looped and route_stops.size() > 1 and segments.size() + 2 <= MAX_GIZMO_SEGMENTS * 2:
-		segments.append(to_local(route_stops[-1].global_position))
-		segments.append(to_local(route_stops[0].global_position))
+	if looped and stop_sampling_complete and route_stops.size() > 1 and segments.size() + 2 <= MAX_GIZMO_SEGMENTS * 2:
+		segments.append(local_stop_positions[-1])
+		segments.append(local_stop_positions[0])
 	return segments
 
 
@@ -304,3 +326,11 @@ static func _is_finite_vector(value: Vector3) -> bool:
 
 static func _is_safe_world_position(value: Vector3) -> bool:
 	return _is_finite_vector(value) and absf(value.x) <= 10000.0 and absf(value.y) <= 10000.0 and absf(value.z) <= 10000.0
+
+
+func _is_safe_gizmo_local_position(local_position: Vector3) -> bool:
+	return (
+		_is_finite_vector(local_position)
+		and local_position.length() <= MAX_LOCAL_POINT_DISTANCE
+		and _is_safe_world_position(to_global(local_position))
+	)
