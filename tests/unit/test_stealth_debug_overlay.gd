@@ -123,6 +123,25 @@ func test_enemy_provider_preserves_meter_without_vision_cone() -> void:
 	assert_eq(overlay.debug_geometry_snapshot().get(&"meter_values"), 1)
 
 
+func test_enemy_provider_preserves_requested_vision_color() -> void:
+	var overlay := OverlayScript.new()
+	var enemy := EnemyDebugProvider.new()
+	var expected_color := Color(0.1, 0.8, 0.3, 0.7)
+	enemy.debug_payload = {
+		&"forward": Vector3.FORWARD,
+		&"fov_degrees": 90.0,
+		&"view_distance": 10.0,
+		&"color": expected_color,
+	}
+	add_child_autofree(overlay)
+	add_child_autofree(enemy)
+	overlay.register_enemy(enemy)
+
+	var snapshot := overlay.enemy_debug_snapshot()
+	assert_eq(snapshot.size(), 1)
+	assert_eq(snapshot[0].get(&"color"), expected_color)
+
+
 func test_noise_event_telemetry_is_received_without_changing_enemy_dispatch() -> void:
 	var overlay := OverlayScript.new()
 	add_child_autofree(overlay)

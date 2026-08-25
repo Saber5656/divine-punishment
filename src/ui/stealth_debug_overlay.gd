@@ -376,7 +376,7 @@ func _draw_enemy_debug() -> void:
 			var forward: Vector3 = data.get(&"forward", Vector3.FORWARD)
 			var half_angle := deg_to_rad(float(data.get(&"fov_degrees", 0.0))) * 0.5
 			var distance := float(data.get(&"view_distance", 0.0))
-			_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _vision_material)
+			_mesh.surface_begin(Mesh.PRIMITIVE_LINES, _vision_material_for(data.get(&"color")))
 			var left := forward.rotated(Vector3.UP, -half_angle)
 			var right := forward.rotated(Vector3.UP, half_angle)
 			_mesh.surface_add_vertex(to_local(origin))
@@ -403,6 +403,14 @@ func _draw_enemy_debug() -> void:
 
 func _has_vision_cone(data: Dictionary) -> bool:
 	return data.has(&"origin") and data.has(&"forward") and data.has(&"fov_degrees") and data.has(&"view_distance")
+
+
+func _vision_material_for(value: Variant) -> StandardMaterial3D:
+	if value is Color:
+		var material := _vision_material.duplicate() as StandardMaterial3D
+		material.albedo_color = value as Color
+		return material
+	return _vision_material
 
 
 func _update_status_label() -> void:
