@@ -44,7 +44,7 @@ func _physics_process(delta: float) -> void:
 ## bounded combat action while its parent is in Combat, so perception behavior
 ## and the #21 EnemyBrain contract remain unchanged.
 func tick(delta: float) -> void:
-	if not is_finite(delta) or delta < 0.0 or _defeated:
+	if not is_finite(delta) or delta < 0.0 or _defeated or _owner_is_dead():
 		return
 	var step := minf(delta, MAX_DELTA_SECONDS)
 	_attack_cooldown_remaining = maxf(_attack_cooldown_remaining - step, 0.0)
@@ -62,6 +62,7 @@ func tick(delta: float) -> void:
 func set_target(target: Node) -> bool:
 	if (
 		_defeated
+		or _owner_is_dead()
 		or _enemy == null
 		or not is_instance_valid(_enemy)
 		or target == null
@@ -84,7 +85,7 @@ func target() -> Node:
 
 
 func attack_target() -> bool:
-	if _defeated or _attack_cooldown_remaining > 0.0:
+	if _defeated or _owner_is_dead() or _attack_cooldown_remaining > 0.0:
 		return false
 	if _target == null or not is_instance_valid(_target):
 		return false

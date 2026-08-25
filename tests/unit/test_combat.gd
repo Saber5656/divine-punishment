@@ -271,6 +271,19 @@ func test_dead_incapacitated_enemy_is_defeated_and_cannot_be_damaged() -> void:
 	assert_eq(corpse_combat.receive_damage(1), 0)
 
 
+func test_assassinated_owner_combat_is_inert_before_combat_defeat_flag() -> void:
+	var corpse := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(corpse)
+	var corpse_combat := corpse.get_node(^"Combat") as EnemyCombat
+	assert_true(corpse.begin_assassination(&"back"))
+	assert_true(corpse.is_assassinated())
+	assert_false(corpse_combat.is_defeated())
+	assert_false(corpse_combat.set_target(player))
+	assert_false(corpse_combat.attack_target())
+	corpse_combat.tick(0.1)
+	assert_eq(corpse_combat.health(), corpse_combat.max_health())
+
+
 func test_combat_actions_cannot_enter_from_assassination_or_input_from_other_states() -> void:
 	var player_instance := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate()
 	add_child_autofree(player_instance)
