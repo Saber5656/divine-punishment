@@ -46,6 +46,23 @@ func test_combat_resources_expose_bounded_issue_29_tuning() -> void:
 	assert_true(config.normalized().combo_damage.size() == 3)
 
 
+func test_normalized_combat_durations_keep_a_positive_step_floor() -> void:
+	var config := CombatConfigScript.new() as CombatConfig
+	config.combo_window_seconds = 0.0
+	config.attack_startup_seconds = 0.0
+	config.attack_recovery_seconds = 0.0
+	config.parry_cooldown_seconds = 0.0
+	config.dodge_cooldown_seconds = 0.0
+	config.hit_invulnerability_seconds = 0.0
+	var normalized := config.normalized()
+	assert_eq(normalized.combo_window_seconds, CombatConfig.MIN_DURATION_SECONDS)
+	assert_eq(normalized.attack_startup_seconds, CombatConfig.MIN_DURATION_SECONDS)
+	assert_eq(normalized.attack_recovery_seconds, CombatConfig.MIN_DURATION_SECONDS)
+	assert_eq(normalized.parry_cooldown_seconds, CombatConfig.MIN_DURATION_SECONDS)
+	assert_eq(normalized.dodge_cooldown_seconds, CombatConfig.MIN_DURATION_SECONDS)
+	assert_eq(normalized.hit_invulnerability_seconds, CombatConfig.MIN_DURATION_SECONDS)
+
+
 func test_three_slash_combo_damages_enemy_once_per_hit_and_defeats_it() -> void:
 	for expected_step in range(1, 4):
 		assert_true(player_combat.start_attack())
