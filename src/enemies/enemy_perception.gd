@@ -36,6 +36,8 @@ func tick(delta: float) -> void:
 	if not is_finite(delta) or delta < 0.0:
 		return
 	if not _valid_config():
+		_meter = 0.0
+		_elapsed = 0.0
 		return
 
 	var target := _player_target()
@@ -264,7 +266,10 @@ func _detection_points(target: Node3D) -> Array[Node3D]:
 		var candidate := target.get_node_or_null(NodePath("DetectPoints/%s" % point_name))
 		if not candidate is Node3D:
 			return []
-		result.append(candidate as Node3D)
+		var point := candidate as Node3D
+		if not _valid_vector(point.global_position):
+			return []
+		result.append(point)
 	return result
 
 
