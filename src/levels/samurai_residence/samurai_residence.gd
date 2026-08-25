@@ -343,6 +343,7 @@ func _build_geometry() -> void:
 	_add_box(outer, &"CollapsedNorthWall", Vector3(12.0, 0.5, 0.0), Vector3(12.0, 1.2, 0.4), &"", &"wall")
 	# C1 is mounted against the collapsed north-wall remnant, not in open air.
 	_add_box(outer, &"C1ClimbWall", Vector3(12.0, 1.5, 2.0), Vector3(12.0, 3.0, 0.4), &"", &"wall")
+	_add_box(outer, &"C1ClimbTop", Vector3(12.0, 3.9, 2.0), Vector3(12.0, 0.2, 1.2), &"wood", &"roof")
 
 	_add_box(garden, &"GardenGravel", Vector3(50.0, -0.9, 28.0), Vector3(86.0, 0.2, 42.0), &"gravel", &"gravel")
 	_add_box(garden, &"GardenSoil", Vector3(18.0, -0.78, 40.0), Vector3(20.0, 0.2, 12.0), &"soil", &"soil")
@@ -365,6 +366,8 @@ func _build_geometry() -> void:
 	_add_box(house, &"ShoinGapFloor", Vector3(58.0, -0.58, 19.8), Vector3(5.0, 0.15, 0.8), &"creaky_wood", &"creaky_wood")
 
 	_add_box(overhead, &"OuterRoofPlatform", Vector3(26.0, 3.9, 5.0), Vector3(32.0, 0.2, 3.0), &"wood", &"roof")
+	# Route B lands on the veranda roof before crossing to the house roof.
+	_add_box(overhead, &"VerandaRoofPlatform", Vector3(40.0, 3.9, 8.0), Vector3(8.0, 0.2, 4.0), &"wood", &"roof")
 	_add_box(overhead, &"HouseRoofPlatform", Vector3(58.0, 3.9, 19.0), Vector3(30.0, 0.2, 20.0), &"wood", &"roof")
 	_add_box(overhead, &"ShoinBeamSupport", Vector3(58.0, 3.7, 19.0), Vector3(4.0, 0.2, 16.0), &"creaky_wood", &"roof")
 
@@ -375,8 +378,8 @@ func _build_geometry() -> void:
 	_add_box(crawlspace, &"CrawlUnderHouseRoof", Vector3(69.0, CRAWL_ROOF_Y, 26.0), Vector3(26.0, 0.4, 20.0), &"", &"wall")
 	# Bridge the C route's W2 waterway start into the crawl layer with bounded
 	# collision and crawl clearance rather than a marker-only transition.
-	_add_box(crawlspace, &"CrawlWaterEntryFloor", Vector3(80.0, -0.92, 48.0), Vector3(8.0, 0.2, 12.0), &"soil", &"soil")
-	_add_box(crawlspace, &"CrawlWaterEntryRoof", Vector3(80.0, CRAWL_ROOF_Y, 48.0), Vector3(8.0, 0.4, 12.0), &"", &"wall")
+	_add_box(crawlspace, &"CrawlWaterEntryFloor", Vector3(80.0, -0.92, 48.0), Vector3(10.0, 0.2, 12.0), &"soil", &"soil")
+	_add_box(crawlspace, &"CrawlWaterEntryRoof", Vector3(80.0, CRAWL_ROOF_Y, 48.0), Vector3(10.0, 0.4, 12.0), &"", &"wall")
 	_add_box(crawlspace, &"CreakySupportOne", Vector3(66.0, -0.70, 36.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 	_add_box(crawlspace, &"CreakySupportTwo", Vector3(70.0, -0.70, 38.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 	_add_box(crawlspace, &"CreakySupportThree", Vector3(74.0, -0.70, 40.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")

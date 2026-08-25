@@ -95,6 +95,16 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 		_box_contains(c1_wall, Vector3(12.0, 1.5, 2.0)),
 		"C1 must be backed by the collapsed north-wall geometry",
 	)
+	var c1_top := residence.get_node(^"Geometry/OuterPerimeter/C1ClimbTop") as StaticBody3D
+	assert_true(
+		_box_contains(c1_top, Vector3(12.0, 3.9, 2.0)),
+		"C1 must terminate on a bounded overhead support",
+	)
+	var veranda_roof := residence.get_node(^"Geometry/Overhead/VerandaRoofPlatform") as StaticBody3D
+	assert_true(
+		_box_contains(veranda_roof, Vector3(40.0, RESIDENCE_SCRIPT.OVERHEAD_Y, 8.0)),
+		"Route B must have bounded support at its veranda-roof waypoint",
+	)
 	for entrance: CrawlEntrance in residence.get_tree().get_nodes_in_group(&"crawl_entrances"):
 		assert_gt(
 			entrance.inside_world_position().y,
@@ -106,6 +116,12 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 	assert_true(
 		_box_contains(water_entry_floor, Vector3(84.0, -0.92, 52.0)),
 		"Route C must have physical support at the W2 waterway entry",
+	)
+	assert_almost_eq(
+		water_entry_floor.get_meta(&"graybox_bounds").x,
+		10.0,
+		0.001,
+		"W2 entry support must extend past the route start boundary",
 	)
 
 
