@@ -151,9 +151,17 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 		_advance_meter(delta, 0.0, false, center)
 		return
 	forward = forward.normalized()
-	var direction := to_center / distance
-	var dot_value := clampf(forward.dot(direction), -1.0, 1.0)
-	var angle_degrees := rad_to_deg(acos(dot_value))
+	var horizontal_forward := Vector3(forward.x, 0.0, forward.z)
+	var horizontal_target := Vector3(to_center.x, 0.0, to_center.z)
+	if horizontal_forward.length_squared() <= 0.000001:
+		_advance_meter(delta, 0.0, false, center)
+		return
+	horizontal_forward = horizontal_forward.normalized()
+	var angle_degrees := 0.0
+	if horizontal_target.length_squared() > 0.000001:
+		horizontal_target = horizontal_target.normalized()
+		var dot_value := clampf(horizontal_forward.dot(horizontal_target), -1.0, 1.0)
+		angle_degrees = rad_to_deg(acos(dot_value))
 	if not is_finite(angle_degrees) or angle_degrees > perception_config.fov_degrees * 0.5:
 		_advance_meter(delta, 0.0, false, center)
 		return
