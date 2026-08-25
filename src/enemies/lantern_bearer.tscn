@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://src/enemies/enemy_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://src/stealth/light_source.gd" id="2_light"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lantern"]
+albedo_color = Color(1, 0.72, 0.22, 1)
+emission_enabled = true
+emission = Color(1, 0.45, 0.08, 1)
+emission_energy_multiplier = 2.0
+
+[node name="LanternBearer" instance=ExtResource("1_base")]
+routine_type = &"lantern_bearer"
+lantern_light_path = NodePath("Lantern")
+
+[node name="Lantern" type="Area3D" parent="."]
+script = ExtResource("2_light")
+gameplay_radius = 6.0
+interaction_radius = 1.0
+extinguishable = true
+
+[node name="RenderLight" type="OmniLight3D" parent="Lantern"]
+light_color = Color(1, 0.72, 0.22, 1)
+light_energy = 1.5
+omni_range = 6.0
+
+[node name="Mesh" type="MeshInstance3D" parent="Lantern"]
+material_override = SubResource("StandardMaterial3D_lantern")

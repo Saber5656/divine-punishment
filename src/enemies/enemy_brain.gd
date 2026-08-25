@@ -29,6 +29,9 @@ const MAX_INCAPACITATION_DURATION_SEC := 300.0
 const MAX_AREA_ALERT_LEVEL := 5
 const SEARCH_PROPAGATION_RADIUS := 12.0
 const MAX_PROPAGATED_ENEMIES := 64
+const DEFAULT_ROUTINE_SPEED := 1.5
+const MAX_ROUTINE_CLOCK_SECONDS := 86400.0
+const MAX_ROUTINE_STEP_DELTA := 0.25
 const NO_POSITION := Vector3(NAN, NAN, NAN)
 
 signal state_changed(from_state: Enums.AlertState, to_state: Enums.AlertState)
@@ -63,6 +66,16 @@ var _target_visible := false
 var _target_visible_override := -1
 var _routine_arrived := false
 var _last_transition_reason: StringName = &""
+var _routine_path: PatrolPath
+var _routine_type: StringName = &"guard"
+var _routine_enabled := true
+var _routine_stop_index := 0
+var _routine_stop_elapsed := 0.0
+var _routine_clock := 0.0
+var _routine_curve_distance := 0.0
+var _routine_holding_final_stop := false
+var _lantern_light: LightSource
+var _lantern_offset := Vector3(0.0, 1.4, 0.0)
 
 
 func _ready() -> void:
@@ -219,6 +232,114 @@ func set_target_visible(value: bool) -> void:
 		_combat_lost_sight_elapsed = 0.0
 
 
+## Bind the authored route and role used while the enemy is UNAWARE.
+## A null path intentionally disables routine movement while preserving the
+## five-state brain contract for enemies that have no authored route yet.
+func set_routine_path(path: PatrolPath) -> bool:
+	if path != null and (not is_instance_valid(path) or not path is PatrolPath):
+		return false
+	_routine_path = path
+	_routine_stop_index = 0
+	_routine_stop_elapsed = 0.0
+	_routine_curve_distance = 0.0
+	_routine_holding_final_stop = false
+	_routine_arrived = false
+	return true
+
+
+func set_patrol_path(path: PatrolPath) -> bool:
+	return set_routine_path(path)
+
+
+func routine_path() -> PatrolPath:
+	_sync_routine_binding()
+	return _routine_path if _routine_path != null and is_instance_valid(_routine_path) else null
+
+
+func patrol_path() -> PatrolPath:
+	return routine_path()
+
+
+func set_routine_type(value: StringName) -> bool:
+	var normalized := _normalize_routine_type(value)
+	if normalized.is_empty():
+		return false
+	_routine_type = normalized
+	_routine_stop_elapsed = 0.0
+	_routine_holding_final_stop = false
+	return true
+
+
+func routine_type() -> StringName:
+	return _routine_type
+
+
+func set_routine_enabled(value: bool) -> void:
+	_routine_enabled = value
+	if not value:
+		_routine_arrived = false
+
+
+func routine_enabled() -> bool:
+	return _routine_enabled
+
+
+func is_patrol() -> bool:
+	return _routine_type == &"ashigaru_patrol"
+
+
+func is_guard() -> bool:
+	return _routine_type == &"guard"
+
+
+func is_lantern_bearer() -> bool:
+	return _routine_type == &"lantern_bearer"
+
+
+func current_routine_stop_index() -> int:
+	return _routine_stop_index
+
+
+func current_stop_index() -> int:
+	return current_routine_stop_index()
+
+
+func current_routine_stop() -> RoutineStop:
+	var path := routine_path()
+	return path.stop_at(_routine_stop_index) if path != null else null
+
+
+func routine_target() -> Vector3:
+	return _routine_target()
+
+
+func set_lantern_light(light: LightSource) -> bool:
+	if light != null and (not is_instance_valid(light) or not light is LightSource):
+		return false
+	_lantern_light = light
+	_update_lantern_light()
+	return true
+
+
+func lantern_light() -> LightSource:
+	if _lantern_light != null and is_instance_valid(_lantern_light):
+		return _lantern_light
+	var enemy := _enemy_node()
+	if enemy != null:
+		var candidate := enemy.get_node_or_null(NodePath("Lantern")) as LightSource
+		if candidate != null:
+			_lantern_light = candidate
+	return _lantern_light if _lantern_light != null and is_instance_valid(_lantern_light) else null
+
+
+func set_lantern_offset(offset: Vector3) -> bool:
+	if not _valid_vector(offset) or offset.length() > 10.0:
+		return false
+	_lantern_offset = offset
+	_update_lantern_light()
+	return true
+
+
 func set_routine_arrived(value: bool) -> void:
 	_routine_arrived = value
 	if value and _state == Enums.AlertState.SUSPICIOUS:
@@ -256,15 +377,18 @@ func submit_stimulus(stim: PerceptionStimulus) -> void:
 		return
 	var seen_key := get_instance_id()
 	if (
-		_wake_by_noise
-		and _incapacitated
+		_incapacitated
 		and stim.kind == Enums.StimulusKind.NOISE
-		and _incapacitated_kind != &"dead"
 	):
-		# Sleep/knockout/restrained enemies wake when the noise reaches their
-		# perception component.  Keep the stimulus so the normal FSM can process
-		# the waking sound on the next brain tick.
-		wake()
+		if _wake_by_noise and _incapacitated_kind != &"dead":
+			# Sleep/knockout/restrained enemies wake when the noise reaches their
+			# perception component.  Keep the stimulus so the normal FSM can process
+			# the waking sound on the next brain tick.
+			wake()
+		else:
+			# A deliberately suppressed wake must not leave stale noise queued for
+			# a later incapacitation or re-enable operation.
+			return
 	if stim.kind == Enums.StimulusKind.ANOMALY and stim.anomaly != null:
 		if not _anomaly_is_relevant(stim.anomaly):
 			return
@@ -496,7 +620,7 @@ func _advance_incapacitation(delta: float) -> void:
 func _advance_state_without_stimulus(delta: float) -> void:
 	match _state:
 		Enums.AlertState.UNAWARE:
-			return
+			_advance_routine(delta)
 		Enums.AlertState.SUSPICIOUS:
 			_set_navigation_target(investigation_position())
 			if _investigation_arrived or _navigation_has_reached(investigation_position()):
@@ -689,6 +813,11 @@ func _raise_area_alert() -> void:
 func _raise_area_alert_if_severe(stim: PerceptionStimulus) -> void:
 	if stim == null or stim.anomaly == null or stim.anomaly.severity < 3:
 		return
+	# MissionDirector is the single owner of corpse discovery statistics and its
+	# deduplication/area-alert transaction.  EnemyBrain owns other severe
+	# anomaly escalation, but must not double-count corpses here.
+	if stim.anomaly.kind == Enums.AnomalyKind.CORPSE:
+		return
 	_raise_area_alert()
 
 
@@ -831,6 +960,16 @@ func _enemy_position() -> Vector3:
 
 
 func _routine_target() -> Vector3:
+	_sync_routine_binding()
+	var path := _routine_path
+	if _routine_path_is_usable(path):
+		var route_stops := path.ordered_stops()
+		if not route_stops.is_empty():
+			var bounded_index := clampi(_routine_stop_index, 0, route_stops.size() - 1)
+			return route_stops[bounded_index].target_position()
+		var length := path.route_length()
+		if length > 0.0:
+			return path.world_position_at_distance(_routine_curve_distance)
 	var enemy := _enemy_node()
 	if enemy == null:
 		return Vector3.ZERO
@@ -838,6 +977,169 @@ func _routine_target() -> Vector3:
 	if marker != null and _valid_vector(marker.global_position):
 		return marker.global_position
 	return (enemy as Node3D).global_position if enemy is Node3D else Vector3.ZERO
+
+
+func _advance_routine(delta: float) -> void:
+	if not _routine_enabled:
+		_update_lantern_light()
+		return
+	var bounded_delta := minf(delta, MAX_ROUTINE_STEP_DELTA)
+	if bounded_delta < 0.0 or not is_finite(bounded_delta):
+		return
+	_sync_routine_binding()
+	var path := _routine_path
+	if not _routine_path_is_usable(path):
+		_update_lantern_light()
+		return
+	_routine_clock = fmod(_routine_clock + bounded_delta, MAX_ROUTINE_CLOCK_SECONDS)
+	var target := _routine_target()
+	if not _valid_vector(target):
+		return
+	_set_navigation_target(target)
+	var arrived := _navigation_has_reached(target)
+	var enemy := _enemy_node()
+	if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
+		var result: Variant = enemy.call(&"advance_navigation", bounded_delta, target, _routine_speed())
+		arrived = bool(result) if result is bool else _navigation_has_reached(target)
+	if enemy != null and enemy.has_method(&"face_routine_direction"):
+		var facing := _routine_facing_direction()
+		if _valid_vector(facing) and facing.length_squared() > 0.000001:
+			enemy.call(&"face_routine_direction", facing, bounded_delta)
+	_update_lantern_light()
+	if not arrived:
+		_routine_stop_elapsed = 0.0
+		_routine_arrived = false
+		return
+	_routine_arrived = true
+	if _routine_type == &"guard":
+		# A standing guard may navigate to its authored first stop once, then
+		# remains there without advancing through the route.
+		return
+	var stop := current_routine_stop()
+	if stop != null and not stop.is_active_at(_routine_clock):
+		_advance_to_next_routine_stop()
+		return
+	_routine_stop_elapsed += bounded_delta
+	if stop != null:
+		if _routine_stop_elapsed >= stop.dwell_duration():
+			_advance_to_next_routine_stop()
+		return
+	# A curve-only PatrolPath advances in bounded baked-distance increments.
+	var length := path.route_length()
+	if length <= 0.0:
+		return
+	_routine_curve_distance += _routine_speed() * bounded_delta
+	if _routine_curve_distance >= length:
+		if path.is_looped():
+			_routine_curve_distance = fmod(_routine_curve_distance, length)
+		else:
+			_routine_curve_distance = length
+			_routine_holding_final_stop = true
+
+
+func _advance_to_next_routine_stop() -> void:
+	var path := _routine_path
+	if not _routine_path_is_usable(path):
+		return
+	var next_index := path.next_stop_index(_routine_stop_index, true)
+	if next_index < 0 or (not path.is_looped() and next_index == _routine_stop_index):
+		_routine_holding_final_stop = true
+		_routine_stop_elapsed = 0.0
+		_routine_arrived = true
+		return
+	_routine_stop_index = next_index
+	_routine_stop_elapsed = 0.0
+	_routine_holding_final_stop = false
+	_routine_arrived = false
+	_set_navigation_target(_routine_target())
+
+
+func _routine_facing_direction() -> Vector3:
+	var stop := current_routine_stop()
+	if stop != null:
+		return stop.world_facing_direction()
+	var path := _routine_path
+	if path == null or not _routine_path_is_usable(path):
+		return Vector3.ZERO
+	var next_position := path.world_position_at_distance(
+		minf(path.route_length(), _routine_curve_distance + 0.25),
+	)
+	var current_position := path.world_position_at_distance(_routine_curve_distance)
+	return next_position - current_position if _valid_vector(next_position) and _valid_vector(current_position) else Vector3.ZERO
+
+
+func _routine_speed() -> float:
+	var speed := DEFAULT_ROUTINE_SPEED
+	if _routine_path != null and is_instance_valid(_routine_path) and is_finite(_routine_path.route_speed):
+		speed = _routine_path.route_speed
+	var enemy := _enemy_node()
+	if enemy != null:
+		var configured: Variant = enemy.get(&"routine_speed")
+		if configured is float or configured is int:
+			if is_finite(float(configured)) and float(configured) > 0.0:
+				speed = float(configured)
+	return clampf(speed, 0.1, 12.0)
+
+
+func _routine_path_is_usable(path: PatrolPath) -> bool:
+	if path == null or not is_instance_valid(path) or not path is PatrolPath or not path.enabled:
+		return false
+	var enemy := _enemy_node()
+	if enemy == null or not path.is_inside_tree():
+		return false
+	if enemy.is_inside_tree() and path.get_tree() != enemy.get_tree():
+		return false
+	return path.is_geometry_valid()
+
+
+func _sync_routine_binding() -> void:
+	if _routine_path != null and is_instance_valid(_routine_path):
+		return
+	var enemy := _enemy_node()
+	if enemy == null:
+		return
+	if enemy.has_method(&"configured_patrol_path"):
+		var configured: Variant = enemy.call(&"configured_patrol_path")
+		if configured is PatrolPath:
+			_routine_path = configured
+	if _routine_path == null:
+		var child := enemy.get_node_or_null(NodePath("PatrolPath")) as PatrolPath
+		if child != null:
+			_routine_path = child
+	if _routine_path == null:
+		return
+	if enemy.has_method(&"configured_routine_type"):
+		var configured_type: Variant = enemy.call(&"configured_routine_type")
+		if configured_type is StringName:
+			set_routine_type(configured_type)
+	if _lantern_light == null:
+		_lantern_light = lantern_light()
+
+
+func _update_lantern_light() -> void:
+	var light := lantern_light()
+	if light == null or not is_instance_valid(light):
+		return
+	var enemy := _enemy_node() as Node3D
+	if enemy == null or not _valid_vector(enemy.global_position):
+		return
+	var target_position := enemy.global_position + _lantern_offset
+	if _valid_vector(target_position):
+		light.global_position = target_position
+	if _routine_type == &"lantern_bearer" and not light.is_on():
+		light.set_extinguished(false)
+
+
+static func _normalize_routine_type(value: StringName) -> StringName:
+	var normalized := String(value).to_lower().strip_edges().replace("-", "_").replace(" ", "_")
+	match normalized:
+		"patrol", "ashigaru", "ashigaru_patrol":
+			return &"ashigaru_patrol"
+		"guard", "standing_guard", "stationary", "watch":
+			return &"guard"
+		"lantern", "lantern_bearer", "moving_light":
+			return &"lantern_bearer"
+	return &""
 
 
 func _return_target() -> Vector3:
@@ -866,16 +1168,16 @@ func _navigation_has_reached(target: Vector3) -> bool:
 	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
 	var tolerance := 0.5
 	if agent != null and is_finite(agent.target_desired_distance):
-		tolerance = maxf(agent.target_desired_distance, tolerance)
+		tolerance = minf(maxf(agent.target_desired_distance, tolerance), 0.5)
 	var distance := enemy.global_position.distance_to(target)
 	if not is_finite(distance):
 		return false
 	if distance <= tolerance:
 		return true
-	# A finished agent is only authoritative when the actor is also inside the
-	# desired arrival radius.  This avoids treating an unmapped agent as arrived
-	# while its target is still far away.
-	return agent != null and agent.is_navigation_finished() and distance <= tolerance
+	# Do not query is_navigation_finished() here: the agent may not have a
+	# synchronized NavigationServer map yet.  Distance is the only fail-closed
+	# arrival signal until a route movement step reports success.
+	return false
 
 
 func _event_bus() -> Node:
@@ -907,6 +1209,8 @@ static func _valid_stimulus(stim: PerceptionStimulus) -> bool:
 		and stim.priority <= 5
 		and _valid_vector(stim.position)
 		and is_finite(stim.confidence)
+		and stim.confidence >= 0.0
+		and stim.confidence <= 1.0
 	)
 
 
