@@ -36,6 +36,12 @@ func test_residence_builds_bounded_four_layer_graybox_contract() -> void:
 		assert_true(region.enabled)
 		assert_not_null(region.navigation_mesh)
 
+	var north_wall := residence.get_node(^"Geometry/OuterPerimeter/NorthPerimeterWall") as StaticBody3D
+	assert_true(
+		(north_wall.collision_layer & RESIDENCE_SCRIPT.SOUND_BLOCKER_LAYER) != 0,
+		"Residence walls must participate in hearing occlusion",
+	)
+
 
 func test_residence_routes_have_observation_and_restealth_options_per_area() -> void:
 	var residence := _add_residence()

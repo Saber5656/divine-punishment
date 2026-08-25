@@ -16,6 +16,9 @@ const PLAYER_CENTER_Y := 0.0
 const OVERHEAD_Y := 4.0
 const CRAWL_ROOF_Y := 0.5
 const WORLD_COLLISION_LAYER := 1
+const VISION_BLOCKER_LAYER := 1 << 4
+const SOUND_BLOCKER_LAYER := 1 << 5
+const GEOMETRY_COLLISION_LAYERS := WORLD_COLLISION_LAYER | VISION_BLOCKER_LAYER | SOUND_BLOCKER_LAYER
 const MISSION_TRIGGER_LAYER := 1 << 14
 const UNIT_EPSILON := 0.001
 
@@ -707,7 +710,7 @@ func _add_box(
 	var body := StaticBody3D.new()
 	body.name = box_name
 	body.position = position
-	body.collision_layer = WORLD_COLLISION_LAYER
+	body.collision_layer = GEOMETRY_COLLISION_LAYERS
 	body.collision_mask = 0
 	if not floor_material.is_empty():
 		body.set_meta(&"floor_material", floor_material)
