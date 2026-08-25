@@ -1,9 +1,12 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/enemy_base.gd" id="1_enemy"]
 [ext_resource type="Script" path="res://src/enemies/enemy_brain.gd" id="2_brain"]
 [ext_resource type="Script" path="res://src/enemies/enemy_perception.gd" id="3_perception"]
 [ext_resource type="Resource" path="res://data/tuning/perception_ashigaru.tres" id="4_perception"]
+[ext_resource type="Script" path="res://src/enemies/enemy_combat.gd" id="5_enemy_combat"]
+[ext_resource type="Resource" path="res://data/tuning/combat.tres" id="6_combat_config"]
+[ext_resource type="Resource" path="res://data/tuning/enemy_ashigaru.tres" id="7_enemy_stats"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_enemy"]
 radius = 0.35
@@ -37,6 +40,9 @@ position = Vector3(0, 1.5, 0)
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 
 [node name="Combat" type="Node" parent="."]
+script = ExtResource("5_enemy_combat")
+combat_config = ExtResource("6_combat_config")
+enemy_stats = ExtResource("7_enemy_stats")
 
 [node name="AssassinateTarget" type="Area3D" parent="."]
 collision_layer = 1024
