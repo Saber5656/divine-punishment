@@ -16,6 +16,7 @@ func _apply_effect(hit: Dictionary) -> void:
 	if not is_finite(duration) or duration <= 0.0:
 		return
 	duration = minf(duration, MAX_SLEEP_SECONDS)
+	var wake_by_noise := definition.parameter_bool(&"wake_by_noise", true)
 	var max_range := clampf(
 		definition.parameter_float(&"max_range", MAX_IMPACT_DISTANCE),
 		0.1,
@@ -30,7 +31,7 @@ func _apply_effect(hit: Dictionary) -> void:
 			queue_free()
 		return
 	var enemy := _find_enemy(target)
-	if enemy != null and _incapacitate(enemy, duration):
+	if enemy != null and _incapacitate(enemy, duration, wake_by_noise):
 		_emit_knockout(enemy, duration)
 	if is_inside_tree():
 		queue_free()
@@ -60,15 +61,23 @@ func _find_enemy(target: Node) -> Node:
 	return null
 
 
-func _incapacitate(enemy: Node, duration: float) -> bool:
+func _incapacitate(enemy: Node, duration: float, wake_by_noise: bool = true) -> bool:
 	if not enemy is Node3D or not _is_runtime_node(enemy):
 		return false
 	if _is_dart_immune(enemy):
 		return false
 	if enemy.has_method(&"set_incapacitated"):
-		return bool(enemy.call(&"set_incapacitated", &"knockout", duration))
+		var applied: bool = bool(enemy.call(&"set_incapacitated", &"knockout", duration))
+		if applied and enemy.has_method(&"set_incapacitation_wake_by_noise"):
+			enemy.call(&"set_incapacitation_wake_by_noise", wake_by_noise)
+		return applied
 	var brain := enemy.get_node_or_null(NodePath("Brain")) as EnemyBrain
-	return brain != null and brain.set_incapacitated(&"knockout", duration)
+	if brain == null:
+		return false
+	var applied: bool = brain.set_incapacitated(&"knockout", duration)
+	if applied and brain.has_method(&"set_incapacitation_wake_by_noise"):
+		brain.call(&"set_incapacitation_wake_by_noise", wake_by_noise)
+	return applied
 
 
 func _is_dart_immune(enemy: Node) -> bool:

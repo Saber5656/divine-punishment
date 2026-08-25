@@ -11,6 +11,7 @@ class FakeEnemy extends Node3D:
 	var active := false
 	var active_kind: StringName = &""
 	var active_duration := 0.0
+	var wake_by_noise := true
 
 	func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 		if kind != &"knockout" or not is_finite(duration_seconds) or duration_seconds < 0.0:
@@ -23,14 +24,18 @@ class FakeEnemy extends Node3D:
 	func is_incapacitated() -> bool:
 		return active
 
+	func set_incapacitation_wake_by_noise(value: bool) -> void:
+		wake_by_noise = value
+
 	func incapacitated_kind() -> StringName:
 		return active_kind
 
 	func on_noise(_event: NoiseEvent) -> bool:
-		if not active:
+		if not active or not wake_by_noise:
 			return false
 		active = false
 		active_kind = &""
+		wake_by_noise = true
 		return true
 
 
@@ -49,6 +54,7 @@ func test_tool_resources_bind_effect_scenes_and_keep_bounded_parameters() -> voi
 	assert_not_null(smoke.effect_scene)
 	assert_eq(stone.parameter_float(&"radius"), 6.0)
 	assert_eq(dart.parameter_float(&"sleep"), 20.0)
+	assert_true(dart.parameter_bool(&"wake_by_noise"))
 	assert_eq(smoke.parameter_float(&"radius"), 5.0)
 	assert_eq(smoke.parameter_float(&"duration"), 5.0)
 
@@ -221,6 +227,28 @@ func test_blow_dart_respects_dart_immune_perception_config() -> void:
 	assert_false(enemy.is_incapacitated())
 	assert_signal_emit_count(EventBus, "enemy_neutralized", 0)
 	assert_signal_emit_count(EventBus, "anomaly_registered", 0)
+
+
+func test_blow_dart_wake_by_noise_parameter_is_applied_to_enemy_hook() -> void:
+	var enemy := FakeEnemy.new()
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+	var definition := (load("res://data/tools/dart.tres") as ToolDefinition).duplicate(true) as ToolDefinition
+	definition.params[&"wake_by_noise"] = false
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_true(enemy.is_incapacitated())
+	enemy.on_noise(NoiseEventScript.create(Vector3.ZERO, 1.0, Enums.NoiseKind.TOOL, user))
+	assert_true(enemy.is_incapacitated())
 
 
 func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> void:
