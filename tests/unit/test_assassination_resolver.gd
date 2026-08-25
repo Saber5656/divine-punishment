@@ -175,11 +175,12 @@ func test_presentation_lock_completes_through_production_release_path() -> void:
 	assert_true(resolver.confirm())
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
 	# Invalid sub-second tuning is clamped to the presentation's authored
-	# one-second minimum; allow the production driver to reach completion.
-	for _i in range(90):
-		await get_tree().process_frame
-		if player.state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
-			break
+	# one-second minimum.  A bounded real timer lets the production process
+	# driver accumulate that duration even when headless process_frame runs at
+	# an unbounded rate.
+	var completion_timer := get_tree().create_timer(1.1, true, false, false)
+	await completion_timer.timeout
+	await get_tree().process_frame
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
 	assert_null(resolver.active_enemy())
 	assert_true(enemy.is_assassinated())
