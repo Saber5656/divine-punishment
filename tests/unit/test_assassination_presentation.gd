@@ -211,6 +211,7 @@ func test_resolver_exit_tree_cancels_active_presentation() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.rotation.y = PI
 	add_child_autofree(player)
 	add_child_autofree(enemy)
 	await get_tree().physics_frame
@@ -234,6 +235,7 @@ func test_resolver_releases_lock_when_bounded_presentation_completes() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.rotation.y = PI
 	add_child_autofree(player)
 	add_child_autofree(enemy)
 	await get_tree().physics_frame
