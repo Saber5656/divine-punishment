@@ -21,6 +21,7 @@ signal civilian_killed(civ: Node)
 signal player_detected()                            # いずれかの敵が Combat に入った瞬間
 signal light_extinguished(light: Node)
 signal light_relit(light: Node)
+signal light_relight_requested(request: RelightRequest) # M3 敵 AI への再点灯依頼
 signal mission_event(event_name: StringName, payload: Dictionary)
     # 予約 event_name: "objective_completed", "objective_changed", "checkpoint_reached",
     #   "target_killed", "hostage_rescued", "mission_failed", "escape_opened",
@@ -565,3 +566,21 @@ to(next, stim): EventBus.alert_changed.emit(self, state, next); state = next; st
 - SCREAM/COMBAT = 即捜索（§1 注記）= P3（§10.4）: 一致
 - 死体発見のエリア警戒 +1（§GDD 3.3）の責務を MissionDirector に一本化（§10.4 補足）: §1 の `anomaly_spotted` 購読で成立
 - §6 敵ステータス（HP/攻撃力）は PerceptionConfig と別 Resource（EnemyStats）である旨を §10.2 に明記: §2.3 と矛盾なし
+
+### 10.6 LightSource（消灯・再点灯契約）
+
+`LightSource` は `Area3D`（`Node3D` のサブクラス）として `lights` グループへ登録され、layer 7 (`interactable`) / mask 2 (`player_body`) の内部 `SphereShape3D`（`_InteractionShape`）を隣接インタラクト範囲として持つ。`interaction_radius` は 0.1–2.0 m、既定値は 1.0 m とする。
+
+```gdscript
+func can_accept_body(body: CollisionObject3D) -> bool
+func is_near_interaction(world_position: Vector3) -> bool
+func can_interact(actor: Node3D) -> bool
+func try_extinguish(actor: Node3D) -> bool
+func request_relight(requester: Node) -> bool
+func is_on() -> bool
+func set_extinguished(extinguished: bool) -> void
+```
+
+- `try_extinguish` は actor が同一 SceneTree の layer 2 `player_body` で、同一の有効な geometry 契約を持ち、`interaction_radius` 内にある場合だけ成功する。敵 body、範囲外、shape 差し替え・無効化、非有限値は拒否する。
+- 成功時は `_is_on` を更新してから render `Light3D.visible` を更新し、gameplay contribution を同じフレームから 0 とする。その後 `Anomaly.create(AnomalyKind.LIGHT_OUT, light.global_position, light, 1)` を `EventBus.anomaly_registered`、状態変化を `EventBus.light_extinguished` へ通知する。既に消灯中の再試行はイベントを重複発行しない。
+- `request_relight(requester)` は消灯中かつ同一 SceneTree の有効な requester の場合だけ `RelightRequest { light, requester, position }` を `EventBus.light_relight_requested` へ渡す。依頼自体はライトを点灯せず、敵 AI が到着した時点で `set_extinguished(false)` を呼ぶ。

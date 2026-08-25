@@ -7,7 +7,7 @@ const ClimbRules := preload("res://src/player/player_climb.gd")
 const CrawlRules := preload("res://src/player/player_crawl.gd")
 const SwimRules := preload("res://src/player/player_swim.gd")
 const NOISE_FOOTSTEP_DISTANCE := 1.5
-const MAX_NOISE_DELTA := 0.25
+const MAX_NOISE_DELTA := 0.5
 const HideRules := preload("res://src/player/player_hide.gd")
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
@@ -22,6 +22,10 @@ const MAX_HIDE_SPOT_CANDIDATES := 64
 const MAX_HIDE_SPOT_SPATIAL_RESULTS := 256
 const MAX_WATER_VOLUME_CANDIDATES := 64
 const MAX_WATER_VOLUME_SPATIAL_RESULTS := 256
+const MAX_LIGHT_SOURCE_CANDIDATES := 64
+const MAX_LIGHT_SOURCE_SPATIAL_RESULTS := 256
+# Clearance probes keep the authored foot support from counting as an obstruction.
+const CAPSULE_CLEARANCE_SUPPORT_EPSILON := 0.005
 const TRAVERSAL_ENDPOINT_EPSILON := 0.001
 const MAX_CRAWL_SWEEP_DISTANCE := (
 	CrawlEntrance.MAX_PASSAGE_LENGTH + CrawlEntrance.MAX_ENTRY_RADIUS
@@ -576,6 +580,9 @@ func _update_state_from_input() -> void:
 		_update_wall_cling_peek()
 		return
 
+	if interact_just_pressed and try_extinguish_adjacent_light():
+		return
+
 	if not Input.is_action_pressed(&"sprint") and state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
 		state_machine.resume_from_sprint()
 
@@ -594,6 +601,14 @@ func _update_state_from_input() -> void:
 
 	if interact_just_pressed:
 		try_enter_wall_cling()
+
+
+func try_extinguish_adjacent_light() -> bool:
+	var current := state_machine.current_state()
+	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+		return false
+	var candidate := _nearest_light_source()
+	return candidate != null and candidate.try_extinguish(self)
 
 
 func _try_enter_standing_state(next_state: StringName) -> bool:
@@ -693,6 +708,7 @@ func _has_capsule_clearance_at(height: float, world_position: Vector3) -> bool:
 	requested_capsule.height = height
 	var local_collision_transform := _standing_collision_transform
 	local_collision_transform.origin.y -= (_standing_capsule_height - height) * 0.5
+	local_collision_transform.origin.y += CAPSULE_CLEARANCE_SUPPORT_EPSILON
 	var target_body_transform := global_transform
 	target_body_transform.origin = world_position
 	var query := PhysicsShapeQueryParameters3D.new()
@@ -1041,15 +1057,40 @@ func _emit_ground_noise(delta: float, was_on_floor: bool) -> void:
 	if horizontal_speed <= 0.001:
 		return
 	var material := noise_emitter.floor_material
-	var floor_collision: KinematicCollision3D = get_floor_collision()
-	if floor_collision != null:
-		material = NoiseEmitter.floor_material_for(floor_collision.get_collider(), material)
+	var floor_collider := _floor_collider_from_slide_collisions()
+	if floor_collider != null:
+		material = NoiseEmitter.floor_material_for(floor_collider, material)
 	if not is_finite(delta) or delta <= 0.0:
 		return
 	_footstep_distance += horizontal_speed * minf(delta, MAX_NOISE_DELTA)
 	if _footstep_distance >= NOISE_FOOTSTEP_DISTANCE:
 		_footstep_distance = fmod(_footstep_distance, NOISE_FOOTSTEP_DISTANCE)
 		noise_emitter.emit_footstep(state_machine.stance(), material)
+
+
+func _floor_collider_from_slide_collisions() -> Object:
+	var floor_normal := get_floor_normal()
+	if floor_normal.is_zero_approx():
+		floor_normal = up_direction
+	if floor_normal.is_zero_approx():
+		return null
+	floor_normal = floor_normal.normalized()
+	var minimum_floor_alignment := cos(floor_max_angle)
+	var best_alignment := minimum_floor_alignment
+	var best_collider: Object = null
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		if collision == null:
+			continue
+		var normal := collision.get_normal()
+		if normal.is_zero_approx():
+			continue
+		var alignment := normal.normalized().dot(floor_normal)
+		if alignment < best_alignment:
+			continue
+		best_alignment = alignment
+		best_collider = collision.get_collider()
+	return best_collider
 
 
 func _apply_swim_presentation(state: StringName) -> void:
@@ -1685,6 +1726,45 @@ func _nearest_hide_spot() -> HideSpot:
 		var distance_squared := global_position.distance_squared_to(hide_spot.entry_world_position())
 		if distance_squared < nearest_distance_squared:
 			nearest = hide_spot
+			nearest_distance_squared = distance_squared
+	return nearest
+
+
+func _nearest_light_source() -> LightSource:
+	if not is_inside_tree() or get_world_3d() == null:
+		return null
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = global_position
+	query.collision_mask = LightSource.INTERACTABLE_LAYER
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var intersections := get_world_3d().direct_space_state.intersect_point(
+		query,
+		MAX_LIGHT_SOURCE_SPATIAL_RESULTS + 1,
+	)
+	if intersections.size() > MAX_LIGHT_SOURCE_SPATIAL_RESULTS:
+		return null
+	var nearest: LightSource
+	var nearest_distance_squared := INF
+	var nearby_candidate_count := 0
+	var seen_instance_ids: Dictionary = {}
+	for intersection: Dictionary in intersections:
+		var candidate := intersection.get(&"collider") as Node
+		if candidate is not LightSource:
+			continue
+		var light := candidate as LightSource
+		var instance_id := light.get_instance_id()
+		if seen_instance_ids.has(instance_id):
+			continue
+		seen_instance_ids[instance_id] = true
+		if not light.can_interact(self):
+			continue
+		nearby_candidate_count += 1
+		if nearby_candidate_count > MAX_LIGHT_SOURCE_CANDIDATES:
+			return null
+		var distance_squared := global_position.distance_squared_to(light.global_position)
+		if distance_squared < nearest_distance_squared:
+			nearest = light
 			nearest_distance_squared = distance_squared
 	return nearest
 
