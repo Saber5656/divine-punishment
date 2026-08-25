@@ -148,6 +148,17 @@ func test_enemy_damage_does_not_pin_a_target_visibility_override() -> void:
 	assert_false(brain.target_visible())
 
 
+func test_enemy_combat_uses_combat_config_when_enemy_stats_are_absent() -> void:
+	var host := Node3D.new()
+	add_child_autofree(host)
+	var config := CombatConfigScript.new() as CombatConfig
+	config.enemy_max_health = 7
+	var combat := EnemyCombatScript.new() as EnemyCombat
+	combat.combat_config = config
+	host.add_child(combat)
+	assert_eq(combat.max_health(), 7)
+
+
 func test_player_and_enemy_scenes_wire_combat_nodes_without_changing_contract_order() -> void:
 	var player_scene := load(PLAYER_SCENE_PATH) as PackedScene
 	var enemy_scene := load(ENEMY_SCENE_PATH) as PackedScene

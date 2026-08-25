@@ -278,7 +278,7 @@ func _resolve_config() -> CombatConfig:
 
 
 func _resolve_stats() -> EnemyStats:
-	return enemy_stats.normalized() if enemy_stats != null else EnemyStats.new().normalized()
+	return enemy_stats.normalized() if enemy_stats != null else null
 
 
 func _brain() -> EnemyBrain:
