@@ -213,6 +213,25 @@ func test_enemy_combat_rejects_a_non_spatial_target_before_damage() -> void:
 	assert_false(enemy_combat.attack_target())
 
 
+func test_enemy_attack_rejects_invalid_replacement_without_reusing_old_target() -> void:
+	assert_true(enemy_combat.set_target(player))
+	var target := Node.new()
+	add_child_autofree(target)
+	assert_false(enemy_combat.attack(target))
+	assert_eq(player_combat.health(), player_combat.max_health())
+
+
+func test_enemy_attack_rechecks_target_incapacitation_before_damage() -> void:
+	var target := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(target)
+	target.position = Vector3(0.0, 0.0, -1.0)
+	var target_combat := target.get_node(^"Combat") as EnemyCombat
+	assert_true(enemy_combat.set_target(target))
+	assert_true(target.set_incapacitated(&"knockout", 5.0))
+	assert_false(enemy_combat.attack_target())
+	assert_eq(target_combat.health(), target_combat.max_health())
+
+
 func test_enemy_combat_rejects_an_incapacitated_target() -> void:
 	var target := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
 	add_child_autofree(target)
