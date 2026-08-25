@@ -136,7 +136,7 @@ func test_sparse_inventory_is_preserved_and_profile_slot_count_reaches_hud() -> 
 	var rig := ToolRigScript.new() as ToolRig
 	add_child_autofree(rig)
 	var rope := _definition(&"rope", 2, false)
-	rig.inventory.set_slot(1, rope)
+	rig.inventory.configure([null, rope], 3)
 	rig.call("_load_default_definitions_if_empty")
 	assert_null(rig.inventory.definition_at(0))
 	assert_eq(rig.inventory.definition_at(1), rope)
