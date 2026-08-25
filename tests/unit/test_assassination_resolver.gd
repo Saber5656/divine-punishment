@@ -212,6 +212,37 @@ func test_assassination_requires_sensor_overlap() -> void:
 	assert_eq(resolver.evaluate(enemy), &"back")
 
 
+func test_assassination_evaluates_explicit_target_after_overlap_candidate_cap() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	# Create unrelated overlap areas before the real enemy so the target is
+	# beyond the bounded prompt-discovery candidate window.
+	for index in ResolverScript.MAX_TARGET_CANDIDATES:
+		var decoy := Area3D.new()
+		decoy.collision_layer = 1 << 11
+		decoy.collision_mask = 0
+		var decoy_shape := CollisionShape3D.new()
+		var sphere := SphereShape3D.new()
+		sphere.radius = 0.1
+		decoy_shape.shape = sphere
+		decoy.add_child(decoy_shape)
+		decoy.position = Vector3(
+			(float(index % 8) - 3.5) * 0.08,
+			0.0,
+			(float(index / 8) - 3.5) * 0.08,
+		)
+		add_child_autofree(decoy)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var interactor := player.get_node("Interactor") as Area3D
+	var target_area := enemy.get_node("AssassinateTarget") as Area3D
+	await _wait_for_sensor_overlap(player, enemy)
+	var overlaps := interactor.get_overlapping_areas()
+	assert_true(overlaps.has(target_area))
+	assert_gt(overlaps.size(), ResolverScript.MAX_TARGET_CANDIDATES)
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
 func test_assassination_requires_clear_world_path() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
