@@ -148,6 +148,22 @@ func test_patrol_alert_queries_skip_disabled_stops() -> void:
 	assert_eq(path.next_stop_index_for_alert(0, 1, true), 2)
 
 
+func test_late_routine_binding_applies_existing_alert_level() -> void:
+	var original_alert := GameState.area_alert_level
+	GameState.area_alert_level = 1
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	_add_stop(path, 0, Vector3.ZERO)
+	var strict := _add_stop(path, 1, Vector3(2.0, 0.0, 0.0))
+	strict.min_alert_level = 1
+
+	assert_true(enemy.brain().set_patrol_path(path))
+	assert_eq(enemy.brain().current_routine_stop(), strict)
+	GameState.area_alert_level = original_alert
+
+
 func _add_stop(path: PatrolPath, index: int, position: Vector3) -> RoutineStop:
 	var stop := RoutineStop.new()
 	stop.route_index = index

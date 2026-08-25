@@ -1012,7 +1012,10 @@ func _sync_routine_alert_level() -> void:
 	var level := _area_alert_level()
 	if _last_area_alert_level == level:
 		return
-	var previous := _last_area_alert_level
+	# A newly bound brain has no prior event to compare with.  Treat its
+	# baseline as calm so a late-spawned enemy immediately selects the strictest
+	# stop already eligible for the current permanent alert level.
+	var previous := maxi(_last_area_alert_level, 0)
 	_last_area_alert_level = level
 	var path := _routine_path
 	if path == null or not is_instance_valid(path):
