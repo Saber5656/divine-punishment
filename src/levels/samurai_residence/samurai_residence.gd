@@ -21,6 +21,9 @@ const SOUND_BLOCKER_LAYER := 1 << 5
 const GEOMETRY_COLLISION_LAYERS := WORLD_COLLISION_LAYER | VISION_BLOCKER_LAYER | SOUND_BLOCKER_LAYER
 const MISSION_TRIGGER_LAYER := 1 << 14
 const UNIT_EPSILON := 0.001
+const ROUTE_CLEARANCE_HEIGHT := 0.2
+const ROUTE_SUPPORT_RAY_LENGTH := 2.0
+const NAVIGATION_Y_TOLERANCE := 1.25
 
 const REQUIRED_ROUTE_IDS: Array[StringName] = [&"A_ground", &"B_overhead", &"C_crawlspace"]
 const REQUIRED_AREAS: Array[StringName] = [
@@ -145,7 +148,18 @@ func route_is_traversable(route_id: StringName) -> bool:
 		if not is_finite(segment_length) or segment_length <= UNIT_EPSILON:
 			return false
 		total_length += segment_length
-	return is_finite(total_length) and total_length > 1.0 and total_length <= 200.0
+	if not is_finite(total_length) or total_length <= 1.0 or total_length > 200.0:
+		return false
+	# Editor-time validation may run before a World3D exists. Runtime/CI
+	# validation additionally checks physical support, segment clearance, and
+	# coverage by the authored navigation layer.
+	if is_inside_tree() and get_world_3d() != null:
+		return (
+			_route_points_have_support(points)
+			and _route_segments_are_clear(points, route_id)
+			and _route_navigation_covers(points, route_id)
+		)
+	return true
 
 
 func route_layer(route_id: StringName) -> StringName:
@@ -352,6 +366,10 @@ func _build_geometry() -> void:
 	# Extend the crawl layer beneath the house to the shoin gap at (58, 20).
 	_add_box(crawlspace, &"CrawlUnderHouseFloor", Vector3(69.0, -0.92, 26.0), Vector3(26.0, 0.2, 20.0), &"soil", &"soil")
 	_add_box(crawlspace, &"CrawlUnderHouseRoof", Vector3(69.0, CRAWL_ROOF_Y, 26.0), Vector3(26.0, 0.4, 20.0), &"", &"wall")
+	# Bridge the C route's W2 waterway start into the crawl layer with bounded
+	# collision and crawl clearance rather than a marker-only transition.
+	_add_box(crawlspace, &"CrawlWaterEntryFloor", Vector3(80.0, -0.92, 48.0), Vector3(8.0, 0.2, 12.0), &"soil", &"soil")
+	_add_box(crawlspace, &"CrawlWaterEntryRoof", Vector3(80.0, CRAWL_ROOF_Y, 48.0), Vector3(8.0, 0.4, 12.0), &"", &"wall")
 	_add_box(crawlspace, &"CreakySupportOne", Vector3(66.0, -0.70, 36.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 	_add_box(crawlspace, &"CreakySupportTwo", Vector3(70.0, -0.70, 38.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 	_add_box(crawlspace, &"CreakySupportThree", Vector3(74.0, -0.70, 40.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
@@ -371,7 +389,7 @@ func _build_navigation() -> void:
 	]))
 	_add_navigation_region(navigation, &"CrawlspaceNavigation", PackedVector3Array([
 		Vector3(56.0, GROUND_SURFACE_Y, 16.0), Vector3(84.0, GROUND_SURFACE_Y, 16.0),
-		Vector3(84.0, GROUND_SURFACE_Y, 43.0), Vector3(56.0, GROUND_SURFACE_Y, 43.0),
+		Vector3(84.0, GROUND_SURFACE_Y, 54.0), Vector3(56.0, GROUND_SURFACE_Y, 54.0),
 	]))
 
 
@@ -621,6 +639,7 @@ func _add_light(parent: Node3D, marker_name: StringName, position: Vector3, indo
 	light.gameplay_intensity = 1.0
 	light.interaction_radius = 1.0
 	light.starts_extinguished = false
+	light.extinguishable = extinguishable
 	light.set_meta(&"indoor", indoor)
 	light.set_meta(&"extinguishable", extinguishable)
 	light.set_meta(&"rain_fragile", extinguishable)

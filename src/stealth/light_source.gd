@@ -25,6 +25,7 @@ const INTERACTION_SHAPE_NODE_NAME := &"_InteractionShape"
 		_update_editor_state()
 @export var render_light: Light3D
 @export var starts_extinguished: bool = false
+@export var extinguishable: bool = true
 
 var _interaction_shape: CollisionShape3D
 var _expected_interaction_shape: SphereShape3D
@@ -99,7 +100,7 @@ func is_near_interaction(world_position: Vector3) -> bool:
 
 
 func can_interact(actor: Node3D) -> bool:
-	if not is_on() or actor == null or not is_instance_valid(actor):
+	if not is_on() or not extinguishable or actor == null or not is_instance_valid(actor):
 		return false
 	var body := actor as CollisionObject3D
 	return body != null and can_accept_body(body) and is_near_interaction(actor.global_position)

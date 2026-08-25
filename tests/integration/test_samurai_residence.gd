@@ -104,6 +104,9 @@ func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
 	assert_eq(lights[&"outdoor"], 6)
 	assert_eq(lights[&"outdoor_extinguishable"], 4)
 	assert_eq(lights[&"indoor"], 3)
+	assert_true((residence.get_node(^"Markers/Lights/L1_LanternNorth") as LightSource).extinguishable)
+	assert_false((residence.get_node(^"Markers/Lights/L5_GateBonfireWest") as LightSource).extinguishable)
+	assert_false((residence.get_node(^"Markers/Lights/L6_GateBonfireEast") as LightSource).extinguishable)
 
 	var entry := residence.get_node(^"Markers/ClimbEdges/C1_NorthWallEntry") as ClimbEdge
 	var first_beam := residence.get_node(^"Markers/BeamPaths/B_Overhead_North") as BeamPath
