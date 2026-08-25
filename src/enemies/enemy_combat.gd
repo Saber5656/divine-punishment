@@ -10,6 +10,8 @@ signal defeated(source: Node)
 
 const MAX_TARGETS_TO_SCAN := 64
 const MAX_DELTA_SECONDS := 10.0
+const COMBAT_CHASE_SPEED := 2.5
+const COMBAT_CHASE_DELTA_SECONDS := 0.016
 
 @export var combat_config: CombatConfig
 @export var enemy_stats: EnemyStats
@@ -79,6 +81,7 @@ func attack_target() -> bool:
 		return false
 	var range_m := _stats.attack_range_m if _stats != null else _config.enemy_attack_range_m
 	if not _target_in_range(_target, range_m):
+		_chase_target(_target)
 		return false
 	var damage := _stats.attack_power if _stats != null else _config.enemy_attack_power
 	var cooldown := (
@@ -245,6 +248,24 @@ func _target_in_range(target: Node, range_m: float) -> bool:
 		return true
 	var distance := _enemy.global_position.distance_to((target as Node3D).global_position)
 	return is_finite(distance) and distance <= maxf(range_m, 0.1)
+
+
+func _chase_target(target: Node) -> void:
+	if _enemy == null or not target is Node3D:
+		return
+	var target_position := (target as Node3D).global_position
+	if not target_position.is_finite():
+		return
+	if _enemy.has_method(&"advance_navigation"):
+		_enemy.call(&"advance_navigation", COMBAT_CHASE_DELTA_SECONDS, target_position, COMBAT_CHASE_SPEED)
+	elif _enemy is CharacterBody3D:
+		var direction := target_position - _enemy.global_position
+		if direction.is_finite() and direction.length_squared() > 0.000001:
+			(_enemy as CharacterBody3D).move_and_collide(
+				direction.normalized() * COMBAT_CHASE_SPEED * COMBAT_CHASE_DELTA_SECONDS,
+			)
+	if _enemy.has_method(&"face_routine_direction"):
+		_enemy.call(&"face_routine_direction", target_position - _enemy.global_position, COMBAT_CHASE_DELTA_SECONDS)
 
 
 func _count_nearby_reinforcements(radius: float, limit: int) -> int:

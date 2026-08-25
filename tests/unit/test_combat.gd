@@ -173,6 +173,19 @@ func test_enemy_combat_uses_combat_config_when_enemy_stats_are_absent() -> void:
 	assert_eq(combat.max_health(), 7)
 
 
+func test_enemy_combat_chases_a_target_before_attacking() -> void:
+	var production_enemy := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	var production_player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(production_enemy)
+	add_child_autofree(production_player)
+	production_enemy.global_position = Vector3.ZERO
+	production_player.global_position = Vector3(6.0, 0.0, 0.0)
+	var combat := production_enemy.get_node("Combat") as EnemyCombat
+	assert_true(combat.set_target(production_player))
+	assert_false(combat.attack_target())
+	assert_lt(production_enemy.global_position.distance_to(production_player.global_position), 6.0)
+
+
 func test_player_and_enemy_scenes_wire_combat_nodes_without_changing_contract_order() -> void:
 	var player_scene := load(PLAYER_SCENE_PATH) as PackedScene
 	var enemy_scene := load(ENEMY_SCENE_PATH) as PackedScene
