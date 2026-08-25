@@ -30,7 +30,8 @@ func _apply_effect(hit: Dictionary) -> void:
 			queue_free()
 		return
 	var enemy := _find_enemy(target)
-	if enemy != null and _incapacitate(enemy, duration):
+	var wake_by_noise := _wake_by_noise_enabled(definition)
+	if enemy != null and _incapacitate(enemy, duration, wake_by_noise):
 		_emit_knockout(enemy, duration)
 	if is_inside_tree():
 		queue_free()
@@ -60,11 +61,27 @@ func _find_enemy(target: Node) -> Node:
 	return null
 
 
-func _incapacitate(enemy: Node, duration: float) -> bool:
-	if enemy.has_method(&"set_incapacitated"):
-		return bool(enemy.call(&"set_incapacitated", &"knockout", duration))
+func _incapacitate(enemy: Node, duration: float, wake_by_noise: bool) -> bool:
 	var brain := enemy.get_node_or_null(NodePath("Brain")) as EnemyBrain
-	return brain != null and brain.set_incapacitated(&"knockout", duration)
+	var applied := false
+	if enemy.has_method(&"set_incapacitated"):
+		applied = bool(enemy.call(&"set_incapacitated", &"knockout", duration))
+	elif brain != null:
+		applied = brain.set_incapacitated(&"knockout", duration)
+	if not applied:
+		return false
+	if enemy.has_method(&"set_incapacitation_wake_by_noise"):
+		enemy.call(&"set_incapacitation_wake_by_noise", wake_by_noise)
+	elif brain != null:
+		brain.set_incapacitation_wake_by_noise(wake_by_noise)
+	return true
+
+
+func _wake_by_noise_enabled(definition: ToolDefinition) -> bool:
+	if definition == null:
+		return true
+	var configured: Variant = definition.params.get(&"wake_by_noise", true)
+	return configured if configured is bool else true
 
 
 func _emit_knockout(enemy: Node, duration: float) -> void:
