@@ -38,6 +38,17 @@ func test_perception_stimulus_clamps_confidence_and_keeps_anomaly_optional() -> 
 	assert_null(visual.anomaly)
 
 
+func test_perception_stimulus_normalizes_non_finite_position_and_confidence() -> void:
+	var invalid := PerceptionStimulusScript.create(
+		Enums.StimulusKind.VISUAL,
+		1,
+		Vector3(NAN, 0.0, INF),
+		INF,
+	)
+	assert_eq(invalid.position, Vector3.ZERO)
+	assert_eq(invalid.confidence, 0.0)
+
+
 func test_enemy_scene_contains_perception_eye_and_fsm_sink() -> void:
 	var enemy := EnemyScene.instantiate()
 	add_child_autofree(enemy)

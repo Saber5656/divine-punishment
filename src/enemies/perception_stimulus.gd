@@ -19,7 +19,7 @@ static func create(
 	var stimulus := PerceptionStimulus.new()
 	stimulus.kind = stimulus_kind
 	stimulus.priority = clampi(stimulus_priority, 1, 5)
-	stimulus.position = stimulus_position
+	stimulus.position = stimulus_position if _valid_vector(stimulus_position) else Vector3.ZERO
 	stimulus.confidence = (
 		clampf(stimulus_confidence, 0.0, 1.0)
 		if is_finite(stimulus_confidence)
@@ -27,3 +27,7 @@ static func create(
 	)
 	stimulus.anomaly = stimulus_anomaly
 	return stimulus
+
+
+static func _valid_vector(value: Vector3) -> bool:
+	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
