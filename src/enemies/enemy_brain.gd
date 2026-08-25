@@ -29,6 +29,13 @@ const MAX_INCAPACITATION_DURATION_SEC := 300.0
 const MAX_AREA_ALERT_LEVEL := 5
 const SEARCH_PROPAGATION_RADIUS := 12.0
 const MAX_PROPAGATED_ENEMIES := 64
+const MAX_SEARCH_POINTS := 32
+const MAX_SEARCH_POINT_CANDIDATES := 128
+const MAX_SEARCH_HIDE_SPOTS := 8
+const MAX_SEARCH_HIDE_SPOT_CANDIDATES := 64
+const SEARCH_POINT_RADIUS := 30.0
+const SEARCH_HIDE_SPOT_RADIUS := 12.0
+const MAX_SEARCH_STEP_DELTA := 0.25
 const DEFAULT_ROUTINE_SPEED := 1.5
 const MAX_ROUTINE_CLOCK_SECONDS := 86400.0
 const MAX_ROUTINE_STEP_DELTA := 0.25
@@ -38,6 +45,7 @@ signal state_changed(from_state: Enums.AlertState, to_state: Enums.AlertState)
 signal substate_changed(from_substate: StringName, to_substate: StringName)
 signal investigation_started(position: Vector3)
 signal investigation_completed(position: Vector3)
+signal search_hide_spot_inspected(hide_spot: HideSpot, visible: bool)
 signal relight_requested(light: LightSource)
 
 var _state: Enums.AlertState = Enums.AlertState.UNAWARE
@@ -49,6 +57,15 @@ var _has_last_known_position := false
 var _investigation_elapsed := 0.0
 var _investigation_arrived := false
 var _search_elapsed := 0.0
+var _search_points: Array[SearchPoint] = []
+var _search_point_index := -1
+var _search_route_complete := false
+var _search_hide_spot_checks := 0
+var _search_hide_spot_visible_count := 0
+var _last_search_hide_spot: HideSpot
+var _last_search_hide_spot_visible := false
+var _search_hide_spot_anchor := Vector3.ZERO
+var _search_route_anchor := Vector3.ZERO
 var _combat_lost_sight_elapsed := 0.0
 var _return_elapsed := 0.0
 var _return_vigilance_remaining := 0.0
@@ -147,6 +164,47 @@ func investigation_position() -> Vector3:
 
 func search_focus_position() -> Vector3:
 	return investigation_position()
+
+
+func current_search_target() -> Vector3:
+	var point := current_search_point()
+	if point != null:
+		return point.target_position()
+	return search_focus_position()
+
+
+func search_point_count() -> int:
+	return _search_points.size()
+
+
+func current_search_point() -> SearchPoint:
+	if _search_point_index < 0 or _search_point_index >= _search_points.size():
+		return null
+	return _search_points[_search_point_index]
+
+
+func search_point_order() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for point: SearchPoint in _search_points:
+		if point != null and is_instance_valid(point):
+			result.append(StringName(point.name))
+	return result
+
+
+func inspected_hide_spot_count() -> int:
+	return _search_hide_spot_checks
+
+
+func visible_search_hide_spot_count() -> int:
+	return _search_hide_spot_visible_count
+
+
+func last_search_hide_spot() -> HideSpot:
+	return _last_search_hide_spot if _last_search_hide_spot != null and is_instance_valid(_last_search_hide_spot) else null
+
+
+func last_search_hide_spot_visible() -> bool:
+	return _last_search_hide_spot_visible
 
 
 func last_known_position() -> Vector3:
@@ -629,10 +687,7 @@ func _advance_state_without_stimulus(delta: float) -> void:
 			if _investigation_arrived and _investigation_elapsed >= INVESTIGATION_DURATION_SEC:
 				_complete_investigation()
 		Enums.AlertState.SEARCHING:
-			_search_elapsed += delta
-			_set_navigation_target(search_focus_position())
-			if _search_elapsed >= SEARCH_DURATION_SEC:
-				_transition_to(Enums.AlertState.RETURN, null, &"search_timeout")
+			_advance_search(delta)
 		Enums.AlertState.COMBAT:
 			var perception := _perception()
 			var visible := _target_visible
@@ -672,6 +727,7 @@ func _process_stimulus(stim: PerceptionStimulus) -> void:
 	var next := transition_for_stimulus(_state, priority)
 	if _state == Enums.AlertState.SEARCHING and priority < 4:
 		_search_elapsed = 0.0
+		_begin_search_route()
 		_set_substate(&"search")
 	elif _state == Enums.AlertState.SUSPICIOUS and priority <= 1:
 		_investigation_elapsed = 0.0
@@ -727,6 +783,7 @@ func _transition_to(
 			_emit_signal_if_available(&"investigation_started", investigation_position())
 		Enums.AlertState.SEARCHING:
 			_search_elapsed = 0.0
+			_begin_search_route()
 			_set_substate(&"search")
 		Enums.AlertState.COMBAT:
 			_combat_lost_sight_elapsed = 0.0
@@ -738,7 +795,8 @@ func _transition_to(
 			_set_substate(&"relight" if _relight_pending else &"return")
 	_set_navigation_target(
 		_last_known_position
-		if next == Enums.AlertState.SUSPICIOUS or next == Enums.AlertState.SEARCHING
+		if next == Enums.AlertState.SUSPICIOUS
+		else current_search_target() if next == Enums.AlertState.SEARCHING
 		else _return_target() if next == Enums.AlertState.RETURN else _routine_target()
 	)
 	state_changed.emit(previous, next)
@@ -749,6 +807,136 @@ func _transition_to(
 		_propagate_search_alert(_last_known_position)
 		if stim != null:
 			_raise_area_alert_if_severe(stim)
+
+
+func _begin_search_route() -> void:
+	var anchor := search_focus_position()
+	if not _valid_vector(anchor):
+		anchor = _enemy_position()
+	_search_route_anchor = anchor if _valid_vector(anchor) else Vector3.ZERO
+	_search_points = _collect_search_points(_search_route_anchor)
+	_search_point_index = 0 if not _search_points.is_empty() else -1
+	_search_route_complete = _search_points.is_empty()
+	_search_hide_spot_checks = 0
+	_search_hide_spot_visible_count = 0
+	_search_hide_spot_anchor = _search_route_anchor
+	_last_search_hide_spot = null
+	_last_search_hide_spot_visible = false
+
+
+func _collect_search_points(anchor: Vector3) -> Array[SearchPoint]:
+	var result: Array[SearchPoint] = []
+	var tree := get_tree()
+	if tree == null:
+		return result
+	var examined := 0
+	for candidate in tree.get_nodes_in_group(&"search_points"):
+		if examined >= MAX_SEARCH_POINT_CANDIDATES:
+			break
+		examined += 1
+		var point := candidate as SearchPoint
+		if point == null or not is_instance_valid(point) or not point.is_searchable():
+			continue
+		var distance := point.target_position().distance_to(anchor) if _valid_vector(anchor) else 0.0
+		if not is_finite(distance) or distance > SEARCH_POINT_RADIUS:
+			continue
+		result.append(point)
+	result.sort_custom(_sort_search_points)
+	if result.size() > MAX_SEARCH_POINTS:
+		result.resize(MAX_SEARCH_POINTS)
+	return result
+
+
+func _sort_search_points(left: SearchPoint, right: SearchPoint) -> bool:
+	if left == null or not is_instance_valid(left):
+		return false
+	if right == null or not is_instance_valid(right):
+		return true
+	if not is_equal_approx(left.confidence, right.confidence):
+		return left.confidence > right.confidence
+	var left_distance := left.target_position().distance_to(_search_route_anchor)
+	var right_distance := right.target_position().distance_to(_search_route_anchor)
+	if not is_equal_approx(left_distance, right_distance):
+		return left_distance < right_distance
+	if left.search_order != right.search_order:
+		return left.search_order < right.search_order
+	return String(left.name) < String(right.name)
+
+
+func _advance_search(delta: float) -> void:
+	_search_elapsed += delta
+	if _search_elapsed >= SEARCH_DURATION_SEC:
+		_transition_to(Enums.AlertState.RETURN, null, &"search_timeout")
+		return
+	var point := current_search_point()
+	if point == null:
+		_set_navigation_target(search_focus_position())
+		return
+	var target := point.target_position()
+	_set_navigation_target(target)
+	if _search_route_complete:
+		return
+	var arrived := _navigation_has_reached(target)
+	var enemy := _enemy_node()
+	var bounded_delta := minf(delta, MAX_SEARCH_STEP_DELTA)
+	if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
+		var result: Variant = enemy.call(&"advance_navigation", bounded_delta, target, _routine_speed())
+		arrived = bool(result) if result is bool else _navigation_has_reached(target)
+	if not arrived:
+		return
+	_inspect_hide_spots_at(target)
+	if _search_point_index < _search_points.size() - 1:
+		_search_point_index += 1
+	else:
+		_search_route_complete = true
+
+
+func _inspect_hide_spots_at(position: Vector3) -> void:
+	if _search_hide_spot_checks >= MAX_SEARCH_HIDE_SPOTS or not _valid_vector(position):
+		return
+	_search_hide_spot_anchor = position
+	var tree := get_tree()
+	if tree == null:
+		return
+	var candidates: Array[HideSpot] = []
+	var examined := 0
+	for candidate in tree.get_nodes_in_group(&"hide_spots"):
+		if examined >= MAX_SEARCH_HIDE_SPOT_CANDIDATES:
+			break
+		examined += 1
+		var hide_spot := candidate as HideSpot
+		if hide_spot == null or not is_instance_valid(hide_spot) or not hide_spot.is_geometry_valid():
+			continue
+		var distance := hide_spot.entry_world_position().distance_to(position)
+		if not is_finite(distance) or distance > SEARCH_HIDE_SPOT_RADIUS:
+			continue
+		candidates.append(hide_spot)
+	candidates.sort_custom(_sort_hide_spots)
+	var perception := _perception()
+	for hide_spot: HideSpot in candidates:
+		if _search_hide_spot_checks >= MAX_SEARCH_HIDE_SPOTS:
+			break
+		_search_hide_spot_checks += 1
+		_last_search_hide_spot = hide_spot
+		_last_search_hide_spot_visible = (
+			perception != null
+			and perception.can_see_position(hide_spot.entry_world_position())
+		)
+		if _last_search_hide_spot_visible:
+			_search_hide_spot_visible_count += 1
+		search_hide_spot_inspected.emit(hide_spot, _last_search_hide_spot_visible)
+
+
+func _sort_hide_spots(left: HideSpot, right: HideSpot) -> bool:
+	if left == null or not is_instance_valid(left):
+		return false
+	if right == null or not is_instance_valid(right):
+		return true
+	var left_distance := left.entry_world_position().distance_to(_search_hide_spot_anchor)
+	var right_distance := right.entry_world_position().distance_to(_search_hide_spot_anchor)
+	if not is_equal_approx(left_distance, right_distance):
+		return left_distance < right_distance
+	return String(left.name) < String(right.name)
 
 
 func _propagate_search_alert(position: Vector3) -> void:
