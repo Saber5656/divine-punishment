@@ -2,6 +2,8 @@ class_name EnemyBase
 extends CharacterBody3D
 
 
+const HideRules := preload("res://src/player/player_hide.gd")
+
 var _assassination_locked := false
 var _assassinated := false
 var _assassination_context: StringName = &""
@@ -219,7 +221,16 @@ func alert_state() -> Enums.AlertState:
 
 func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	var enemy_brain := brain()
-	return enemy_brain != null and enemy_brain.set_incapacitated(kind, duration_seconds)
+	if enemy_brain == null or not enemy_brain.set_incapacitated(kind, duration_seconds):
+		return false
+	if kind == &"dead":
+		_activate_corpse_layer()
+	return true
+
+
+func _activate_corpse_layer() -> void:
+	if _carried_by == null and _stored_by == null and _carry_original_parent == null:
+		collision_layer = CORPSE_LAYER
 
 
 ## Persistent body anomaly exposed to visual observers.  The object identity is
@@ -255,6 +266,20 @@ func corpse_anomaly() -> Anomaly:
 			event_bus.emit_signal(&"anomaly_registered", _corpse_anomaly)
 			_corpse_anomaly_registered = true
 	return _corpse_anomaly
+
+
+func is_corpse_anomaly_current(candidate: Anomaly) -> bool:
+	var enemy_brain := brain()
+	return (
+		candidate != null
+		and candidate == _corpse_anomaly
+		and enemy_brain != null
+		and enemy_brain.incapacitated_kind() == &"dead"
+		and _carried_by == null
+		and _stored_by == null
+		and _carry_original_parent == null
+		and global_position.is_finite()
+	)
 
 
 func is_body_carryable() -> bool:
@@ -340,6 +365,7 @@ func end_carry(drop_position: Vector3) -> bool:
 		or not is_instance_valid(_carry_original_parent)
 		or not _carry_original_parent.is_inside_tree()
 		or not drop_position.is_finite()
+		or not HideRules.is_safe_world_position(drop_position)
 	):
 		return false
 	var original_parent := _carry_original_parent
@@ -457,7 +483,9 @@ func _restore_carry_context() -> void:
 
 
 func _clear_corpse_anomaly() -> void:
-	_corpse_anomaly = null
+	# Keep the stable object identity across concealment transitions.  The
+	# carried/stored guards in corpse_anomaly() suppress exposure while this
+	# reference is retained; re-exposure only re-registers the same object.
 	_corpse_anomaly_registered = false
 
 
@@ -485,12 +513,14 @@ func can_be_assassinated() -> bool:
 func begin_assassination(context: StringName) -> bool:
 	if context not in [&"back", &"above", &"below", &"corner"] or not can_be_assassinated():
 		return false
-	var enemy_brain := brain()
-	if enemy_brain == null or not enemy_brain.set_incapacitated(&"dead"):
-		return false
 	_assassination_locked = true
 	_assassinated = true
 	_assassination_context = context
+	if not set_incapacitated(&"dead"):
+		_assassination_locked = false
+		_assassinated = false
+		_assassination_context = &""
+		return false
 	var event_bus := get_node_or_null(NodePath("/root/EventBus"))
 	if event_bus != null and event_bus.has_signal(&"enemy_killed"):
 		event_bus.emit_signal(&"enemy_killed", self, "assassination")

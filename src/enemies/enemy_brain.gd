@@ -43,6 +43,7 @@ const SEARCH_VERTICAL_REACH_TOLERANCE := 1.5
 const SEARCH_NAVIGATION_SNAP_DISTANCE := 1.5
 const MIN_SEARCH_SPEED := 3.0
 const DEFAULT_ROUTINE_SPEED := 1.5
+const MIN_ROUTINE_CYCLE_SECONDS := 1.0
 const MAX_ROUTINE_CLOCK_SECONDS := 86400.0
 const MAX_ROUTINE_STEP_DELTA := 0.25
 const NO_POSITION := Vector3(NAN, NAN, NAN)
@@ -95,6 +96,7 @@ var _routine_enabled := true
 var _routine_stop_index := 0
 var _routine_stop_elapsed := 0.0
 var _routine_clock := 0.0
+var _routine_cycle_seconds := MAX_ROUTINE_CLOCK_SECONDS
 var _routine_curve_distance := 0.0
 var _routine_holding_final_stop := false
 var _last_area_alert_level := -1
@@ -372,12 +374,80 @@ func is_lantern_bearer() -> bool:
 	return _routine_type == &"lantern_bearer"
 
 
+func is_target() -> bool:
+	return _routine_type == &"target"
+
+
+func is_escort() -> bool:
+	return _routine_type == &"escort"
+
+
 func current_routine_stop_index() -> int:
 	return _routine_stop_index
 
 
 func current_stop_index() -> int:
 	return current_routine_stop_index()
+
+
+## Return the bounded elapsed dwell time at the current authored stop.
+## This is intentionally read-only so target/escort variants cannot bypass the
+## same arrival and schedule gates used by the base routine controller.
+func routine_stop_elapsed() -> float:
+	return clampf(_routine_stop_elapsed, 0.0, RoutineStop.MAX_DWELL_SECONDS)
+
+
+func routine_clock() -> float:
+	return clampf(_routine_clock, 0.0, _routine_cycle_seconds)
+
+
+func set_routine_cycle_seconds(value: float) -> bool:
+	if (
+		not is_finite(value)
+		or value < MIN_ROUTINE_CYCLE_SECONDS
+		or value > MAX_ROUTINE_CLOCK_SECONDS
+	):
+		return false
+	_routine_cycle_seconds = value
+	if _routine_clock >= _routine_cycle_seconds:
+		_routine_clock = fmod(_routine_clock, _routine_cycle_seconds)
+	return true
+
+
+func routine_cycle_seconds() -> float:
+	return _routine_cycle_seconds
+
+
+func set_routine_stop_index(index: int) -> bool:
+	var path := routine_path()
+	if path == null or not _routine_path_is_usable(path):
+		return false
+	var stops := path.ordered_stops()
+	if index < 0 or index >= stops.size():
+		return false
+	var stop := stops[index]
+	var level := _area_alert_level()
+	if (
+		stop == null
+		or not is_instance_valid(stop)
+		or not stop.is_available_at(level)
+		or not stop.is_active_at(_routine_clock, level)
+	):
+		return false
+	_routine_stop_index = index
+	_routine_stop_elapsed = 0.0
+	_routine_holding_final_stop = false
+	_routine_arrived = false
+	return true
+
+
+func advance_routine_stop() -> bool:
+	var path := routine_path()
+	if path == null or not _routine_path_is_usable(path):
+		return false
+	var previous := _routine_stop_index
+	_advance_to_next_routine_stop()
+	return _routine_stop_index != previous and not _routine_holding_final_stop
 
 
 func current_routine_stop() -> RoutineStop:
@@ -391,7 +461,16 @@ func current_routine_stop() -> RoutineStop:
 	var bounded_index := clampi(_routine_stop_index, 0, stops.size() - 1)
 	var stop := stops[bounded_index]
 	var level := _area_alert_level()
-	return stop if stop != null and is_instance_valid(stop) and stop.is_available_at(level) else null
+	return (
+		stop
+		if (
+			stop != null
+			and is_instance_valid(stop)
+			and stop.is_available_at(level)
+			and stop.is_active_at(_routine_clock, level)
+		)
+		else null
+	)
 
 
 func routine_target() -> Vector3:
@@ -738,6 +817,16 @@ func _advance_state_without_stimulus(delta: float) -> void:
 
 
 func _process_stimulus(stim: PerceptionStimulus) -> void:
+	if not _valid_stimulus(stim):
+		_discard_stale_stimulus_memory(stim)
+		return
+	if (
+		stim.kind == Enums.StimulusKind.ANOMALY
+		and stim.anomaly != null
+		and not _anomaly_is_relevant(stim.anomaly)
+	):
+		_discard_stale_stimulus_memory(stim)
+		return
 	var priority := _effective_priority(stim)
 	_stimulus_memory = stim
 	_last_known_position = stim.position
@@ -763,6 +852,21 @@ func _process_stimulus(stim: PerceptionStimulus) -> void:
 	elif _state == Enums.AlertState.RETURN and priority <= 1:
 		_investigation_elapsed = 0.0
 	_transition_to(next, stim, &"stimulus")
+
+
+func _discard_stale_stimulus_memory(stim: PerceptionStimulus) -> void:
+	if stim == null or _stimulus_memory == null:
+		return
+	var same_stimulus := _stimulus_memory == stim
+	var same_anomaly := (
+		stim.anomaly != null
+		and _stimulus_memory.anomaly != null
+		and _stimulus_memory.anomaly == stim.anomaly
+	)
+	if not same_stimulus and not same_anomaly:
+		return
+	_stimulus_memory = null
+	_has_last_known_position = false
 
 
 func _complete_investigation() -> void:
@@ -1216,8 +1320,14 @@ func _anomaly_is_relevant(anomaly: Anomaly) -> bool:
 		or anomaly.expires_at < 0.0
 		or (anomaly.expires_at > 0.0 and Time.get_ticks_msec() / 1000.0 >= anomaly.expires_at)
 		or not _valid_vector(anomaly.position)
-	):
+		):
 		return false
+	if anomaly.kind == Enums.AnomalyKind.CORPSE and anomaly.node != null:
+		if not is_instance_valid(anomaly.node) or not anomaly.node.is_inside_tree():
+			return false
+		if anomaly.node.has_method(&"is_corpse_anomaly_current"):
+			if not bool(anomaly.node.call(&"is_corpse_anomaly_current", anomaly)):
+				return false
 	var enemy_position := _enemy_position()
 	if not _valid_vector(enemy_position):
 		return true
@@ -1302,6 +1412,7 @@ func _sync_routine_alert_level() -> void:
 		current_stop != null
 		and is_instance_valid(current_stop)
 		and current_stop.is_available_at(level)
+		and current_stop.is_active_at(_routine_clock, level)
 	)
 	if previous_level == level and current_available:
 		return
@@ -1321,6 +1432,7 @@ func _sync_routine_alert_level() -> void:
 				stop == null
 				or not is_instance_valid(stop)
 				or not stop.is_available_at(level)
+				or not stop.is_active_at(_routine_clock, level)
 			):
 				continue
 			var threshold := stop.alert_level_required()
@@ -1333,7 +1445,12 @@ func _sync_routine_alert_level() -> void:
 	if candidate_index < 0 and not current_available:
 		for index in stops.size():
 			var stop := stops[index]
-			if stop != null and is_instance_valid(stop) and stop.is_available_at(level):
+			if (
+				stop != null
+				and is_instance_valid(stop)
+				and stop.is_available_at(level)
+				and stop.is_active_at(_routine_clock, level)
+			):
 				candidate_index = index
 				break
 
@@ -1353,7 +1470,12 @@ func _routine_target() -> Vector3:
 		if not route_stops.is_empty():
 			var bounded_index := clampi(_routine_stop_index, 0, route_stops.size() - 1)
 			var stop := route_stops[bounded_index]
-			if stop != null and is_instance_valid(stop) and stop.is_available_at(_area_alert_level()):
+			if (
+				stop != null
+				and is_instance_valid(stop)
+				and stop.is_available_at(_area_alert_level())
+				and stop.is_active_at(_routine_clock, _area_alert_level())
+			):
 				return stop.target_position()
 			# No authored stop is currently usable.  Staying at the enemy's
 			# position is safer than navigating to a disabled/invalid target.
@@ -1383,7 +1505,7 @@ func _advance_routine(delta: float) -> void:
 	if not _routine_path_is_usable(path):
 		_update_lantern_light()
 		return
-	_routine_clock = fmod(_routine_clock + bounded_delta, MAX_ROUTINE_CLOCK_SECONDS)
+	_routine_clock = fmod(_routine_clock + bounded_delta, _routine_cycle_seconds)
 	var target := _routine_target()
 	if not _valid_vector(target):
 		return
@@ -1554,6 +1676,10 @@ static func _normalize_routine_type(value: StringName) -> StringName:
 			return &"guard"
 		"lantern", "lantern_bearer", "moving_light":
 			return &"lantern_bearer"
+		"target", "target_npc", "vip", "objective_target":
+			return &"target"
+		"escort", "escort_guard", "target_guard":
+			return &"escort"
 	return &""
 
 

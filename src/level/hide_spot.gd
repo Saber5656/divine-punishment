@@ -164,19 +164,30 @@ func can_accept_body(body: CollisionObject3D) -> bool:
 
 
 func can_store_body(body: Node3D) -> bool:
+	if (
+		body == null
+		or not is_instance_valid(body)
+		or not body.is_inside_tree()
+		or body.get_tree() != get_tree()
+		or not is_geometry_valid()
+		or has_stored_body()
+		or not body.global_position.is_finite()
+		or not body.has_method(&"is_body_carryable")
+		or not body.has_method(&"is_being_carried")
+		or not body.has_method(&"carried_by")
+		or not body.has_method(&"begin_storage")
+		or not bool(body.call(&"is_being_carried"))
+		or bool(body.call(&"is_body_carryable"))
+	):
+		return false
+	var carrier := body.call(&"carried_by") as Node3D
 	return (
-		body != null
-		and is_instance_valid(body)
-		and body.is_inside_tree()
-		and body.get_tree() == get_tree()
-		and is_geometry_valid()
-		and not has_stored_body()
-		and body.global_position.is_finite()
-		and body.has_method(&"is_body_carryable")
-		and body.has_method(&"is_being_carried")
-		and body.has_method(&"begin_storage")
-		and bool(body.call(&"is_being_carried"))
-		and bool(body.call(&"is_body_carryable")) == false
+		carrier != null
+		and is_instance_valid(carrier)
+		and carrier.is_inside_tree()
+		and carrier.get_tree() == get_tree()
+		and carrier.global_position.is_finite()
+		and is_near_entry(carrier.global_position)
 	)
 
 

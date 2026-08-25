@@ -206,7 +206,14 @@ func _default_user() -> Node3D:
 
 
 func _tools_blocked(actor: Node3D = null) -> bool:
-	var candidate := actor if actor != null else _default_user()
+	var owner_actor := _default_user()
+	if _actor_tools_blocked(owner_actor):
+		return true
+	var candidate := actor if actor != null else owner_actor
+	return _actor_tools_blocked(candidate)
+
+
+func _actor_tools_blocked(candidate: Node3D) -> bool:
 	if candidate == null or not is_instance_valid(candidate):
 		return false
 	if candidate.has_method(&"can_use_ninja_tools"):

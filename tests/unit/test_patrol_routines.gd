@@ -155,6 +155,26 @@ func test_enemy_brain_fails_closed_for_patrol_and_guard_without_navigation_map()
 	NavigationServer3D.free_rid(empty_map)
 
 
+func test_enemy_brain_rejects_routine_stops_outside_active_schedule() -> void:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var before_start := _add_stop(path, 0, Vector3.ZERO, 0.0)
+	before_start.active_from_seconds = 10.0
+	before_start.active_until_seconds = 20.0
+	var short_window := _add_stop(path, 1, Vector3(1.0, 0.0, 0.0), 0.0)
+	short_window.active_until_seconds = 1.0
+	var brain := enemy.brain()
+	assert_true(brain.set_patrol_path(path))
+	assert_false(brain.set_routine_stop_index(0))
+	assert_true(brain.set_routine_stop_index(1))
+
+	for _index in 5:
+		brain.tick(0.25)
+	assert_false(brain.set_routine_stop_index(1))
+
+
 func test_lantern_bearer_variant_carries_light_without_navigation_map() -> void:
 	var enemy := LanternBearerScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)

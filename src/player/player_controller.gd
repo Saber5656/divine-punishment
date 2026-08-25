@@ -15,6 +15,11 @@ const MAX_CARRYABLE_BODY_CANDIDATES := 64
 const MAX_STORAGE_HIDE_SPOT_CANDIDATES := 64
 const HideRules := preload("res://src/player/player_hide.gd")
 const WORLD_COLLISION_MASK := 1
+const DROP_COLLISION_MASK := WORLD_COLLISION_MASK | (1 << 2) | (1 << 8)
+const DROP_MOTION_SAFE_FRACTION := 0.9999
+const DROP_SUPPORT_RAY_HEIGHT := 4.0
+const DROP_SUPPORT_RAY_DEPTH := 8.0
+const DROP_SUPPORT_CLEARANCE_EPSILON := 0.02
 const MIN_WALL_PROBE_DISTANCE := 0.1
 const MAX_WALL_PROBE_DISTANCE := 2.0
 const MIN_WALL_PROBE_HEIGHT := 0.0
@@ -369,8 +374,6 @@ func try_surface_from_underwater(forced: bool = false) -> bool:
 
 
 func try_enter_crawlspace(entrance: CrawlEntrance = null) -> bool:
-	if is_carrying_body():
-		return false
 	var current := state_machine.current_state()
 	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
 		return false
@@ -559,7 +562,13 @@ func try_drop_carried_body() -> bool:
 	var drop_position := global_position + forward * CARRY_DROP_DISTANCE
 	if not HideRules.is_safe_world_position(drop_position):
 		return false
-	if not candidate.has_method(&"end_carry") or not bool(candidate.call(&"end_carry", drop_position)):
+	drop_position = _drop_position_on_support(candidate, drop_position)
+	if not HideRules.is_safe_world_position(drop_position):
+		return false
+	if not _drop_path_is_clear(candidate, drop_position):
+		return false
+	var drop_succeeded := candidate.has_method(&"end_carry") and bool(candidate.call(&"end_carry", drop_position))
+	if not drop_succeeded:
 		return false
 	_carried_body = null
 	return true
@@ -569,14 +578,21 @@ func try_store_carried_body(hide_spot: HideSpot = null) -> bool:
 	if not is_carrying_body():
 		return false
 	var candidate := hide_spot if hide_spot != null else _nearest_storage_hide_spot()
+	var stored_body := _carried_body
 	if (
 		candidate == null
 		or not is_instance_valid(candidate)
 		or not candidate.is_near_entry(global_position)
-		or not candidate.can_store_body(_carried_body)
-		or not candidate.store_body(_carried_body)
+		or not candidate.can_store_body(stored_body)
+		or not candidate.store_body(stored_body)
 	):
 		return false
+	if state_machine.current_state() != PlayerStateMachine.STATE_CROUCH:
+		if not state_machine.change_state(PlayerStateMachine.STATE_CROUCH):
+			var restored := candidate.retrieve_body(self)
+			if restored == stored_body:
+				_carried_body = restored
+			return false
 	_carried_body = null
 	return true
 
@@ -731,6 +747,12 @@ func _update_state_from_input() -> void:
 		return
 
 	if interact_just_pressed:
+		# A carried corpse follows the player through the crawlspace.  Give the
+		# traversal contract precedence over storage/drop interaction; if no
+		# valid entrance is available, the normal interaction path still drops
+		# or stores the body.
+		if is_carrying_body() and try_enter_crawlspace():
+			return
 		var close_range_seen := _close_range_seen
 		_close_range_seen = false
 		if _handle_body_interaction():
@@ -766,6 +788,11 @@ func _update_state_from_input() -> void:
 		return
 
 	if interact_just_pressed and try_extinguish_adjacent_light():
+		return
+
+	if is_carrying_body():
+		if state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
+			state_machine.resume_from_sprint()
 		return
 
 	if not Input.is_action_pressed(&"sprint") and state_machine.current_state() == PlayerStateMachine.STATE_SPRINT:
@@ -812,6 +839,12 @@ func _initialize_collision_shape() -> void:
 
 
 func _on_state_changed(from: StringName, to: StringName) -> void:
+	if is_carrying_body() and to in [
+		PlayerStateMachine.STATE_ASSASSINATE,
+		PlayerStateMachine.STATE_SPRINT,
+	]:
+		state_machine.change_state(from)
+		return
 	if to == PlayerStateMachine.STATE_DEAD and is_carrying_body():
 		try_drop_carried_body()
 	if from == PlayerStateMachine.STATE_WALL_CLING and to != PlayerStateMachine.STATE_WALL_CLING:
@@ -962,6 +995,103 @@ func _has_capsule_path_clear(
 	query.margin = 0.001
 	var result := get_world_3d().direct_space_state.cast_motion(query)
 	return result.size() >= 2 and result[0] >= CRAWL_MOTION_SAFE_FRACTION
+
+
+func _drop_path_is_clear(body: Node3D, drop_position: Vector3) -> bool:
+	if (
+		body == null
+		or not is_instance_valid(body)
+		or not body.is_inside_tree()
+		or body.get_tree() != get_tree()
+		or not drop_position.is_finite()
+		or not is_inside_tree()
+		or get_world_3d() == null
+	):
+		return false
+	var body_shape_node := body.get_node_or_null(NodePath("CollisionShape3D")) as CollisionShape3D
+	if body_shape_node == null or body_shape_node.shape == null or body_shape_node.disabled:
+		return false
+	var source_body_transform := body.global_transform
+	var target_body_transform := body.global_transform
+	target_body_transform.origin = drop_position
+	var source_shape_transform := source_body_transform * body_shape_node.transform
+	var target_shape_transform := target_body_transform * body_shape_node.transform
+	var excluded: Array[RID] = [get_rid()]
+	if body is CollisionObject3D:
+		excluded.append((body as CollisionObject3D).get_rid())
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = body_shape_node.shape
+	query.transform = source_shape_transform
+	query.motion = drop_position - body.global_position
+	query.collision_mask = DROP_COLLISION_MASK
+	query.exclude = excluded
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.margin = 0.001
+	var motion_result := get_world_3d().direct_space_state.cast_motion(query)
+	if motion_result.size() < 2 or motion_result[0] < DROP_MOTION_SAFE_FRACTION:
+		return false
+	var final_query := PhysicsShapeQueryParameters3D.new()
+	final_query.shape = body_shape_node.shape
+	final_query.transform = target_shape_transform
+	final_query.collision_mask = DROP_COLLISION_MASK
+	final_query.exclude = excluded
+	final_query.collide_with_areas = false
+	final_query.collide_with_bodies = true
+	final_query.margin = 0.001
+	return get_world_3d().direct_space_state.intersect_shape(final_query, 1).is_empty()
+
+
+func _drop_position_on_support(body: Node3D, requested_position: Vector3) -> Vector3:
+	if (
+		body == null
+		or not is_instance_valid(body)
+		or not requested_position.is_finite()
+		or not is_inside_tree()
+		or get_world_3d() == null
+	):
+		return Vector3(NAN, NAN, NAN)
+	var body_shape_node := body.get_node_or_null(NodePath("CollisionShape3D")) as CollisionShape3D
+	if body_shape_node == null or body_shape_node.shape == null or body_shape_node.disabled:
+		return requested_position
+	var half_height := _shape_vertical_half_extent(body_shape_node.shape)
+	if not is_finite(half_height) or half_height <= 0.0:
+		return requested_position
+	var query := PhysicsRayQueryParameters3D.create(
+		requested_position + Vector3.UP * DROP_SUPPORT_RAY_HEIGHT,
+		requested_position - Vector3.UP * DROP_SUPPORT_RAY_DEPTH,
+	)
+	query.collision_mask = WORLD_COLLISION_MASK
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var excluded: Array[RID] = [get_rid()]
+	if body is CollisionObject3D:
+		excluded.append((body as CollisionObject3D).get_rid())
+	query.exclude = excluded
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var normal: Variant = hit.get(&"normal")
+	var hit_position: Variant = hit.get(&"position")
+	if (
+		not hit_position is Vector3
+		or not normal is Vector3
+		or not (hit_position as Vector3).is_finite()
+		or not (normal as Vector3).is_finite()
+		or (normal as Vector3).y < 0.5
+	):
+		return requested_position
+	var supported := requested_position
+	supported.y = (hit_position as Vector3).y + half_height + DROP_SUPPORT_CLEARANCE_EPSILON
+	return supported if HideRules.is_safe_world_position(supported) else requested_position
+
+
+static func _shape_vertical_half_extent(shape: Shape3D) -> float:
+	if shape is CapsuleShape3D:
+		return (shape as CapsuleShape3D).height * 0.5
+	if shape is BoxShape3D:
+		return (shape as BoxShape3D).size.y * 0.5
+	if shape is SphereShape3D:
+		return (shape as SphereShape3D).radius
+	return 0.0
 
 
 func _capture_crawl_contract(entrance: CrawlEntrance) -> void:
