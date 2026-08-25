@@ -266,12 +266,14 @@ func can_be_assassinated() -> bool:
 func begin_assassination(context: StringName) -> bool:
 	if context not in [&"back", &"above", &"below", &"corner"] or not can_be_assassinated():
 		return false
-	var enemy_brain := brain()
-	if enemy_brain == null or not enemy_brain.set_incapacitated(&"dead"):
-		return false
 	_assassination_locked = true
 	_assassinated = true
 	_assassination_context = context
+	if not set_incapacitated(&"dead"):
+		_assassination_locked = false
+		_assassinated = false
+		_assassination_context = &""
+		return false
 	var event_bus := get_node_or_null(NodePath("/root/EventBus"))
 	if event_bus != null and event_bus.has_signal(&"enemy_killed"):
 		event_bus.emit_signal(&"enemy_killed", self, "assassination")
