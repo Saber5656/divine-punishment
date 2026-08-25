@@ -12,8 +12,6 @@ var _base_position: Vector3
 var _pitch: float
 var _peek_offset := Vector3.ZERO
 var _posture_drop := 0.0
-var _assassination_context: StringName = &""
-var _assassination_progress := 0.0
 
 
 func _ready() -> void:
@@ -68,39 +66,6 @@ func posture_drop() -> float:
 	return _posture_drop
 
 
-## Presentation hook.  The offset is intentionally small and returns to zero
-## at both ends of the blend, so missing animation assets cannot leave the
-## gameplay camera displaced.
-func begin_assassination_blend(context: StringName, _duration_sec: float) -> bool:
-	if context not in [&"back", &"above", &"below", &"corner"]:
-		return false
-	_assassination_context = context
-	_assassination_progress = 0.0
-	_sync_position()
-	return true
-
-
-func set_assassination_progress(progress: float) -> void:
-	if _assassination_context == &"" or not is_finite(progress):
-		return
-	_assassination_progress = clampf(progress, 0.0, 1.0)
-	_sync_position()
-
-
-func end_assassination_blend() -> void:
-	_assassination_context = &""
-	_assassination_progress = 0.0
-	_sync_position()
-
-
-func assassination_context() -> StringName:
-	return _assassination_context
-
-
-func assassination_progress() -> float:
-	return _assassination_progress
-
-
 func camera_config() -> CameraConfig:
 	return _camera_config
 
@@ -122,24 +87,7 @@ func _refresh_camera_config() -> void:
 
 
 func _sync_position() -> void:
-	position = _base_position + _peek_offset - Vector3.UP * _posture_drop + _assassination_offset()
-
-
-func _assassination_offset() -> Vector3:
-	if _assassination_context == &"" or not is_finite(_assassination_progress):
-		return Vector3.ZERO
-	var envelope := sin(_assassination_progress * PI)
-	var direction := Vector3.ZERO
-	match _assassination_context:
-		&"back":
-			direction = Vector3(0.0, 0.05, 0.12)
-		&"above":
-			direction = Vector3(0.0, -0.06, 0.04)
-		&"below":
-			direction = Vector3(0.0, 0.08, -0.08)
-		&"corner":
-			direction = Vector3(0.08, 0.04, 0.06)
-	return direction * envelope
+	position = _base_position + _peek_offset - Vector3.UP * _posture_drop
 
 
 static func _clamp_offset_component(value: float, limit: float) -> float:
