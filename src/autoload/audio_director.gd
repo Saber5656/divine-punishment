@@ -2,6 +2,7 @@ extends Node
 
 
 const MAX_TRACKED_ENEMIES := 64
+const MAX_OVERFLOW_ALERTS := 64
 
 signal alert_tier_changed(tier: int)
 
@@ -12,6 +13,7 @@ var assassination_audio_phase: StringName = &"ambient"
 var assassination_context: StringName = &""
 var _assassination_previous_ambience: StringName = &"ambient"
 var _tracked_alerts: Dictionary = {}
+var _overflow_alerts: Dictionary = {}
 
 
 func _ready() -> void:
@@ -24,7 +26,10 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _tracked_alerts.is_empty():
+	if (
+		not _tracked_alerts.is_empty()
+		or not _overflow_alerts.is_empty()
+	):
 		_refresh_highest_tier()
 
 
@@ -41,32 +46,41 @@ func alert_tier() -> int:
 
 
 func highest_alert_state() -> Enums.AlertState:
-	_prune_tracked_alerts()
-	var highest := Enums.AlertState.UNAWARE
-	for entry: Dictionary in _tracked_alerts.values():
-		var value: Variant = entry.get(&"state", Enums.AlertState.UNAWARE)
-		if not value is int and not value is float:
-			continue
-		var state := int(value)
-		if _is_active_alert_state(state) and state > highest:
-			highest = state as Enums.AlertState
+	var pruned := _prune_tracked_alerts()
+	var highest := _highest_alert_state_without_pruning()
+	if pruned:
+		_set_tier_for_state(highest)
 	return highest
 
 
 func active_alert_count() -> int:
-	_prune_tracked_alerts()
+	var pruned := _prune_tracked_alerts()
+	if pruned:
+		_set_tier_for_state(_highest_alert_state_without_pruning())
 	return _tracked_alerts.size()
 
 
 func tracked_alert_state(enemy: Node) -> Enums.AlertState:
 	if enemy == null or not is_instance_valid(enemy):
 		return Enums.AlertState.UNAWARE
-	_prune_tracked_alerts()
-	var entry: Variant = _tracked_alerts.get(enemy.get_instance_id())
+	var pruned := _prune_tracked_alerts()
+	if pruned:
+		_set_tier_for_state(_highest_alert_state_without_pruning())
+	var instance_id := enemy.get_instance_id()
+	var entry: Variant = _tracked_alerts.get(instance_id)
+	if not entry is Dictionary:
+		entry = _overflow_alerts.get(instance_id)
 	if not entry is Dictionary:
 		return Enums.AlertState.UNAWARE
 	var value: Variant = (entry as Dictionary).get(&"state", Enums.AlertState.UNAWARE)
 	return int(value) as Enums.AlertState if value is int or value is float else Enums.AlertState.UNAWARE
+
+
+func overflow_alert_count() -> int:
+	var pruned := _prune_tracked_alerts()
+	if pruned:
+		_set_tier_for_state(_highest_alert_state_without_pruning())
+	return _overflow_alerts.size()
 
 
 ## Update the aggregate from EventBus.alert_changed.  Only the five-state
@@ -78,9 +92,15 @@ func update_enemy_alert(enemy: Node, to_state: int) -> bool:
 	var instance_id := enemy.get_instance_id()
 	if not _is_active_alert_state(to_state):
 		_tracked_alerts.erase(instance_id)
+		_overflow_alerts.erase(instance_id)
 		_refresh_highest_tier()
 		return true
 	_prune_tracked_alerts()
+	_promote_overflow_alerts()
+	if _overflow_alerts.has(instance_id):
+		(_overflow_alerts[instance_id] as Dictionary)[&"state"] = to_state
+		_refresh_highest_tier()
+		return false
 	if not _tracked_alerts.has(instance_id) and _tracked_alerts.size() >= MAX_TRACKED_ENEMIES:
 		# Keep the table bounded while retaining a higher-severity contribution.
 		# The aggregate is a maximum, so replacing a lower state is equivalent
@@ -96,6 +116,8 @@ func update_enemy_alert(enemy: Node, to_state: int) -> bool:
 				weakest_state = int(tracked_value) as Enums.AlertState
 				weakest_id = tracked_id
 		if weakest_id == null or to_state <= int(weakest_state):
+			_record_overflow(enemy, to_state)
+			_refresh_highest_tier()
 			return false
 		_tracked_alerts.erase(weakest_id)
 	_tracked_alerts[instance_id] = {&"enemy": enemy, &"state": to_state}
@@ -105,6 +127,7 @@ func update_enemy_alert(enemy: Node, to_state: int) -> bool:
 
 func clear_alert_tracking() -> void:
 	_tracked_alerts.clear()
+	_overflow_alerts.clear()
 	_refresh_highest_tier()
 
 
@@ -128,21 +151,66 @@ func _on_enemy_neutralized(enemy: Node, _method: String) -> void:
 	if enemy == null or not is_instance_valid(enemy):
 		return
 	_tracked_alerts.erase(enemy.get_instance_id())
+	_overflow_alerts.erase(enemy.get_instance_id())
 	_refresh_highest_tier()
 
 
 func _refresh_highest_tier() -> void:
-	var highest_state := highest_alert_state()
-	var tier := alert_tier_for_state(int(highest_state))
+	_prune_tracked_alerts()
+	_promote_overflow_alerts()
+	var highest_state := _highest_alert_state_without_pruning()
+	_set_tier_for_state(highest_state)
+
+
+func _set_tier_for_state(state: Enums.AlertState) -> void:
+	var tier := alert_tier_for_state(int(state))
 	if tier >= 0:
 		set_alert_tier(tier)
 
 
-func _prune_tracked_alerts() -> void:
+func _highest_alert_state_without_pruning() -> Enums.AlertState:
+	var highest := Enums.AlertState.UNAWARE
+	for entry: Dictionary in _tracked_alerts.values():
+		var value: Variant = entry.get(&"state", Enums.AlertState.UNAWARE)
+		if (value is int or value is float) and _is_active_alert_state(int(value)) and int(value) > highest:
+			highest = int(value) as Enums.AlertState
+	for entry: Dictionary in _overflow_alerts.values():
+		var value: Variant = entry.get(&"state", Enums.AlertState.UNAWARE)
+		if (value is int or value is float) and _is_active_alert_state(int(value)) and int(value) > highest:
+			highest = int(value) as Enums.AlertState
+	return highest
+
+
+func _record_overflow(enemy: Node, state: int) -> void:
+	var instance_id := enemy.get_instance_id()
+	if _overflow_alerts.has(instance_id):
+		(_overflow_alerts[instance_id] as Dictionary)[&"state"] = state
+		return
+	if _overflow_alerts.size() < MAX_OVERFLOW_ALERTS:
+		_overflow_alerts[instance_id] = {&"enemy": enemy, &"state": state}
+
+
+func _promote_overflow_alerts() -> void:
+	if _tracked_alerts.size() >= MAX_TRACKED_ENEMIES or _overflow_alerts.is_empty():
+		return
+	for instance_id: Variant in _overflow_alerts.keys():
+		if _tracked_alerts.size() >= MAX_TRACKED_ENEMIES:
+			break
+		var entry: Variant = _overflow_alerts.get(instance_id)
+		if not entry is Dictionary:
+			_overflow_alerts.erase(instance_id)
+			continue
+		_tracked_alerts[instance_id] = entry
+		_overflow_alerts.erase(instance_id)
+
+
+func _prune_tracked_alerts() -> bool:
+	var changed := false
 	for instance_id: Variant in _tracked_alerts.keys():
 		var entry: Variant = _tracked_alerts.get(instance_id)
 		if not entry is Dictionary:
 			_tracked_alerts.erase(instance_id)
+			changed = true
 			continue
 		var enemy: Variant = (entry as Dictionary).get(&"enemy")
 		var state: Variant = (entry as Dictionary).get(&"state", Enums.AlertState.UNAWARE)
@@ -154,6 +222,27 @@ func _prune_tracked_alerts() -> void:
 			or not _is_active_alert_state(int(state))
 		):
 			_tracked_alerts.erase(instance_id)
+			changed = true
+
+	for instance_id: Variant in _overflow_alerts.keys():
+		var entry: Variant = _overflow_alerts.get(instance_id)
+		if not entry is Dictionary:
+			_overflow_alerts.erase(instance_id)
+			changed = true
+			continue
+		var enemy: Variant = (entry as Dictionary).get(&"enemy")
+		var state: Variant = (entry as Dictionary).get(&"state", Enums.AlertState.UNAWARE)
+		if (
+			not is_instance_valid(enemy)
+			or not enemy is Node
+			or _is_incapacitated_enemy(enemy as Node)
+			or not (state is int or state is float)
+			or not _is_active_alert_state(int(state))
+		):
+			_overflow_alerts.erase(instance_id)
+			changed = true
+
+	return changed
 
 
 func _bind_event_bus() -> void:
