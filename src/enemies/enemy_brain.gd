@@ -5,11 +5,8 @@ extends Node
 var _stimulus_buffer: Array[PerceptionStimulus] = []
 
 
-func _ready() -> void:
-	set_process(true)
-
-
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	# Brain owns the update driver; EnemyPerception applies the 10 Hz / LOD gate.
 	var perception := get_parent().get_node_or_null(NodePath("Perception")) as EnemyPerception
 	if perception != null:
 		perception.tick(delta)

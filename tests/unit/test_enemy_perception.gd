@@ -42,7 +42,9 @@ func test_enemy_scene_contains_perception_eye_and_fsm_sink() -> void:
 	var enemy := EnemyScene.instantiate()
 	add_child_autofree(enemy)
 	assert_not_null(enemy.get_node("Brain") as EnemyBrain)
-	assert_not_null(enemy.get_node("Perception") as EnemyPerception)
+	var perception := enemy.get_node("Perception") as EnemyPerception
+	assert_not_null(perception)
+	assert_eq(perception.perception_config.view_distance_m, 15.0)
 	assert_not_null(enemy.get_node("Perception/EyePoint") as Node3D)
 	assert_true(enemy.is_in_group("enemies"))
 

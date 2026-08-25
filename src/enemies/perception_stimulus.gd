@@ -18,8 +18,12 @@ static func create(
 ) -> PerceptionStimulus:
 	var stimulus := PerceptionStimulus.new()
 	stimulus.kind = stimulus_kind
-	stimulus.priority = stimulus_priority
+	stimulus.priority = clampi(stimulus_priority, 1, 5)
 	stimulus.position = stimulus_position
-	stimulus.confidence = clampf(stimulus_confidence, 0.0, 1.0)
+	stimulus.confidence = (
+		clampf(stimulus_confidence, 0.0, 1.0)
+		if is_finite(stimulus_confidence)
+		else 0.0
+	)
 	stimulus.anomaly = stimulus_anomaly
 	return stimulus
