@@ -121,7 +121,7 @@ func test_extinguished_light_is_requested_and_relit_after_bounded_delay() -> voi
 	brain._physics_process(0.1)
 	assert_false(light.is_on())
 	enemy.global_position = light.global_position
-	brain.mark_routine_arrived()
+	brain._physics_process(0.016)
 	assert_true(light.is_on())
 	assert_false(brain.relight_pending())
 
@@ -204,6 +204,38 @@ func test_noise_wakes_knockout_and_is_queued_for_search() -> void:
 	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
 
 
+func test_incapacitation_noise_wake_can_be_disabled_and_reenabled() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.get_node("Brain") as EnemyBrain
+	brain.set_incapacitated(&"sleep", 20.0)
+	enemy.set_incapacitation_wake_by_noise(false)
+	assert_false(brain.incapacitation_wakes_on_noise())
+	var source := Node.new()
+	add_child_autofree(source)
+	enemy.on_noise(NoiseEventScript.create(
+		Vector3(0.0, 1.5, 0.0),
+		6.0,
+		Enums.NoiseKind.COMBAT,
+		source,
+	))
+	assert_true(brain.is_incapacitated())
+
+	brain.set_incapacitation_wake_by_noise(true)
+	assert_true(brain.incapacitation_wakes_on_noise())
+	enemy.on_noise(NoiseEventScript.create(
+		Vector3(0.0, 1.5, 0.0),
+		6.0,
+		Enums.NoiseKind.COMBAT,
+		source,
+	))
+	assert_false(brain.is_incapacitated())
+	brain._physics_process(0.016)
+	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
+
+	brain.set_incapacitated(&"knockout", 20.0)
+	assert_true(brain.incapacitation_wakes_on_noise())
+
+
 func test_continuous_target_visibility_keeps_combat_until_lost() -> void:
 	var enemy := _spawn_enemy()
 	var brain := enemy.get_node("Brain") as EnemyBrain
@@ -218,6 +250,44 @@ func test_continuous_target_visibility_keeps_combat_until_lost() -> void:
 	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
 
 
+func test_search_propagates_suspicion_to_nearby_enemies_within_bounded_radius() -> void:
+	var source := _spawn_enemy(Vector3.ZERO)
+	var nearby := _spawn_enemy(Vector3(6.0, 0.0, 0.0))
+	var distant := _spawn_enemy(Vector3(20.0, 0.0, 0.0))
+	var source_brain := source.get_node("Brain") as EnemyBrain
+	source_brain.force_state(Enums.AlertState.SEARCHING, &"search_call_for_help")
+
+	assert_eq((nearby.get_node("Brain") as EnemyBrain).alert_state(), Enums.AlertState.SUSPICIOUS)
+	assert_eq((distant.get_node("Brain") as EnemyBrain).alert_state(), Enums.AlertState.UNAWARE)
+
+
+func test_full_stimulus_buffer_retains_damage_over_later_low_priority_noise() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.get_node("Brain") as EnemyBrain
+	brain.submit_stimulus(_stimulus(1, Vector3(0.0, 0.0, -1.0), Enums.StimulusKind.DAMAGE))
+	for index in EnemyBrain.MAX_STIMULI_PER_FRAME:
+		brain.submit_stimulus(_stimulus(1, Vector3(float(index + 1), 0.0, 0.0)))
+
+	assert_eq(brain.pending_stimulus_count(), EnemyBrain.MAX_STIMULI_PER_FRAME)
+	brain._physics_process(0.016)
+	assert_eq(brain.alert_state(), Enums.AlertState.COMBAT)
+
+
+func test_full_stimulus_buffer_replaces_farther_equal_priority_stimulus() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.get_node("Brain") as EnemyBrain
+	for index in EnemyBrain.MAX_STIMULI_PER_FRAME:
+		brain.submit_stimulus(_stimulus(1, Vector3(float(index + 10), 0.0, 0.0)))
+	var near := _stimulus(1, Vector3(1.0, 0.0, 0.0))
+	brain.submit_stimulus(near)
+
+	var buffered := brain.drain_stimuli()
+	assert_eq(buffered.size(), EnemyBrain.MAX_STIMULI_PER_FRAME)
+	assert_true(buffered.has(near))
+	for stimulus in buffered:
+		assert_ne(stimulus.position, Vector3(41.0, 0.0, 0.0))
+
+
 func test_incapacitation_api_reports_validation_and_wake_results() -> void:
 	var unstarted_brain := EnemyBrainScript.new() as EnemyBrain
 	assert_false(unstarted_brain.set_incapacitated(&"sleep"))
@@ -230,14 +300,22 @@ func test_incapacitation_api_reports_validation_and_wake_results() -> void:
 	assert_false(enemy.set_incapacitated(&"unknown", 0.0))
 	assert_false(enemy.set_incapacitated(&"sleep", -1.0))
 	assert_false(enemy.set_incapacitated(&"sleep", NAN))
+	assert_false(enemy.set_incapacitated(&"dead", 20.0))
 	assert_true(enemy.set_incapacitated(&"knockout", 20.0))
 	assert_true(brain.is_incapacitated())
 	assert_true(enemy.set_incapacitated(&""))
 	assert_false(enemy.set_incapacitated(&""))
 
+	var dead_enemy := _spawn_enemy()
+	var dead_brain := dead_enemy.get_node("Brain") as EnemyBrain
+	assert_true(dead_enemy.set_incapacitated(&"dead"))
+	assert_true(dead_brain.is_incapacitated())
+	assert_false(dead_enemy.set_incapacitated(&""))
 
-func _spawn_enemy() -> EnemyBase:
+
+func _spawn_enemy(at: Vector3 = Vector3.ZERO) -> EnemyBase:
 	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = at
 	add_child_autofree(enemy)
 	return enemy
 
@@ -250,9 +328,13 @@ func _add_routine_target(enemy: EnemyBase, position: Vector3) -> Node3D:
 	return target
 
 
-func _stimulus(priority: int, position: Vector3) -> PerceptionStimulus:
+func _stimulus(
+	priority: int,
+	position: Vector3,
+	kind: Enums.StimulusKind = Enums.StimulusKind.NOISE,
+) -> PerceptionStimulus:
 	return PerceptionStimulusScript.create(
-		Enums.StimulusKind.NOISE,
+		kind,
 		priority,
 		position,
 		1.0,

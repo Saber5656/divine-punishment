@@ -35,10 +35,20 @@ func _ready() -> void:
 	# _process so a brain can apply the 10 Hz / 2 Hz distance LOD centrally.
 	set_process(false)
 	_bind_tuning_default()
+	var event_bus := _event_bus()
+	if event_bus != null:
+		var callback := Callable(self, &"_on_anomaly_registered")
+		if not event_bus.is_connected(&"anomaly_registered", callback):
+			event_bus.connect(&"anomaly_registered", callback)
 
 
 func _exit_tree() -> void:
 	_disconnect_tuning()
+	var event_bus := _event_bus()
+	if event_bus != null:
+		var callback := Callable(self, &"_on_anomaly_registered")
+		if event_bus.is_connected(&"anomaly_registered", callback):
+			event_bus.disconnect(&"anomaly_registered", callback)
 
 
 func tick(delta: float) -> void:
@@ -99,6 +109,42 @@ func on_noise(event: NoiseEvent) -> void:
 		event.position,
 		confidence,
 	)
+
+
+## Global anomaly notifications are telemetry-like input, not an automatic
+## sighting.  Apply the same range, FOV, and world occlusion checks as visual
+## perception before handing an anomaly to the brain.
+func on_anomaly(anomaly: Anomaly) -> void:
+	if anomaly == null or not _valid_config():
+		return
+	if not _valid_vector(anomaly.position):
+		return
+	var visible := _anomaly_visible(anomaly.position, anomaly.node)
+	if not visible:
+		return
+	var eye := _eye_point()
+	if eye == null:
+		return
+	var distance := eye.global_position.distance_to(anomaly.position)
+	if not is_finite(distance) or distance > perception_config.view_distance_m:
+		return
+	var priority := 1
+	if anomaly.severity >= 3:
+		priority = 3
+	elif anomaly.severity >= 2:
+		priority = 2
+	var confidence := clampf(1.0 - distance / perception_config.view_distance_m, 0.0, 1.0)
+	_emit_stimulus(
+		Enums.StimulusKind.ANOMALY,
+		priority,
+		anomaly.position,
+		confidence,
+		anomaly,
+	)
+
+
+func _on_anomaly_registered(anomaly: Anomaly) -> void:
+	on_anomaly(anomaly)
 
 
 func meter() -> float:
@@ -267,8 +313,9 @@ func _emit_stimulus(
 	priority: int,
 	position: Vector3,
 	confidence: float,
+	anomaly: Anomaly = null,
 ) -> void:
-	var created := PerceptionStimulusScript.create(kind, priority, position, confidence)
+	var created := PerceptionStimulusScript.create(kind, priority, position, confidence, anomaly)
 	stimulus.emit(created)
 
 
@@ -435,6 +482,41 @@ func _point_visible(from: Vector3, to: Vector3, exclusions: Array[RID]) -> bool:
 	query.exclude = exclusions
 	var hit: Dictionary = world.direct_space_state.intersect_ray(query)
 	return hit.is_empty()
+
+
+func _anomaly_visible(position: Vector3, anomaly_node: Node3D) -> bool:
+	var eye := _eye_point()
+	var owner := get_parent() as Node3D
+	if eye == null or owner == null or not _valid_vector(eye.global_position):
+		return false
+	var to_target := position - eye.global_position
+	var distance := to_target.length()
+	if not is_finite(distance) or distance <= 0.0 or distance > perception_config.view_distance_m:
+		return false
+	var forward: Vector3 = -owner.global_transform.basis.z
+	if not _valid_vector(forward) or forward.length_squared() <= 0.000001:
+		return false
+	forward = forward.normalized()
+	var horizontal_forward := Vector3(forward.x, 0.0, forward.z)
+	var horizontal_target := Vector3(to_target.x, 0.0, to_target.z)
+	if horizontal_forward.length_squared() <= 0.000001:
+		return false
+	if horizontal_target.length_squared() > 0.000001:
+		horizontal_forward = horizontal_forward.normalized()
+		horizontal_target = horizontal_target.normalized()
+		var dot_value := clampf(horizontal_forward.dot(horizontal_target), -1.0, 1.0)
+		var angle_degrees := rad_to_deg(acos(dot_value))
+		if not is_finite(angle_degrees) or angle_degrees > perception_config.fov_degrees * 0.5:
+			return false
+	var exclusions := _ray_exclusions(anomaly_node)
+	return _point_visible(eye.global_position, position, exclusions)
+
+
+func _event_bus() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(NodePath("EventBus"))
 
 
 func _is_self_noise(source: Node) -> bool:

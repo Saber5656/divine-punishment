@@ -27,6 +27,8 @@ const DEFAULT_RETURN_VIGILANCE_MULTIPLIER := 1.5
 const DEFAULT_RETURN_VIGILANCE_DURATION := 120.0
 const MAX_INCAPACITATION_DURATION_SEC := 300.0
 const MAX_AREA_ALERT_LEVEL := 5
+const SEARCH_PROPAGATION_RADIUS := 12.0
+const MAX_PROPAGATED_ENEMIES := 64
 const NO_POSITION := Vector3(NAN, NAN, NAN)
 
 signal state_changed(from_state: Enums.AlertState, to_state: Enums.AlertState)
@@ -55,6 +57,7 @@ var _seen_anomalies: Dictionary = {}
 var _incapacitated := false
 var _incapacitated_kind: StringName = &""
 var _incapacitation_remaining := 0.0
+var _wake_by_noise := true
 var _started := false
 var _target_visible := false
 var _target_visible_override := -1
@@ -65,20 +68,10 @@ var _last_transition_reason: StringName = &""
 func _ready() -> void:
 	_started = true
 	set_physics_process(true)
-	var event_bus := _event_bus()
-	if event_bus != null:
-		var callback := Callable(self, &"_on_anomaly_registered")
-		if not event_bus.is_connected(&"anomaly_registered", callback):
-			event_bus.connect(&"anomaly_registered", callback)
 
 
 func _exit_tree() -> void:
 	_started = false
-	var event_bus := _event_bus()
-	if event_bus != null:
-		var callback := Callable(self, &"_on_anomaly_registered")
-		if event_bus.is_connected(&"anomaly_registered", callback):
-			event_bus.disconnect(&"anomaly_registered", callback)
 
 
 func _physics_process(delta: float) -> void:
@@ -203,6 +196,14 @@ func incapacitated_kind() -> StringName:
 	return _incapacitated_kind
 
 
+func set_incapacitation_wake_by_noise(value: bool) -> void:
+	_wake_by_noise = value
+
+
+func incapacitation_wakes_on_noise() -> bool:
+	return _wake_by_noise
+
+
 func last_transition_reason() -> StringName:
 	return _last_transition_reason
 
@@ -220,6 +221,8 @@ func set_target_visible(value: bool) -> void:
 
 func set_routine_arrived(value: bool) -> void:
 	_routine_arrived = value
+	if value and _state == Enums.AlertState.SUSPICIOUS:
+		_investigation_arrived = true
 	if value:
 		_complete_relight_if_arrived()
 
@@ -251,19 +254,25 @@ func mark_investigation_arrived() -> void:
 func submit_stimulus(stim: PerceptionStimulus) -> void:
 	if not _valid_stimulus(stim):
 		return
-	if _incapacitated and stim.kind == Enums.StimulusKind.NOISE and _incapacitated_kind != &"dead":
+	var seen_key := get_instance_id()
+	if (
+		_wake_by_noise
+		and _incapacitated
+		and stim.kind == Enums.StimulusKind.NOISE
+		and _incapacitated_kind != &"dead"
+	):
 		# Sleep/knockout/restrained enemies wake when the noise reaches their
 		# perception component.  Keep the stimulus so the normal FSM can process
 		# the waking sound on the next brain tick.
 		wake()
-	if _stimulus_buffer.size() >= MAX_STIMULI_PER_FRAME:
-		_stimulus_buffer.pop_front()
 	if stim.kind == Enums.StimulusKind.ANOMALY and stim.anomaly != null:
 		if not _anomaly_is_relevant(stim.anomaly):
 			return
-		var seen_key := get_instance_id()
 		if stim.anomaly.seen_by.has(seen_key) or _seen_anomalies.has(stim.anomaly):
 			return
+	if not _append_stimulus_bounded(stim):
+		return
+	if stim.kind == Enums.StimulusKind.ANOMALY and stim.anomaly != null:
 		stim.anomaly.seen_by[seen_key] = true
 		if _seen_anomalies.size() >= MAX_SEEN_ANOMALIES:
 			var oldest: Variant = _seen_anomalies.keys()[0]
@@ -271,7 +280,52 @@ func submit_stimulus(stim: PerceptionStimulus) -> void:
 		_seen_anomalies[stim.anomaly] = true
 		_register_anomaly_memory(stim.anomaly)
 		_emit_anomaly_spotted(stim.anomaly)
+
+
+func _append_stimulus_bounded(stim: PerceptionStimulus) -> bool:
+	if _stimulus_buffer.size() < MAX_STIMULI_PER_FRAME:
+		_stimulus_buffer.append(stim)
+		return true
+	var new_priority := _effective_priority(stim)
+	var weakest_index := 0
+	var weakest_priority := _effective_priority(_stimulus_buffer[0])
+	var weakest_distance := _stimulus_distance(_stimulus_buffer[0])
+	for index in range(1, _stimulus_buffer.size()):
+		var candidate := _stimulus_buffer[index]
+		var candidate_priority := _effective_priority(candidate)
+		var candidate_distance := _stimulus_distance(candidate)
+		if (
+			candidate_priority < weakest_priority
+			or (
+				candidate_priority == weakest_priority
+				and candidate_distance > weakest_distance
+			)
+		):
+			weakest_index = index
+			weakest_priority = candidate_priority
+			weakest_distance = candidate_distance
+	var new_distance := _stimulus_distance(stim)
+	if (
+		new_priority < weakest_priority
+		or (
+			new_priority == weakest_priority
+			and new_distance >= weakest_distance
+		)
+	):
+		return false
+	_stimulus_buffer.remove_at(weakest_index)
 	_stimulus_buffer.append(stim)
+	return true
+
+
+func _stimulus_distance(stim: PerceptionStimulus) -> float:
+	if stim == null or not _valid_vector(stim.position):
+		return INF
+	var enemy_position := _enemy_position()
+	if not _valid_vector(enemy_position):
+		return INF
+	var distance := enemy_position.distance_to(stim.position)
+	return distance if is_finite(distance) else INF
 
 
 func submit_anomaly(anomaly: Anomaly, priority: int = 1) -> void:
@@ -306,6 +360,23 @@ func force_state(state_value: Enums.AlertState, reason: StringName = &"forced") 
 	_transition_to(state_value, null, reason)
 
 
+## Raise a nearby enemy to at least SUSPICIOUS without downgrading an enemy
+## that is already searching or fighting.  This is the bounded call-for-help
+## path used when a search begins.
+func receive_propagated_alert(position: Vector3) -> void:
+	if _incapacitated or not _valid_vector(position):
+		return
+	if _state == Enums.AlertState.COMBAT or _state == Enums.AlertState.SEARCHING:
+		return
+	var stimulus := PerceptionStimulus.create(
+		Enums.StimulusKind.NOISE,
+		1,
+		position,
+		1.0,
+	)
+	_transition_to(Enums.AlertState.SUSPICIOUS, stimulus, &"propagated_alert")
+
+
 ## Incapacitation is outside the five-state FSM.  Passing an empty kind wakes
 ## the enemy and returns it to Searching, preserving the fact that it was
 ## attacked while asleep/knocked out/restrained.  A positive duration is
@@ -314,7 +385,7 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	if not _started or not is_finite(duration_seconds) or duration_seconds < 0.0:
 		return false
 	if kind.is_empty():
-		if not _incapacitated:
+		if not _incapacitated or _incapacitated_kind == &"dead":
 			return false
 		_incapacitated = false
 		_incapacitated_kind = &""
@@ -330,6 +401,13 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 		return true
 	if kind not in [&"sleep", &"knockout", &"restrained", &"dead"]:
 		return false
+	if kind == &"dead" and duration_seconds > 0.0:
+		# Death is permanent until a separate corpse/revive system changes it;
+		# never allow a timer to wake a dead enemy back into the FSM.
+		return false
+	# Each incapacitation starts with the documented default.  A caller that
+	# deliberately disables noise wake can apply the hook after this state set.
+	_wake_by_noise = true
 	_incapacitated = true
 	_incapacitated_kind = kind
 	_incapacitation_remaining = _bounded_incapacitation_duration(duration_seconds)
@@ -397,9 +475,13 @@ static func residual_alert_multiplier(remaining_seconds: float, configured_multi
 func _advance_timers(delta: float) -> void:
 	if _return_vigilance_remaining > 0.0:
 		_return_vigilance_remaining = maxf(_return_vigilance_remaining - delta, 0.0)
-	if _relight_pending and not _relight_request_sent:
-		_relight_elapsed += delta
-		_try_request_relight()
+	if _relight_pending:
+		if not _relight_request_sent:
+			_relight_elapsed += delta
+			_try_request_relight()
+		else:
+			# The request is asynchronous; arrival may happen on any later frame.
+			_complete_relight_if_arrived()
 
 
 func _advance_incapacitation(delta: float) -> void:
@@ -539,8 +621,32 @@ func _transition_to(
 	var event_bus := _event_bus()
 	if event_bus != null:
 		event_bus.emit_signal(&"alert_changed", _enemy_node(), int(previous), int(next))
-	if next == Enums.AlertState.SEARCHING and stim != null:
-		_raise_area_alert_if_severe(stim)
+	if next == Enums.AlertState.SEARCHING:
+		_propagate_search_alert(_last_known_position)
+		if stim != null:
+			_raise_area_alert_if_severe(stim)
+
+
+func _propagate_search_alert(position: Vector3) -> void:
+	var source := _enemy_node() as Node3D
+	var tree := get_tree()
+	if source == null or tree == null or not _valid_vector(source.global_position):
+		return
+	var propagation_position := position if _valid_vector(position) else source.global_position
+	var examined := 0
+	for candidate in tree.get_nodes_in_group(&"enemies"):
+		if examined >= MAX_PROPAGATED_ENEMIES:
+			break
+		examined += 1
+		if candidate == source or not candidate is Node3D:
+			continue
+		var enemy := candidate as Node3D
+		var distance := source.global_position.distance_to(enemy.global_position)
+		if not is_finite(distance) or distance > SEARCH_PROPAGATION_RADIUS:
+			continue
+		var brain := enemy.get_node_or_null(NodePath("Brain")) as EnemyBrain
+		if brain != null:
+			brain.receive_propagated_alert(propagation_position)
 
 
 func _start_return_vigilance() -> void:
@@ -633,6 +739,11 @@ func _complete_relight_if_arrived() -> void:
 	_relight_light.set_extinguished(false)
 	_relight_pending = false
 	_relight_request_sent = false
+	# Re-light arrival is an intermediate destination.  Continue RETURN toward
+	# the authored routine target instead of treating the light as the patrol
+	# destination itself.
+	_routine_arrived = false
+	_set_navigation_target(_routine_target())
 	_set_substate(&"none")
 
 
@@ -640,10 +751,6 @@ func _emit_anomaly_spotted(anomaly: Anomaly) -> void:
 	var event_bus := _event_bus()
 	if event_bus != null:
 		event_bus.emit_signal(&"anomaly_spotted", anomaly, _enemy_node())
-
-
-func _on_anomaly_registered(anomaly: Anomaly) -> void:
-	submit_anomaly(anomaly)
 
 
 func _pop_highest_stimulus() -> PerceptionStimulus:
