@@ -327,6 +327,17 @@ func recompute() -> float                             # 内部 10 Hz タイマ�
 static func light_contribution(dist: float, gameplay_radius: float, occluded: bool) -> float   # pure
 static func combine(light_sum: float, stance_mod: float, move_mod: float, cover_mod: float) -> float  # pure, §GDD 2.1
 
+# ── src/core/perception_formulas.gd (RefCounted; pure shared formulas)
+class_name PerceptionFormulas
+static func light_contribution(dist: float, gameplay_radius: float, occluded: bool) -> float   # pure, bounded 0..1
+static func combine(light_sum: float, stance_mod: float, move_mod: float, cover_mod: float) -> float  # pure, bounded 0..1
+static func effective_sound_radius(base_radius: float, occlusion_count: int) -> float         # pure; ×0.5 per layer-6 hit
+static func sound_contribution(dist: float, base_radius: float, occlusion_count: int) -> float  # pure, bounded 0..1
+static func vision_gain(v: float, dist: float, view_distance: float,
+        central: bool, base_gain: float) -> float       # pure, §2.3 formula
+static func meter_step(current_meter: float, delta: float, gain: float,
+        decay: float, visible: bool, maximum: float = 3.0) -> float  # pure, bounded
+
 # ── src/player/assassination_resolver.gd  (Node, player.tscn 直下 "AssassinationResolver")
 class_name AssassinationResolver
 signal prompt_changed(enemy: EnemyBase, context: StringName)   # context == &"" でプロンプト消灯
@@ -339,7 +350,7 @@ static func resolve(player_state: StringName, to_enemy_local: Vector3,
 class_name EnemyPerception
 signal stimulus(stim: PerceptionStimulus)
 func tick(delta: float) -> void                       # Brain が 10 Hz/LOD で呼ぶ（自走しない）
-func on_noise(event: NoiseEvent) -> void              # NoiseEventSystem が距離・遮蔽後に直接配送（raw EventBus へは接続しない）
+func on_noise(event: NoiseEvent) -> void              # EventBus.noise_emitted に接続
 func meter() -> float                                 # 発見メーター現在値（閾値は §2.3: 1.0/2.0/3.0）
 static func vision_gain(v: float, dist: float, view_dist: float,
         central: bool, base_gain: float) -> float     # pure, §2.3 の式そのもの
