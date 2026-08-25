@@ -174,7 +174,9 @@ func test_presentation_lock_completes_through_production_release_path() -> void:
 
 	assert_true(resolver.confirm())
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
-	for _i in range(20):
+	# Invalid sub-second tuning is clamped to the presentation's authored
+	# one-second minimum; allow the production driver to reach completion.
+	for _i in range(90):
 		await get_tree().process_frame
 		if player.state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
 			break
