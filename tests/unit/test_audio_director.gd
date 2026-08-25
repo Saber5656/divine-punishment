@@ -48,6 +48,21 @@ func test_audio_director_rejects_invalid_states_and_bounds_enemy_table() -> void
 	assert_eq(director.active_alert_count(), AudioDirectorScript.MAX_TRACKED_ENEMIES)
 
 
+func test_audio_director_retains_higher_severity_when_table_is_full() -> void:
+	var director := AudioDirectorScript.new()
+	add_child_autofree(director)
+	director.clear_alert_tracking()
+	for index in AudioDirectorScript.MAX_TRACKED_ENEMIES:
+		var enemy := Node.new()
+		add_child_autofree(enemy)
+		assert_true(director.update_enemy_alert(enemy, Enums.AlertState.SUSPICIOUS))
+	var combat_enemy := Node.new()
+	add_child_autofree(combat_enemy)
+	assert_true(director.update_enemy_alert(combat_enemy, Enums.AlertState.COMBAT))
+	assert_eq(director.highest_alert_state(), Enums.AlertState.COMBAT)
+	assert_eq(director.active_alert_count(), AudioDirectorScript.MAX_TRACKED_ENEMIES)
+
+
 func test_audio_director_event_bus_hook_consumes_alert_changed() -> void:
 	var director := AudioDirectorScript.new()
 	add_child_autofree(director)
