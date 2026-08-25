@@ -88,7 +88,7 @@ signal light_relight_requested(request: RelightRequest) # M3 の敵 AI が再点
 - 更新は 10 Hz + LOD（プレイヤーから 30 m 超は 2 Hz）
 - 視覚: 視野角・距離チェック → 3 点レイキャスト → 蓄積式発見メーター
   `meter += gain(V, distance, 中心視) × Δt`、減衰は非視認時
-- 聴覚: `EventBus.noise_emitted` 購読
+- 聴覚: `NoiseEventSystem` が `EventBus.noise_emitted` を telemetry として一度だけ発行し、距離・遮蔽後の `on_noise` を `enemies` グループへ直接配送する。`EnemyPerception` は raw EventBus を購読せず、直接配送だけを受ける（重複刺激防止）。
 - 出力は `PerceptionStimulus`（種別・確信度・位置）として FSM へ渡す。**知覚と意思決定を分離**し、知覚数式を純粋関数としてユニットテスト可能にする
 
 ### 4.3 敵 FSM

@@ -6,6 +6,8 @@ const WallClingRules := preload("res://src/player/player_wall_cling.gd")
 const ClimbRules := preload("res://src/player/player_climb.gd")
 const CrawlRules := preload("res://src/player/player_crawl.gd")
 const SwimRules := preload("res://src/player/player_swim.gd")
+const NOISE_FOOTSTEP_DISTANCE := 1.5
+const MAX_NOISE_DELTA := 0.5
 const HideRules := preload("res://src/player/player_hide.gd")
 const WORLD_COLLISION_MASK := 1
 const MIN_WALL_PROBE_DISTANCE := 0.1
@@ -47,6 +49,7 @@ const SWIM_DEPTH_EPSILON := 0.001
 @onready var player_model: Node3D = $Visual/Model as Node3D
 @onready var surface_ripples: Node3D = $Visual/SurfaceRipples as Node3D
 @onready var swim_hud: SwimHud = $Visibility/SwimHud as SwimHud
+@onready var noise_emitter: NoiseEmitter = $NoiseEmitter as NoiseEmitter
 
 var _standing_capsule_height: float
 var _standing_collision_transform: Transform3D
@@ -87,6 +90,7 @@ var _water_recovery_pending := false
 var _breath_remaining := 0.0
 var _forced_surface_pending := false
 var _exhaustion_noise_emitted := false
+var _footstep_distance := 0.0
 var _close_range_seen := false
 var _stance_toggle_queued := false
 var _stance_was_pressed := false
@@ -145,7 +149,9 @@ func _physics_process(delta: float) -> void:
 		return
 	_apply_gravity(delta)
 	_apply_movement()
+	var was_on_floor := is_on_floor()
 	move_and_slide()
+	_emit_ground_noise(delta, was_on_floor)
 
 
 func current_movement_params() -> Dictionary:
@@ -1032,9 +1038,59 @@ func _emit_exhaustion_noise_once() -> void:
 	):
 		return
 	_exhaustion_noise_emitted = true
-	EventBus.noise_emitted.emit(
+	NoiseEventSystem.emit(
 		NoiseEvent.create(global_position, radius, Enums.NoiseKind.LANDING, self),
+		get_tree(),
 	)
+
+
+func _emit_ground_noise(delta: float, was_on_floor: bool) -> void:
+	if noise_emitter == null:
+		return
+	if not is_on_floor() or _is_water_state() or _is_traversing():
+		_footstep_distance = 0.0
+		return
+	if not was_on_floor:
+		noise_emitter.emit_landing()
+		_footstep_distance = 0.0
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed <= 0.001:
+		return
+	var material := noise_emitter.floor_material
+	var floor_collider := _floor_collider_from_slide_collisions()
+	if floor_collider != null:
+		material = NoiseEmitter.floor_material_for(floor_collider, material)
+	if not is_finite(delta) or delta <= 0.0:
+		return
+	_footstep_distance += horizontal_speed * minf(delta, MAX_NOISE_DELTA)
+	if _footstep_distance >= NOISE_FOOTSTEP_DISTANCE:
+		_footstep_distance = fmod(_footstep_distance, NOISE_FOOTSTEP_DISTANCE)
+		noise_emitter.emit_footstep(state_machine.stance(), material)
+
+
+func _floor_collider_from_slide_collisions() -> Object:
+	var floor_normal := get_floor_normal()
+	if floor_normal.is_zero_approx():
+		floor_normal = up_direction
+	if floor_normal.is_zero_approx():
+		return null
+	floor_normal = floor_normal.normalized()
+	var minimum_floor_alignment := cos(floor_max_angle)
+	var best_alignment := minimum_floor_alignment
+	var best_collider: Object = null
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		if collision == null:
+			continue
+		var normal := collision.get_normal()
+		if normal.is_zero_approx():
+			continue
+		var alignment := normal.normalized().dot(floor_normal)
+		if alignment < best_alignment:
+			continue
+		best_alignment = alignment
+		best_collider = collision.get_collider()
+	return best_collider
 
 
 func _apply_swim_presentation(state: StringName) -> void:

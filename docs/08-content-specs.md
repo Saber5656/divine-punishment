@@ -339,7 +339,7 @@ static func resolve(player_state: StringName, to_enemy_local: Vector3,
 class_name EnemyPerception
 signal stimulus(stim: PerceptionStimulus)
 func tick(delta: float) -> void                       # Brain が 10 Hz/LOD で呼ぶ（自走しない）
-func on_noise(event: NoiseEvent) -> void              # EventBus.noise_emitted に接続
+func on_noise(event: NoiseEvent) -> void              # NoiseEventSystem が距離・遮蔽後に直接配送（raw EventBus へは接続しない）
 func meter() -> float                                 # 発見メーター現在値（閾値は §2.3: 1.0/2.0/3.0）
 static func vision_gain(v: float, dist: float, view_dist: float,
         central: bool, base_gain: float) -> float     # pure, §2.3 の式そのもの
