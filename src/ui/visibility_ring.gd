@@ -78,7 +78,7 @@ func _draw() -> void:
 	# A small vermilion marker communicates that V is changing without adding
 	# a numeric meter to the minimal HUD.
 	if _display_visibility > 0.001 and _display_visibility < 0.999:
-		var marker_angle := -PI * 0.5 + TAU * _display_visibility
+		var marker_angle := -PI * 0.5 + TAU * ink_coverage
 		var marker := center + Vector2(cos(marker_angle), sin(marker_angle)) * radius
 		draw_circle(marker, RING_WIDTH * 0.8, ACCENT_COLOR)
 
