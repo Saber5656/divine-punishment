@@ -105,10 +105,41 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 		"Route B waypoints must have world collision support",
 	)
 	var veranda_roof := residence.get_node(^"Geometry/Overhead/VerandaRoofPlatform") as StaticBody3D
-	assert_true(
-		_box_contains(veranda_roof, Vector3(40.0, RESIDENCE_SCRIPT.OVERHEAD_Y, 8.0)),
-		"Route B must have bounded support at its veranda-roof waypoint",
+	var veranda_bounds := veranda_roof.get_meta(&"graybox_bounds") as Vector3
+	var veranda_top := veranda_roof.global_position.y + veranda_bounds.y * 0.5
+	var player_scene := load("res://src/player/player.tscn") as PackedScene
+	assert_not_null(player_scene, "Route B clearance test requires the player scene")
+	if player_scene == null:
+		return
+	var player := player_scene.instantiate() as PlayerController
+	assert_not_null(player, "Route B clearance test requires a PlayerController instance")
+	if player == null:
+		return
+	var player_collision := player.get_node(^"CollisionShape3D") as CollisionShape3D
+	var standing_capsule := player_collision.shape as CapsuleShape3D
+	assert_not_null(standing_capsule, "Route B clearance test requires a standing capsule")
+	if standing_capsule == null:
+		player.free()
+		return
+	var capsule_bottom := RESIDENCE_SCRIPT.OVERHEAD_Y + player_collision.position.y - standing_capsule.height * 0.5
+	assert_gt(
+		capsule_bottom,
+		veranda_top + 0.001,
+		"Route B standing capsule must clear the veranda roof with a finite margin",
 	)
+	var space_state := residence.get_world_3d().direct_space_state
+	for waypoint: Vector3 in residence.route_waypoints(&"B_overhead"):
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = standing_capsule
+		query.transform = Transform3D(Basis.IDENTITY, waypoint)
+		query.collision_mask = PlayerController.WORLD_COLLISION_MASK
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		assert_true(
+			space_state.intersect_shape(query, 8).is_empty(),
+			"Standing capsule must clear all Route B supports at %s" % [waypoint],
+		)
+	player.free()
 
 	for entrance: CrawlEntrance in residence.get_tree().get_nodes_in_group(&"crawl_entrances"):
 		assert_gt(
