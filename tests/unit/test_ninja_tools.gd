@@ -239,3 +239,56 @@ func test_enemy_incapacitation_duration_is_hard_bounded() -> void:
 	}))
 	assert_true(enemy.is_incapacitated())
 	assert_lte(enemy.active_duration, BlowDartTool.MAX_SLEEP_SECONDS)
+
+
+
+func test_projectile_collision_mask_covers_documented_body_layers() -> void:
+	assert_true((ToolBase.PROJECTILE_COLLISION_MASK & (1 << 0)) != 0)
+	assert_true((ToolBase.PROJECTILE_COLLISION_MASK & (1 << 2)) != 0)
+	assert_true((ToolBase.PROJECTILE_COLLISION_MASK & (1 << 3)) != 0)
+	assert_true((ToolBase.PROJECTILE_COLLISION_MASK & (1 << 6)) != 0)
+
+
+func test_smoke_impact_does_not_follow_tool_rig_motion() -> void:
+	var rig := ToolRig.new()
+	add_child_autofree(rig)
+	var impact := Node3D.new()
+	impact.position = Vector3(0.0, 0.0, -3.0)
+	rig.add_child(impact)
+	var definition := load("res://data/tools/smoke.tres") as ToolDefinition
+	var effect := definition.effect_scene.instantiate() as SmokeBombTool
+	rig.add_child(effect)
+	effect.tool_definition = definition
+
+	assert_true(effect.use(rig, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": impact,
+	}))
+	var landing := effect.global_position
+	rig.global_position = Vector3(10.0, 0.0, 0.0)
+	assert_true(effect.top_level)
+	assert_eq(effect.global_position, landing)
+
+
+func test_blow_dart_skips_dart_immune_enemy() -> void:
+	var enemy_scene := preload("res://src/enemies/enemy_base.tscn")
+	var enemy := enemy_scene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+	var config := load("res://data/tuning/perception_shinobi.tres") as PerceptionConfig
+	var perception := enemy.get_node_or_null(NodePath("Perception")) as EnemyPerception
+	perception.set_perception_config(config)
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_false(enemy.brain().is_incapacitated())
