@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -13,6 +13,8 @@
 [ext_resource type="Script" path="res://src/tools/trajectory_display.gd" id="11_trajectory_display"]
 [ext_resource type="Script" path="res://src/player/assassination_resolver.gd" id="12_assassination_resolver"]
 [ext_resource type="Resource" path="res://data/tuning/assassination.tres" id="13_assassination_config"]
+[ext_resource type="Script" path="res://src/player/player_combat.gd" id="14_player_combat"]
+[ext_resource type="Resource" path="res://data/tuning/combat.tres" id="15_combat_config"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -242,3 +244,7 @@ position = Vector3(0, 1, 0)
 
 [node name="Hips" type="Marker3D" parent="DetectPoints"]
 position = Vector3(0, 0.5, 0)
+
+[node name="Combat" type="Node" parent="AssassinationResolver"]
+script = ExtResource("14_player_combat")
+combat_config = ExtResource("15_combat_config")

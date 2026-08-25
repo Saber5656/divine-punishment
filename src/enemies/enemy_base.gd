@@ -241,3 +241,27 @@ func hearing_position() -> Vector3:
 		if eye != null:
 			return eye.global_position
 	return global_position
+
+
+func combat() -> EnemyCombat:
+	return get_node_or_null(NodePath("Combat")) as EnemyCombat
+
+
+func receive_combat_damage(amount: int, source: Node = null) -> int:
+	var enemy_combat := combat()
+	return enemy_combat.receive_damage(amount, source) if enemy_combat != null else 0
+
+
+func health() -> int:
+	var enemy_combat := combat()
+	return enemy_combat.health() if enemy_combat != null else 0
+
+
+func max_health() -> int:
+	var enemy_combat := combat()
+	return enemy_combat.max_health() if enemy_combat != null else 0
+
+
+func is_defeated() -> bool:
+	var enemy_combat := combat()
+	return enemy_combat != null and enemy_combat.is_defeated()
