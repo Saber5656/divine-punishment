@@ -226,6 +226,30 @@ func test_assassination_requires_clear_world_path() -> void:
 	assert_eq(resolver.evaluate(enemy), &"back")
 
 
+func test_above_assassination_skips_immediate_support_but_not_world_blocker() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	player.position = Vector3(0.0, 2.0, 0.0)
+	add_child_autofree(player)
+	var support := _add_world_box(Vector3(0.0, 1.45, 0.0), Vector3(4.0, 0.2, 4.0))
+	var wall := _add_world_box(Vector3(0.4, 1.5, 0.0), Vector3(0.2, 1.0, 1.0))
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.8, 0.0, 0.0)
+	add_child_autofree(enemy)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_BEAM))
+	# This isolated judgment fixture has no authored BeamPath.  Keep the
+	# traversal state stable while the physics server refreshes Area3D pairs.
+	player.set_physics_process(false)
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_BEAM)
+	assert_eq(resolver.evaluate(enemy), &"")
+	wall.queue_free()
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"above")
+	support.queue_free()
+
+
 func test_resolver_refreshes_assassination_tuning_on_reload() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
@@ -305,13 +329,17 @@ func _wait_for_sensor_overlap(player: PlayerController, enemy: EnemyBase) -> voi
 
 
 func _add_occluder(at: Vector3) -> StaticBody3D:
+	return _add_world_box(at, Vector3(0.5, 1.5, 0.2))
+
+
+func _add_world_box(at: Vector3, size: Vector3) -> StaticBody3D:
 	var blocker := StaticBody3D.new()
 	blocker.collision_layer = 1
 	blocker.collision_mask = 0
 	blocker.position = at
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(0.5, 1.5, 0.2)
+	shape.size = size
 	collision.shape = shape
 	blocker.add_child(collision)
 	add_child_autofree(blocker)

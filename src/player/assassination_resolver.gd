@@ -5,8 +5,12 @@ extends Node
 const AssassinationConfigScript := preload("res://src/core/tuning/assassination_config.gd")
 const DEFAULT_CONFIG_PATH := "res://data/tuning/assassination.tres"
 const MAX_TARGET_CANDIDATES := 64
+const MAX_ASSASSINATION_PATH_HITS := 8
+const MAX_SUPPORT_SURFACE_SKIPS := 2
 const MAX_WORLD_COORDINATE := 10000.0
 const EPSILON_SQUARED := 0.000001
+const SUPPORT_SURFACE_MAX_DISTANCE := 1.0
+const SUPPORT_SURFACE_MIN_NORMAL_Y := 0.5
 const ASSASSINATE_TARGET_LAYER := 1 << 10
 const ASSASSINATION_OCCLUSION_MASK := (1 << 0) | (1 << 4)
 const DEFAULT_PRESENTATION_DURATION_SECONDS := 1.0
@@ -386,7 +390,6 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 		or enemy.get_tree() != player.get_tree()
 		or not _target_area_is_valid(enemy)
 		or not _sensor_overlaps_enemy(player, enemy)
-		or not _assassination_path_is_clear(player, enemy)
 	):
 		return &""
 	if enemy.has_method(&"can_be_assassinated") and not bool(enemy.call(&"can_be_assassinated")):
@@ -402,6 +405,8 @@ func _context_for_enemy(enemy: EnemyBase) -> StringName:
 		seen,
 		config,
 	)
+	if context == &"" or not _assassination_path_is_clear(player, enemy, context):
+		return &""
 	if context == CONTEXT_BACK and not _enemy_facing_allows_backstab(player, enemy):
 		return &""
 	return context
@@ -473,19 +478,27 @@ func _target_area_is_valid(enemy: EnemyBase) -> bool:
 
 func _sensor_overlaps_enemy(player: Node3D, enemy: EnemyBase) -> bool:
 	var interactor := player.get_node_or_null(NodePath("Interactor")) as Area3D
-	if interactor == null or not interactor.monitoring:
+	var target_area := enemy.get_node_or_null(NodePath("AssassinateTarget")) as Area3D
+	if (
+		interactor == null
+		or not interactor.monitoring
+		or target_area == null
+		or not target_area.is_inside_tree()
+		or not target_area.monitorable
+	):
 		return false
-	var examined := 0
-	for area: Area3D in interactor.get_overlapping_areas():
-		if examined >= MAX_TARGET_CANDIDATES:
-			break
-		examined += 1
-		if _enemy_from_area(area) == enemy:
-			return true
-	return false
+	# Prompt discovery is bounded below, but evaluating an explicitly requested
+	# enemy must not depend on the shared overlap list's iteration order.  The
+	# physics server performs this direct pair query without truncating unrelated
+	# Interactor overlaps first.
+	return interactor.overlaps_area(target_area)
 
 
-func _assassination_path_is_clear(player: Node3D, enemy: EnemyBase) -> bool:
+func _assassination_path_is_clear(
+	player: Node3D,
+	enemy: EnemyBase,
+	context: StringName = &"",
+) -> bool:
 	var target_area := enemy.get_node_or_null(NodePath("AssassinateTarget")) as Area3D
 	if target_area == null or not target_area.is_inside_tree():
 		return false
@@ -498,8 +511,49 @@ func _assassination_path_is_clear(player: Node3D, enemy: EnemyBase) -> bool:
 		return false
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = ASSASSINATION_OCCLUSION_MASK
-	query.exclude = _assassination_ray_exclusions(player, enemy)
-	return world.direct_space_state.intersect_ray(query).is_empty()
+	var excluded := _assassination_ray_exclusions(player, enemy)
+	var support_skips := 0
+	for _hit_index in MAX_ASSASSINATION_PATH_HITS:
+		query.exclude = excluded
+		var hit := world.direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			return true
+		if (
+			context != CONTEXT_ABOVE
+			or support_skips >= MAX_SUPPORT_SURFACE_SKIPS
+			or not _is_immediate_support_surface(hit, from)
+		):
+			return false
+		var hit_rid: RID = hit.get("rid", RID())
+		if not hit_rid.is_valid():
+			return false
+		excluded.append(hit_rid)
+		support_skips += 1
+	return false
+
+
+func _is_immediate_support_surface(hit: Dictionary, from: Vector3) -> bool:
+	var hit_position: Variant = hit.get("position")
+	var hit_normal: Variant = hit.get("normal")
+	var collider := hit.get("collider") as CollisionObject3D
+	if (
+		not hit_position is Vector3
+		or not hit_normal is Vector3
+		or collider == null
+		or (collider.collision_layer & (1 << 0)) == 0
+	):
+		return false
+	var position := hit_position as Vector3
+	var normal := hit_normal as Vector3
+	if not _valid_vector(position) or not _valid_vector(normal):
+		return false
+	var distance := from.distance_to(position)
+	return (
+		is_finite(distance)
+		and distance <= SUPPORT_SURFACE_MAX_DISTANCE
+		and position.y <= from.y + 0.05
+		and normal.y >= SUPPORT_SURFACE_MIN_NORMAL_Y
+	)
 
 
 func _assassination_ray_exclusions(player: Node3D, enemy: EnemyBase) -> Array[RID]:
