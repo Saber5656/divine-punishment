@@ -54,6 +54,7 @@ func _exit_tree() -> void:
 	# the transient assassination state indefinitely.
 	if _active or _camera_rig != null or _audio_director != null:
 		_reset_hooks()
+		_set_audio_phase(&"ambient")
 		_clear_state()
 
 
@@ -110,6 +111,7 @@ func cancel() -> bool:
 	if not _active:
 		return false
 	_reset_hooks()
+	_set_audio_phase(&"ambient")
 	_clear_state()
 	return true
 
@@ -240,10 +242,6 @@ func _reset_hooks() -> void:
 	var camera_rig := _camera_rig if is_instance_valid(_camera_rig) else _resolve_camera_rig()
 	if camera_rig != null and camera_rig.has_method(&"end_assassination_blend"):
 		camera_rig.call(&"end_assassination_blend")
-	var audio_director := _audio_director if is_instance_valid(_audio_director) else _resolve_audio_director()
-	if audio_director != null and audio_director.has_method(&"restore_assassination_ambient"):
-		audio_director.call(&"restore_assassination_ambient")
-	_audio_phase = &""
 
 
 func _player_node() -> Node:

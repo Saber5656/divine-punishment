@@ -89,6 +89,18 @@ func test_large_frame_delta_does_not_stretch_presentation_lock() -> void:
 	assert_eq(presentation.audio_phase(), &"ambient")
 
 
+func test_cancel_emits_ambient_phase_for_presentation_consumers() -> void:
+	var presentation := _presentation()
+	var enemy := _enemy()
+	var phases: Array[StringName] = []
+	presentation.audio_phase_changed.connect(func(_context: StringName, phase: StringName) -> void: phases.append(phase))
+	assert_true(presentation.begin(enemy, &"back"))
+	assert_true(presentation.cancel())
+	assert_eq(phases, [&"silence", &"ambient"])
+	assert_eq(presentation.audio_phase(), &"ambient")
+	assert_eq(AudioDirector.assassination_audio_phase, &"ambient")
+
+
 func test_other_enemy_perception_runs_during_presentation() -> void:
 	var presentation := _presentation()
 	var target := _enemy()
