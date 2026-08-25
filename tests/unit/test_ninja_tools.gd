@@ -110,6 +110,7 @@ func test_pebble_emits_one_bounded_tool_noise_at_impact() -> void:
 
 func test_blow_dart_extinguishes_only_eligible_light() -> void:
 	var light := LightSource.new()
+	light.position = Vector3(0.0, 0.0, -3.0)
 	add_child_autofree(light)
 	var user := Node3D.new()
 	add_child_autofree(user)
@@ -123,7 +124,7 @@ func test_blow_dart_extinguishes_only_eligible_light() -> void:
 	assert_true(effect.use(user, {
 		&"origin": Vector3.ZERO,
 		&"dir": Vector3.FORWARD,
-		&"target": light,
+		&"target": null,
 	}))
 	assert_false(light.is_on())
 	assert_signal_emit_count(EventBus, "light_extinguished", 1)
