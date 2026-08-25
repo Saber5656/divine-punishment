@@ -186,6 +186,28 @@ func test_presentation_lock_completes_through_production_release_path() -> void:
 	assert_true(enemy.is_assassinated())
 
 
+func test_presentation_completion_clears_lock_after_player_enters_dead_state() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"back")
+	assert_true(resolver.confirm())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_DEAD))
+
+	# Completion must clear resolver ownership without restoring Ground over a
+	# terminal player state.  This simulates a scene/state interruption between
+	# the authored presentation and its completion callback.
+	var presentation := resolver.get_node("AssassinationPresentation") as AssassinationPresentation
+	assert_true(presentation.complete())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_DEAD)
+	assert_null(resolver.active_enemy())
+	assert_eq(resolver.active_context(), &"")
+	assert_false(resolver.release())
+
+
 func test_back_context_requires_enemy_to_face_away_from_player() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)

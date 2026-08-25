@@ -86,11 +86,16 @@ func _exit_tree() -> void:
 			presentation.cancel()
 	_prompt_enemy = null
 	_prompt_context = &""
-	_active_enemy = null
-	_active_context = &""
-	_active_origin_state = PlayerStateMachine.STATE_GROUND
-	_active_elapsed_seconds = 0.0
-	_presentation_fallback_remaining = 0.0
+	if _active_enemy != null:
+		# _release_lock() clears the resolver ownership even when a scene
+		# transition already moved the player to Dead or another state.  It only
+		# restores the origin posture while Assassinate is still current.
+		_release_lock()
+	else:
+		_active_context = &""
+		_active_origin_state = PlayerStateMachine.STATE_GROUND
+		_active_elapsed_seconds = 0.0
+		_presentation_fallback_remaining = 0.0
 
 
 func _refresh_config() -> void:
@@ -142,6 +147,9 @@ func _process(delta: float) -> void:
 		if presentation != null and presentation.is_active():
 			return
 		if is_finite(delta) and delta >= 0.0:
+			# Consume the complete finite frame delta, bounded only by the
+			# remaining fallback duration.  Capping each frame at 0.5 seconds
+			# would stretch a no-presentation lock during a stalled frame.
 			_presentation_fallback_remaining = maxf(
 				_presentation_fallback_remaining - minf(delta, MAX_ASSASSINATION_DELTA_SECONDS),
 				0.0,
@@ -249,10 +257,7 @@ func active_context() -> StringName:
 ## Release the player-side lock after the presentation/animation hand-off.
 ## The enemy remains dead and cannot be targeted again.
 func release() -> bool:
-	if _active_enemy == null or not is_instance_valid(_active_enemy):
-		return false
-	var state_machine := _state_machine()
-	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
+	if _active_enemy == null:
 		return false
 	var presentation := _presentation()
 	if presentation != null and presentation.is_active():
@@ -267,15 +272,25 @@ func _on_presentation_completed(enemy: EnemyBase, context: StringName) -> void:
 
 
 func _release_lock() -> bool:
+	var had_active_lock := _active_enemy != null
 	var state_machine := _state_machine()
-	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
-		return false
 	var release_state := _release_state_for_origin(_active_origin_state)
+	var can_restore_origin := (
+		state_machine != null
+		and state_machine.current_state() == PlayerStateMachine.STATE_ASSASSINATE
+	)
 	_active_enemy = null
 	_active_context = &""
 	_active_origin_state = PlayerStateMachine.STATE_GROUND
 	_active_elapsed_seconds = 0.0
 	_presentation_fallback_remaining = 0.0
+	if not had_active_lock:
+		return false
+	# A fatal hit or another state transition may legitimately interrupt the
+	# authored presentation.  Never overwrite that state, but always clear the
+	# resolver ownership so a dead player cannot remain permanently locked.
+	if not can_restore_origin:
+		return true
 	return state_machine.change_state(release_state)
 
 
