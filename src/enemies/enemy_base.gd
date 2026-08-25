@@ -5,6 +5,8 @@ extends CharacterBody3D
 var _assassination_locked := false
 var _assassinated := false
 var _assassination_context: StringName = &""
+var _corpse_anomaly: Anomaly
+var _corpse_anomaly_registered := false
 
 
 const MIN_ROUTINE_SPEED := 0.1
@@ -182,6 +184,34 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	return enemy_brain != null and enemy_brain.set_incapacitated(kind, duration_seconds)
 
 
+## Persistent body anomaly exposed to visual observers.  The object identity is
+## stable for this body, so MissionDirector can count a corpse once even when
+## more than one visual scan or Anomaly wrapper reaches the AI.
+func corpse_anomaly() -> Anomaly:
+	var enemy_brain := brain()
+	if (
+		enemy_brain == null
+		or enemy_brain.incapacitated_kind() != &"dead"
+		or not global_position.is_finite()
+	):
+		return null
+	if _corpse_anomaly == null:
+		_corpse_anomaly = Anomaly.create(
+			Enums.AnomalyKind.CORPSE,
+			global_position,
+			self,
+			3,
+		)
+	else:
+		_corpse_anomaly.position = global_position
+	if not _corpse_anomaly_registered and is_inside_tree():
+		var event_bus := get_node_or_null(NodePath("/root/EventBus"))
+		if event_bus != null and event_bus.has_signal(&"anomaly_registered"):
+			event_bus.emit_signal(&"anomaly_registered", _corpse_anomaly)
+			_corpse_anomaly_registered = true
+	return _corpse_anomaly
+
+
 func set_incapacitation_wake_by_noise(value: bool) -> void:
 	var enemy_brain := brain()
 	if enemy_brain != null:
@@ -215,6 +245,7 @@ func begin_assassination(context: StringName) -> bool:
 	var event_bus := get_node_or_null(NodePath("/root/EventBus"))
 	if event_bus != null and event_bus.has_signal(&"enemy_killed"):
 		event_bus.emit_signal(&"enemy_killed", self, "assassination")
+	corpse_anomaly()
 	return true
 
 
@@ -263,5 +294,10 @@ func max_health() -> int:
 
 
 func is_defeated() -> bool:
+	if _assassinated:
+		return true
+	var enemy_brain := brain()
+	if enemy_brain != null and enemy_brain.incapacitated_kind() == &"dead":
+		return true
 	var enemy_combat := combat()
 	return enemy_combat != null and enemy_combat.is_defeated()

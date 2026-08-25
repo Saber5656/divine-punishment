@@ -29,6 +29,19 @@ const MAX_INCAPACITATION_DURATION_SEC := 300.0
 const MAX_AREA_ALERT_LEVEL := 5
 const SEARCH_PROPAGATION_RADIUS := 12.0
 const MAX_PROPAGATED_ENEMIES := 64
+const MAX_SEARCH_POINTS := 32
+const MAX_SEARCH_POINT_CANDIDATES := 128
+const MAX_SEARCH_POINT_SCAN := 1024
+const MAX_SEARCH_HIDE_SPOTS := 8
+const MAX_SEARCH_HIDE_SPOT_CANDIDATES := 64
+const MAX_SEARCH_HIDE_SPOT_SCAN := 256
+const MAX_SEARCH_PLAYER_CANDIDATES := 8
+const SEARCH_POINT_RADIUS := 30.0
+const SEARCH_HIDE_SPOT_RADIUS := 12.0
+const MAX_SEARCH_STEP_DELTA := 0.25
+const SEARCH_VERTICAL_REACH_TOLERANCE := 1.5
+const SEARCH_NAVIGATION_SNAP_DISTANCE := 1.5
+const MIN_SEARCH_SPEED := 3.0
 const DEFAULT_ROUTINE_SPEED := 1.5
 const MAX_ROUTINE_CLOCK_SECONDS := 86400.0
 const MAX_ROUTINE_STEP_DELTA := 0.25
@@ -38,6 +51,7 @@ signal state_changed(from_state: Enums.AlertState, to_state: Enums.AlertState)
 signal substate_changed(from_substate: StringName, to_substate: StringName)
 signal investigation_started(position: Vector3)
 signal investigation_completed(position: Vector3)
+signal search_hide_spot_inspected(hide_spot: HideSpot, visible: bool)
 signal relight_requested(light: LightSource)
 
 var _state: Enums.AlertState = Enums.AlertState.UNAWARE
@@ -49,6 +63,15 @@ var _has_last_known_position := false
 var _investigation_elapsed := 0.0
 var _investigation_arrived := false
 var _search_elapsed := 0.0
+var _search_points: Array[SearchPoint] = []
+var _search_point_index := -1
+var _search_route_complete := false
+var _search_hide_spot_checks := 0
+var _search_hide_spot_visible_count := 0
+var _last_search_hide_spot: HideSpot
+var _last_search_hide_spot_visible := false
+var _search_hide_spot_anchor := Vector3.ZERO
+var _search_route_anchor := Vector3.ZERO
 var _combat_lost_sight_elapsed := 0.0
 var _return_elapsed := 0.0
 var _return_vigilance_remaining := 0.0
@@ -74,6 +97,7 @@ var _routine_stop_elapsed := 0.0
 var _routine_clock := 0.0
 var _routine_curve_distance := 0.0
 var _routine_holding_final_stop := false
+var _last_area_alert_level := -1
 var _lantern_light: LightSource
 var _lantern_offset := Vector3(0.0, 1.4, 0.0)
 
@@ -81,10 +105,20 @@ var _lantern_offset := Vector3(0.0, 1.4, 0.0)
 func _ready() -> void:
 	_started = true
 	set_physics_process(true)
+	var event_bus := _event_bus()
+	if event_bus != null:
+		var callback := Callable(self, &"_on_area_alert_changed")
+		if not event_bus.is_connected(&"area_alert_changed", callback):
+			event_bus.connect(&"area_alert_changed", callback)
 
 
 func _exit_tree() -> void:
 	_started = false
+	var event_bus := _event_bus()
+	if event_bus != null:
+		var callback := Callable(self, &"_on_area_alert_changed")
+		if event_bus.is_connected(&"area_alert_changed", callback):
+			event_bus.disconnect(&"area_alert_changed", callback)
 
 
 func _physics_process(delta: float) -> void:
@@ -147,6 +181,47 @@ func investigation_position() -> Vector3:
 
 func search_focus_position() -> Vector3:
 	return investigation_position()
+
+
+func current_search_target() -> Vector3:
+	var point := current_search_point()
+	if point != null:
+		return point.target_position()
+	return search_focus_position()
+
+
+func search_point_count() -> int:
+	return _search_points.size()
+
+
+func current_search_point() -> SearchPoint:
+	if _search_point_index < 0 or _search_point_index >= _search_points.size():
+		return null
+	return _search_points[_search_point_index]
+
+
+func search_point_order() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for point: SearchPoint in _search_points:
+		if point != null and is_instance_valid(point):
+			result.append(StringName(point.name))
+	return result
+
+
+func inspected_hide_spot_count() -> int:
+	return _search_hide_spot_checks
+
+
+func visible_search_hide_spot_count() -> int:
+	return _search_hide_spot_visible_count
+
+
+func last_search_hide_spot() -> HideSpot:
+	return _last_search_hide_spot if _last_search_hide_spot != null and is_instance_valid(_last_search_hide_spot) else null
+
+
+func last_search_hide_spot_visible() -> bool:
+	return _last_search_hide_spot_visible
 
 
 func last_known_position() -> Vector3:
@@ -244,6 +319,7 @@ func set_routine_path(path: PatrolPath) -> bool:
 	_routine_curve_distance = 0.0
 	_routine_holding_final_stop = false
 	_routine_arrived = false
+	_last_area_alert_level = -1
 	return true
 
 
@@ -306,6 +382,7 @@ func current_stop_index() -> int:
 
 func current_routine_stop() -> RoutineStop:
 	var path := routine_path()
+	_sync_routine_alert_level()
 	return path.stop_at(_routine_stop_index) if path != null else null
 
 
@@ -629,10 +706,7 @@ func _advance_state_without_stimulus(delta: float) -> void:
 			if _investigation_arrived and _investigation_elapsed >= INVESTIGATION_DURATION_SEC:
 				_complete_investigation()
 		Enums.AlertState.SEARCHING:
-			_search_elapsed += delta
-			_set_navigation_target(search_focus_position())
-			if _search_elapsed >= SEARCH_DURATION_SEC:
-				_transition_to(Enums.AlertState.RETURN, null, &"search_timeout")
+			_advance_search(delta)
 		Enums.AlertState.COMBAT:
 			var perception := _perception()
 			var visible := _target_visible
@@ -672,6 +746,7 @@ func _process_stimulus(stim: PerceptionStimulus) -> void:
 	var next := transition_for_stimulus(_state, priority)
 	if _state == Enums.AlertState.SEARCHING and priority < 4:
 		_search_elapsed = 0.0
+		_begin_search_route()
 		_set_substate(&"search")
 	elif _state == Enums.AlertState.SUSPICIOUS and priority <= 1:
 		_investigation_elapsed = 0.0
@@ -727,6 +802,7 @@ func _transition_to(
 			_emit_signal_if_available(&"investigation_started", investigation_position())
 		Enums.AlertState.SEARCHING:
 			_search_elapsed = 0.0
+			_begin_search_route()
 			_set_substate(&"search")
 		Enums.AlertState.COMBAT:
 			_combat_lost_sight_elapsed = 0.0
@@ -738,7 +814,8 @@ func _transition_to(
 			_set_substate(&"relight" if _relight_pending else &"return")
 	_set_navigation_target(
 		_last_known_position
-		if next == Enums.AlertState.SUSPICIOUS or next == Enums.AlertState.SEARCHING
+		if next == Enums.AlertState.SUSPICIOUS
+		else current_search_target() if next == Enums.AlertState.SEARCHING
 		else _return_target() if next == Enums.AlertState.RETURN else _routine_target()
 	)
 	state_changed.emit(previous, next)
@@ -749,6 +826,210 @@ func _transition_to(
 		_propagate_search_alert(_last_known_position)
 		if stim != null:
 			_raise_area_alert_if_severe(stim)
+
+
+func _begin_search_route() -> void:
+	var anchor := search_focus_position()
+	if not _valid_vector(anchor):
+		anchor = _enemy_position()
+	_search_route_anchor = anchor if _valid_vector(anchor) else Vector3.ZERO
+	_search_points = _collect_search_points(_search_route_anchor)
+	_search_point_index = 0 if not _search_points.is_empty() else -1
+	_search_route_complete = _search_points.is_empty()
+	_search_hide_spot_checks = 0
+	_search_hide_spot_visible_count = 0
+	_search_hide_spot_anchor = _search_route_anchor
+	_last_search_hide_spot = null
+	_last_search_hide_spot_visible = false
+
+
+func _collect_search_points(anchor: Vector3) -> Array[SearchPoint]:
+	var result: Array[SearchPoint] = []
+	var tree := get_tree()
+	if tree == null:
+		return result
+	var scanned := 0
+	for candidate in tree.get_nodes_in_group(&"search_points"):
+		if scanned >= MAX_SEARCH_POINT_SCAN:
+			break
+		scanned += 1
+		var point := candidate as SearchPoint
+		if point == null or not is_instance_valid(point) or not point.is_searchable():
+			continue
+		if not _search_point_is_reachable(point):
+			continue
+		var distance := point.target_position().distance_to(anchor) if _valid_vector(anchor) else 0.0
+		if not is_finite(distance) or distance > SEARCH_POINT_RADIUS:
+			continue
+		result.append(point)
+		if result.size() > MAX_SEARCH_POINT_CANDIDATES:
+			result.sort_custom(_sort_search_points)
+			result.resize(MAX_SEARCH_POINT_CANDIDATES)
+	result.sort_custom(_sort_search_points)
+	if result.size() > MAX_SEARCH_POINTS:
+		result.resize(MAX_SEARCH_POINTS)
+	return result
+
+
+func _search_point_is_reachable(point: SearchPoint) -> bool:
+	if point == null or not is_instance_valid(point) or not point.enemy_accessible:
+		return false
+	var target := point.target_position()
+	var enemy := _enemy_node() as Node3D
+	if not _valid_vector(target) or enemy == null or not _valid_vector(enemy.global_position):
+		return false
+	# SearchPoint authoring is ground-oriented. Reject roof/beam markers even
+	# before NavigationServer publishes a synchronized map.
+	if absf(target.y - enemy.global_position.y) > SEARCH_VERTICAL_REACH_TOLERANCE:
+		return false
+	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
+	if agent == null:
+		return true
+	var navigation_map := agent.get_navigation_map()
+	if not navigation_map.is_valid() or NavigationServer3D.map_get_iteration_id(navigation_map) <= 0:
+		# The explicit authoring flag plus vertical guard is the bounded fallback
+		# while the map is unavailable; no unbounded query or movement is added.
+		return true
+	# A valid RID can exist before any navigation regions are baked. Treat that
+	# empty map as unsynchronized so isolated/test scenes retain authored points.
+	if NavigationServer3D.map_get_regions(navigation_map).is_empty():
+		return true
+	var closest := NavigationServer3D.map_get_closest_point(navigation_map, target)
+	return _valid_vector(closest) and closest.distance_to(target) <= SEARCH_NAVIGATION_SNAP_DISTANCE
+
+
+func _sort_search_points(left: SearchPoint, right: SearchPoint) -> bool:
+	if left == null or not is_instance_valid(left):
+		return false
+	if right == null or not is_instance_valid(right):
+		return true
+	if not is_equal_approx(left.confidence, right.confidence):
+		return left.confidence > right.confidence
+	var left_distance := left.target_position().distance_to(_search_route_anchor)
+	var right_distance := right.target_position().distance_to(_search_route_anchor)
+	if not is_equal_approx(left_distance, right_distance):
+		return left_distance < right_distance
+	if left.search_order != right.search_order:
+		return left.search_order < right.search_order
+	return String(left.name) < String(right.name)
+
+
+func _advance_search(delta: float) -> void:
+	_search_elapsed += delta
+	if _search_elapsed >= SEARCH_DURATION_SEC:
+		_transition_to(Enums.AlertState.RETURN, null, &"search_timeout")
+		return
+	var point := current_search_point()
+	if point == null:
+		_set_navigation_target(search_focus_position())
+		return
+	var target := point.target_position()
+	_set_navigation_target(target)
+	if _search_route_complete:
+		return
+	var arrived := _navigation_has_reached(target)
+	var enemy := _enemy_node()
+	var bounded_delta := minf(delta, MAX_SEARCH_STEP_DELTA)
+	if enemy != null and enemy.has_method(&"face_routine_direction"):
+		var facing := point.world_facing_direction()
+		if _valid_vector(facing) and facing.length_squared() > 0.000001:
+			# Use the bounded full-step factor so the authored inspection cone is
+			# active before HideSpot visibility is evaluated.
+			enemy.call(&"face_routine_direction", facing, MAX_SEARCH_STEP_DELTA)
+	if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
+		var result: Variant = enemy.call(&"advance_navigation", bounded_delta, target, _search_speed())
+		arrived = bool(result) if result is bool else _navigation_has_reached(target)
+	if not arrived:
+		return
+	_inspect_hide_spots_at(target)
+	if _search_point_index < _search_points.size() - 1:
+		_search_point_index += 1
+	else:
+		_search_route_complete = true
+
+
+func _inspect_hide_spots_at(position: Vector3) -> void:
+	if _search_hide_spot_checks >= MAX_SEARCH_HIDE_SPOTS or not _valid_vector(position):
+		return
+	_search_hide_spot_anchor = position
+	var tree := get_tree()
+	if tree == null:
+		return
+	var candidates: Array[HideSpot] = []
+	var scanned := 0
+	for candidate in tree.get_nodes_in_group(&"hide_spots"):
+		if scanned >= MAX_SEARCH_HIDE_SPOT_SCAN:
+			break
+		scanned += 1
+		var hide_spot := candidate as HideSpot
+		if hide_spot == null or not is_instance_valid(hide_spot) or not hide_spot.is_geometry_valid():
+			continue
+		var distance := hide_spot.entry_world_position().distance_to(position)
+		if not is_finite(distance) or distance > SEARCH_HIDE_SPOT_RADIUS:
+			continue
+		candidates.append(hide_spot)
+		if candidates.size() > MAX_SEARCH_HIDE_SPOT_CANDIDATES:
+			candidates.sort_custom(_sort_hide_spots)
+			candidates.resize(MAX_SEARCH_HIDE_SPOT_CANDIDATES)
+	candidates.sort_custom(_sort_hide_spots)
+	var perception := _perception()
+	for hide_spot: HideSpot in candidates:
+		if _search_hide_spot_checks >= MAX_SEARCH_HIDE_SPOTS:
+			break
+		_search_hide_spot_checks += 1
+		_last_search_hide_spot = hide_spot
+		var visible_by_perception := (
+			perception != null
+			and perception.can_see_position(hide_spot.entry_world_position())
+		)
+		var hidden_player := _detect_hidden_player(hide_spot) if visible_by_perception else null
+		_last_search_hide_spot_visible = visible_by_perception or hidden_player != null
+		if _last_search_hide_spot_visible:
+			_search_hide_spot_visible_count += 1
+		if hidden_player != null and _valid_vector(hidden_player.global_position):
+			submit_stimulus(PerceptionStimulus.create(
+				Enums.StimulusKind.VISUAL,
+				4,
+				hidden_player.global_position,
+				1.0,
+			))
+		search_hide_spot_inspected.emit(hide_spot, _last_search_hide_spot_visible)
+
+
+func _detect_hidden_player(hide_spot: HideSpot) -> Node3D:
+	if hide_spot == null or not is_instance_valid(hide_spot):
+		return null
+	var tree := get_tree()
+	if tree == null:
+		return null
+	var examined := 0
+	for candidate in tree.get_nodes_in_group(&"player"):
+		if examined >= MAX_SEARCH_PLAYER_CANDIDATES:
+			break
+		examined += 1
+		var player := candidate as Node3D
+		if player == null or not is_instance_valid(player):
+			continue
+		if not player.has_method(&"is_hidden") or not bool(player.call(&"is_hidden")):
+			continue
+		if not player.has_method(&"active_hide_spot") or player.call(&"active_hide_spot") != hide_spot:
+			continue
+		if player.has_method(&"invalidate_hidden_if_close_range_seen"):
+			player.call(&"invalidate_hidden_if_close_range_seen", true)
+		return player
+	return null
+
+
+func _sort_hide_spots(left: HideSpot, right: HideSpot) -> bool:
+	if left == null or not is_instance_valid(left):
+		return false
+	if right == null or not is_instance_valid(right):
+		return true
+	var left_distance := left.entry_world_position().distance_to(_search_hide_spot_anchor)
+	var right_distance := right.entry_world_position().distance_to(_search_hide_spot_anchor)
+	if not is_equal_approx(left_distance, right_distance):
+		return left_distance < right_distance
+	return String(left.name) < String(right.name)
 
 
 func _propagate_search_alert(position: Vector3) -> void:
@@ -919,7 +1200,17 @@ func _effective_priority(stim: PerceptionStimulus) -> int:
 
 
 func _anomaly_is_relevant(anomaly: Anomaly) -> bool:
-	if anomaly == null or not _valid_vector(anomaly.position):
+	if (
+		anomaly == null
+		or anomaly.kind < Enums.AnomalyKind.CORPSE
+		or anomaly.kind > Enums.AnomalyKind.KNOCKOUT
+		or anomaly.severity < 1
+		or anomaly.severity > 3
+		or not is_finite(anomaly.expires_at)
+		or anomaly.expires_at < 0.0
+		or (anomaly.expires_at > 0.0 and Time.get_ticks_msec() / 1000.0 >= anomaly.expires_at)
+		or not _valid_vector(anomaly.position)
+	):
 		return false
 	var enemy_position := _enemy_position()
 	if not _valid_vector(enemy_position):
@@ -959,8 +1250,88 @@ func _enemy_position() -> Vector3:
 	return NO_POSITION
 
 
+func routine_alert_level() -> int:
+	return _area_alert_level()
+
+
+func refresh_routine_for_alert() -> void:
+	_last_area_alert_level = -1
+	_sync_routine_alert_level()
+
+
+func _on_area_alert_changed(_level: int) -> void:
+	_sync_routine_alert_level()
+
+
+func _area_alert_level() -> int:
+	var game_state := _autoload(&"GameState")
+	if game_state == null:
+		return 0
+	var value: Variant = game_state.get(&"area_alert_level")
+	if not (value is int or value is float):
+		return 0
+	var numeric := float(value)
+	if not is_finite(numeric):
+		return 0
+	return clampi(int(numeric), 0, MAX_AREA_ALERT_LEVEL)
+
+
+func _sync_routine_alert_level() -> void:
+	var level := _area_alert_level()
+	if _last_area_alert_level == level:
+		return
+	# A newly bound brain has no prior event to compare with.  Treat its
+	# baseline as calm so a late-spawned enemy immediately selects the strictest
+	# stop already eligible for the current permanent alert level.
+	var previous := maxi(_last_area_alert_level, 0)
+	_last_area_alert_level = level
+	var path := _routine_path
+	if path == null or not is_instance_valid(path):
+		return
+	var stops := path.ordered_stops()
+	if stops.is_empty():
+		return
+	var current_index := clampi(_routine_stop_index, 0, stops.size() - 1)
+	var current_stop := stops[current_index]
+	var candidate_index := -1
+
+	# On an alert rise, select the strictest newly eligible stop.  This lets a
+	# route author place a guard pair/lantern stop at level 1 and an extra patrol
+	# stop at level 2 without rebuilding the route resource.
+	if previous >= 0 and level > previous:
+		var highest_threshold := previous
+		for index in stops.size():
+			var stop := stops[index]
+			if stop == null or not is_instance_valid(stop):
+				continue
+			var threshold := stop.alert_level_required()
+			if threshold > highest_threshold and threshold <= level:
+				highest_threshold = threshold
+				candidate_index = index
+
+	# Initial binding, alert reduction, or an authored stop that is no longer
+	# eligible must always fail closed to the first eligible stop.
+	if candidate_index < 0 and (
+		current_stop == null
+		or not is_instance_valid(current_stop)
+		or current_stop.alert_level_required() > level
+	):
+		for index in stops.size():
+			var stop := stops[index]
+			if stop != null and is_instance_valid(stop) and stop.alert_level_required() <= level:
+				candidate_index = index
+				break
+
+	if candidate_index >= 0 and candidate_index != _routine_stop_index:
+		_routine_stop_index = candidate_index
+		_routine_stop_elapsed = 0.0
+		_routine_holding_final_stop = false
+		_routine_arrived = false
+
+
 func _routine_target() -> Vector3:
 	_sync_routine_binding()
+	_sync_routine_alert_level()
 	var path := _routine_path
 	if _routine_path_is_usable(path):
 		var route_stops := path.ordered_stops()
@@ -1016,7 +1387,7 @@ func _advance_routine(delta: float) -> void:
 		# remains there without advancing through the route.
 		return
 	var stop := current_routine_stop()
-	if stop != null and not stop.is_active_at(_routine_clock):
+	if stop != null and not stop.is_active_at(_routine_clock, _area_alert_level()):
 		_advance_to_next_routine_stop()
 		return
 	_routine_stop_elapsed += bounded_delta
@@ -1041,7 +1412,7 @@ func _advance_to_next_routine_stop() -> void:
 	var path := _routine_path
 	if not _routine_path_is_usable(path):
 		return
-	var next_index := path.next_stop_index(_routine_stop_index, true)
+	var next_index := _next_eligible_routine_stop_index(path)
 	if next_index < 0 or (not path.is_looped() and next_index == _routine_stop_index):
 		_routine_holding_final_stop = true
 		_routine_stop_elapsed = 0.0
@@ -1052,6 +1423,25 @@ func _advance_to_next_routine_stop() -> void:
 	_routine_holding_final_stop = false
 	_routine_arrived = false
 	_set_navigation_target(_routine_target())
+
+
+func _next_eligible_routine_stop_index(path: PatrolPath) -> int:
+	if path == null or not is_instance_valid(path):
+		return -1
+	var stops := path.ordered_stops()
+	if stops.is_empty():
+		return -1
+	var current_index := clampi(_routine_stop_index, 0, stops.size() - 1)
+	var level := _area_alert_level()
+	for _attempt in stops.size():
+		var candidate_index := path.next_stop_index_for_alert(current_index, level, true)
+		if candidate_index < 0 or candidate_index == _routine_stop_index:
+			return -1
+		var candidate := path.stop_at(candidate_index)
+		if candidate != null and candidate.is_active_at(_routine_clock, level):
+			return candidate_index
+		current_index = candidate_index
+	return -1
 
 
 func _routine_facing_direction() -> Vector3:
@@ -1079,6 +1469,10 @@ func _routine_speed() -> float:
 			if is_finite(float(configured)) and float(configured) > 0.0:
 				speed = float(configured)
 	return clampf(speed, 0.1, 12.0)
+
+
+func _search_speed() -> float:
+	return clampf(maxf(_routine_speed(), MIN_SEARCH_SPEED), 0.1, 12.0)
 
 
 func _routine_path_is_usable(path: PatrolPath) -> bool:

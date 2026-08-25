@@ -7,6 +7,8 @@ var _current_objective_index: int = 0
 var _failed_reason: StringName = &""
 var _spotted_corpse_anomalies: Dictionary = {}
 
+const MAX_AREA_ALERT_LEVEL := 5
+
 
 func _ready() -> void:
 	if not EventBus.anomaly_spotted.is_connected(_on_anomaly_spotted):
@@ -56,15 +58,35 @@ func stats() -> MissionStats:
 
 
 func _on_anomaly_spotted(anomaly: Anomaly, _by: Node) -> void:
-	if anomaly == null or anomaly.kind != Enums.AnomalyKind.CORPSE:
+	if (
+		anomaly == null
+		or anomaly.kind != Enums.AnomalyKind.CORPSE
+		or anomaly.severity < 1
+		or anomaly.severity > 3
+		or not is_finite(anomaly.expires_at)
+		or anomaly.expires_at < 0.0
+		or (anomaly.expires_at > 0.0 and Time.get_ticks_msec() / 1000.0 >= anomaly.expires_at)
+	):
 		return
-	var anomaly_id := anomaly.get_instance_id()
-	if _spotted_corpse_anomalies.has(anomaly_id):
+	var corpse_key := _corpse_key(anomaly)
+	if corpse_key.is_empty() or _spotted_corpse_anomalies.has(corpse_key):
 		return
-	_spotted_corpse_anomalies[anomaly_id] = true
+	_spotted_corpse_anomalies[corpse_key] = true
 	_stats.bodies_found += 1
-	GameState.area_alert_level = mini(int(GameState.area_alert_level) + 1, 5)
+	GameState.area_alert_level = mini(int(GameState.area_alert_level) + 1, MAX_AREA_ALERT_LEVEL)
 	EventBus.area_alert_changed.emit(GameState.area_alert_level)
+
+
+## Prefer the physical body identity over the transient Anomaly wrapper.  A
+## body can be observed through a persistent marker and a fresh event without
+## increasing bodies_found or area alert twice.
+func _corpse_key(anomaly: Anomaly) -> String:
+	if anomaly == null:
+		return ""
+	var body := anomaly.node
+	if body != null and is_instance_valid(body):
+		return "body:%s" % body.get_instance_id()
+	return "anomaly:%s" % anomaly.get_instance_id()
 
 
 func build_result() -> MissionResult:

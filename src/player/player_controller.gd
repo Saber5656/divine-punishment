@@ -555,12 +555,13 @@ func try_enter_wall_cling() -> bool:
 
 
 func _update_state_from_input() -> void:
-	if state_machine.current_state() == PlayerStateMachine.STATE_DEAD:
+	var current_state := state_machine.current_state()
+	if current_state == PlayerStateMachine.STATE_ASSASSINATE:
 		return
-	if state_machine.current_state() == PlayerStateMachine.STATE_COMBAT:
+	if current_state == PlayerStateMachine.STATE_DEAD:
+		return
+	if current_state == PlayerStateMachine.STATE_COMBAT:
 		# Combat owns attack/parry/dodge input; movement remains available.
-		return
-	if state_machine.current_state() == PlayerStateMachine.STATE_ASSASSINATE:
 		return
 	var interact_pressed := Input.is_action_pressed(&"interact")
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
@@ -684,7 +685,13 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 	if to != PlayerStateMachine.STATE_BEAM:
 		_active_beam_path = null
 		_beam_axis_direction = 1.0
-	if to != PlayerStateMachine.STATE_CRAWLSPACE:
+	if (
+		to != PlayerStateMachine.STATE_CRAWLSPACE
+		and not (
+			from == PlayerStateMachine.STATE_CRAWLSPACE
+			and to == PlayerStateMachine.STATE_ASSASSINATE
+		)
+	):
 		_clear_crawl_contract()
 	if to != PlayerStateMachine.STATE_HIDDEN:
 		_clear_hide_contract()
@@ -692,8 +699,11 @@ func _on_state_changed(from: StringName, to: StringName) -> void:
 		_clear_water_contract()
 	if to != PlayerStateMachine.STATE_CLIMB and to != PlayerStateMachine.STATE_BEAM:
 		_traversal_distance = 0.0
-	_apply_collision_shape_for_state(to)
-	_apply_camera_posture_for_state(to)
+	var posture_state := to
+	if from == PlayerStateMachine.STATE_CRAWLSPACE and to == PlayerStateMachine.STATE_ASSASSINATE:
+		posture_state = PlayerStateMachine.STATE_CRAWLSPACE
+	_apply_collision_shape_for_state(posture_state)
+	_apply_camera_posture_for_state(posture_state)
 	_apply_swim_presentation(to)
 
 

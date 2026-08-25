@@ -60,7 +60,16 @@ func tick(delta: float) -> void:
 
 
 func set_target(target: Node) -> bool:
-	if _defeated or target == null or not is_instance_valid(target):
+	if (
+		_defeated
+		or _enemy == null
+		or not is_instance_valid(_enemy)
+		or target == null
+		or not is_instance_valid(target)
+		or not target is Node3D
+		or _target_is_defeated(target)
+		or _target_is_incapacitated(target)
+	):
 		return false
 	_target = target
 	var brain := _brain()
@@ -107,7 +116,7 @@ func attack(target: Node = null) -> bool:
 
 
 func receive_damage(amount: int, source: Node = null) -> int:
-	if _defeated:
+	if _defeated or _owner_is_dead():
 		return 0
 	var bounded_amount := clampi(amount, 0, CombatConfig.MAX_DAMAGE)
 	if bounded_amount <= 0:
@@ -246,9 +255,18 @@ func _apply_damage_to_target(target: Node, damage: int) -> int:
 
 
 func _target_in_range(target: Node, range_m: float) -> bool:
-	if _enemy == null or not target is Node3D:
-		return true
-	var distance := _enemy.global_position.distance_to((target as Node3D).global_position)
+	if (
+		_enemy == null
+		or not is_instance_valid(_enemy)
+		or not target is Node3D
+		or not is_instance_valid(target)
+	):
+		return false
+	var owner_position := _enemy.global_position
+	var target_position := (target as Node3D).global_position
+	if not owner_position.is_finite() or not target_position.is_finite():
+		return false
+	var distance := owner_position.distance_to(target_position)
 	return is_finite(distance) and distance <= maxf(range_m, 0.1)
 
 
@@ -264,6 +282,24 @@ func _target_is_defeated(target: Node) -> bool:
 				combat = candidate
 				break
 	return combat != null and combat.has_method(&"is_defeated") and bool(combat.call(&"is_defeated"))
+
+
+func _target_is_incapacitated(target: Node) -> bool:
+	if target == null or not is_instance_valid(target):
+		return true
+	if target.has_method(&"is_incapacitated") and bool(target.call(&"is_incapacitated")):
+		return true
+	var brain := target.get_node_or_null(NodePath("Brain")) as EnemyBrain
+	return brain != null and brain.is_incapacitated()
+
+
+func _owner_is_dead() -> bool:
+	if _enemy == null or not is_instance_valid(_enemy):
+		return true
+	if _enemy.has_method(&"is_assassinated") and bool(_enemy.call(&"is_assassinated")):
+		return true
+	var brain := _brain()
+	return brain != null and brain.incapacitated_kind() == &"dead"
 
 
 func _chase_target(target: Node) -> void:

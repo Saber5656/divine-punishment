@@ -201,9 +201,55 @@ func test_enemy_combat_rejects_a_defeated_target_before_damage() -> void:
 	var defeated_combat := defeated_enemy.get_node("Combat") as EnemyCombat
 	assert_eq(defeated_combat.receive_damage(3), 3)
 	assert_true(defeated_combat.is_defeated())
-	assert_true(enemy_combat.set_target(defeated_enemy))
+	assert_false(enemy_combat.set_target(defeated_enemy))
 	assert_false(enemy_combat.attack_target())
 	assert_eq(defeated_combat.health(), 0)
+
+
+func test_enemy_combat_rejects_a_non_spatial_target_before_damage() -> void:
+	var target := Node.new()
+	add_child_autofree(target)
+	assert_false(enemy_combat.set_target(target))
+	assert_false(enemy_combat.attack_target())
+
+
+func test_enemy_combat_rejects_an_incapacitated_target() -> void:
+	var target := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(target)
+	assert_true(target.set_incapacitated(&"knockout", 5.0))
+	assert_false(enemy_combat.set_target(target))
+
+
+func test_detached_enemy_combat_rejects_spatial_targets_without_an_owner() -> void:
+	var detached := EnemyCombatScript.new() as EnemyCombat
+	var target := Node3D.new()
+	add_child_autofree(detached)
+	add_child_autofree(target)
+	assert_false(detached.set_target(target))
+
+
+func test_assassinated_enemy_is_defeated_and_cannot_be_damaged_or_targeted() -> void:
+	var corpse := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(corpse)
+	var corpse_combat := corpse.get_node("Combat") as EnemyCombat
+	assert_true(corpse.begin_assassination(&"back"))
+	assert_true(corpse.is_assassinated())
+	assert_true(corpse.is_defeated())
+	assert_eq(corpse_combat.receive_damage(1), 0)
+	assert_eq(corpse_combat.health(), 3)
+	assert_false(enemy_combat.set_target(corpse))
+	player_combat.set("_player", player)
+	player_combat.set("_config", (load(COMBAT_TUNING_PATH) as CombatConfig).normalized())
+	assert_null(player_combat.call("_nearest_enemy"))
+
+
+func test_dead_incapacitated_enemy_is_defeated_and_cannot_be_damaged() -> void:
+	var corpse := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(corpse)
+	var corpse_combat := corpse.get_node("Combat") as EnemyCombat
+	assert_true(corpse.set_incapacitated(&"dead"))
+	assert_true(corpse.is_defeated())
+	assert_eq(corpse_combat.receive_damage(1), 0)
 
 
 func test_combat_actions_cannot_enter_from_assassination_or_input_from_other_states() -> void:

@@ -16,6 +16,7 @@ func test_static_resolve_accepts_all_four_tuned_contexts() -> void:
 		# the optional tuning resource is not available yet.
 		config = ConfigScript.new() as Resource
 	assert_not_null(config)
+	assert_eq(config.get("presentation_duration_seconds"), 1.0)
 	assert_eq(config.get("back_max_distance_m"), 1.5)
 	assert_eq(config.get("above_max_distance_m"), 4.0)
 	assert_eq(config.get("below_max_angle_degrees"), 45.0)
@@ -101,6 +102,7 @@ func test_prompt_and_one_input_execution_lock_both_sides() -> void:
 	add_child_autofree(player)
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.rotation.y = PI
 	add_child_autofree(enemy)
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	watch_signals(resolver)
@@ -159,3 +161,217 @@ func test_prompt_and_evaluate_reject_enemy_seen_by_perception() -> void:
 	assert_eq(resolver.evaluate(enemy), &"")
 	assert_eq(resolver.prompt_context(), &"")
 	assert_false(resolver.confirm())
+
+
+func test_presentation_lock_completes_through_production_release_path() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"back")
+	resolver.config.set("presentation_duration_seconds", 0.1)
+
+	assert_true(resolver.confirm())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	for _i in range(20):
+		await get_tree().process_frame
+		if player.state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
+			break
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
+	assert_null(resolver.active_enemy())
+	assert_true(enemy.is_assassinated())
+
+
+func test_back_context_requires_enemy_to_face_away_from_player() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 0.0, 1.0)
+	add_child_autofree(enemy)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+
+	assert_eq(resolver.evaluate(enemy), &"")
+	enemy.rotation.y = PI
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_assassination_requires_sensor_overlap() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var interactor := player.get_node("Interactor") as Area3D
+	await _wait_for_sensor_overlap(player, enemy)
+	interactor.monitoring = false
+	assert_eq(resolver.evaluate(enemy), &"")
+	interactor.monitoring = true
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_assassination_evaluates_explicit_target_after_overlap_candidate_cap() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	# Create unrelated overlap areas before the real enemy so the target is
+	# beyond the bounded prompt-discovery candidate window.
+	for index in ResolverScript.MAX_TARGET_CANDIDATES:
+		var decoy := Area3D.new()
+		decoy.collision_layer = 1 << 11
+		decoy.collision_mask = 0
+		var decoy_shape := CollisionShape3D.new()
+		var sphere := SphereShape3D.new()
+		sphere.radius = 0.1
+		decoy_shape.shape = sphere
+		decoy.add_child(decoy_shape)
+		decoy.position = Vector3(
+			(float(index % 8) - 3.5) * 0.08,
+			0.0,
+			(float(index / 8) - 3.5) * 0.08,
+		)
+		add_child_autofree(decoy)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var interactor := player.get_node("Interactor") as Area3D
+	var target_area := enemy.get_node("AssassinateTarget") as Area3D
+	await _wait_for_sensor_overlap(player, enemy)
+	var overlaps := interactor.get_overlapping_areas()
+	assert_true(overlaps.has(target_area))
+	assert_gt(overlaps.size(), ResolverScript.MAX_TARGET_CANDIDATES)
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_assassination_requires_clear_world_path() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	var enemy := _add_valid_back_enemy()
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	await _wait_for_sensor_overlap(player, enemy)
+	var blocker := _add_occluder(Vector3(0.0, 0.5, 0.5))
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"")
+	blocker.queue_free()
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"back")
+
+
+func test_above_assassination_skips_immediate_support_but_not_world_blocker() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	player.position = Vector3(0.0, 2.0, 0.0)
+	add_child_autofree(player)
+	var support := _add_world_box(Vector3(0.0, 1.45, 0.0), Vector3(4.0, 0.2, 4.0))
+	var wall := _add_world_box(Vector3(0.4, 1.5, 0.0), Vector3(0.2, 1.0, 1.0))
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.8, 0.0, 0.0)
+	add_child_autofree(enemy)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_CLIMB))
+	assert_true(player.state_machine.change_state(PlayerStateMachine.STATE_BEAM))
+	# This isolated judgment fixture has no authored BeamPath.  Keep the
+	# traversal state stable while the physics server refreshes Area3D pairs.
+	player.set_physics_process(false)
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_BEAM)
+	assert_eq(resolver.evaluate(enemy), &"")
+	wall.queue_free()
+	await get_tree().physics_frame
+	assert_eq(resolver.evaluate(enemy), &"above")
+	support.queue_free()
+
+
+func test_resolver_refreshes_assassination_tuning_on_reload() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	add_child_autofree(player)
+	await get_tree().process_frame
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var tuning := get_node("/root/Tuning") as TuningService
+	var original := tuning.assassination()
+	var replacement := ConfigScript.new() as Resource
+	replacement.set("back_max_distance_m", 0.75)
+	tuning._assassination = replacement
+	Tuning.reloaded.emit()
+	assert_eq(resolver.config.get("back_max_distance_m"), 0.75)
+	tuning._assassination = original
+	Tuning.reloaded.emit()
+
+
+func test_resolver_preserves_an_explicit_compatible_config_override() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	var explicit := ConfigScript.new() as Resource
+	explicit.set("back_max_distance_m", 0.75)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	resolver.config = explicit
+	add_child_autofree(player)
+	await get_tree().process_frame
+	var tuning := get_node("/root/Tuning") as TuningService
+	assert_eq(resolver.config, explicit)
+	var original := tuning.assassination()
+	tuning._assassination = ConfigScript.new() as Resource
+	tuning._assassination.set("back_max_distance_m", 0.25)
+	Tuning.reloaded.emit()
+	assert_eq(resolver.config, explicit)
+	tuning._assassination = original
+	Tuning.reloaded.emit()
+
+
+func test_crawl_posture_is_preserved_while_assassination_is_locked() -> void:
+	var entrance := CrawlEntrance.new()
+	entrance.inside_offset = Vector3(0.0, 0.0, -1.0)
+	add_child_autofree(entrance)
+	var player := PlayerScene.instantiate() as PlayerController
+	player.position = entrance.outside_world_position()
+	add_child_autofree(player)
+	assert_true(player.try_enter_crawlspace(entrance))
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 1.0, -1.0)
+	add_child_autofree(enemy)
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var collision := player.get_node("CollisionShape3D") as CollisionShape3D
+	var capsule := collision.shape as CapsuleShape3D
+	await _wait_for_sensor_overlap(player, enemy)
+	assert_eq(resolver.evaluate(enemy), &"below")
+	assert_true(resolver.confirm())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	assert_almost_eq(capsule.height, player.crawl_capsule_height, 0.0001)
+	assert_almost_eq(player.camera_rig.posture_drop(), player.crawl_camera_drop, 0.0001)
+	assert_true(resolver.release())
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CRAWLSPACE)
+	assert_almost_eq(capsule.height, player.crawl_capsule_height, 0.0001)
+
+
+func _add_valid_back_enemy() -> EnemyBase:
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.rotation.y = PI
+	add_child_autofree(enemy)
+	return enemy
+
+
+func _wait_for_sensor_overlap(player: PlayerController, enemy: EnemyBase) -> void:
+	var interactor := player.get_node("Interactor") as Area3D
+	var target_area := enemy.get_node("AssassinateTarget") as Area3D
+	for _i in range(8):
+		await get_tree().physics_frame
+		if interactor.get_overlapping_areas().has(target_area):
+			return
+	assert_true(interactor.get_overlapping_areas().has(target_area))
+
+
+func _add_occluder(at: Vector3) -> StaticBody3D:
+	return _add_world_box(at, Vector3(0.5, 1.5, 0.2))
+
+
+func _add_world_box(at: Vector3, size: Vector3) -> StaticBody3D:
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = 1
+	blocker.collision_mask = 0
+	blocker.position = at
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	blocker.add_child(collision)
+	add_child_autofree(blocker)
+	return blocker

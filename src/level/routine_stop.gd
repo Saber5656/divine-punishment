@@ -13,6 +13,7 @@ const MIN_DWELL_SECONDS := 0.0
 const MAX_DWELL_SECONDS := 600.0
 const MAX_ROUTE_INDEX := 63
 const MAX_SCHEDULE_SECONDS := 86400.0
+const MAX_AREA_ALERT_LEVEL := 5
 const MAX_GIZMO_SIZE := 0.75
 const UNIT_SCALE_TOLERANCE := 0.001
 
@@ -53,6 +54,39 @@ const UNIT_SCALE_TOLERANCE := 0.001
 		enabled = value
 		_update_editor_state()
 
+## Minimum permanent area-alert level at which this stop becomes active.  A
+## route can therefore contain calm and stricter stops without changing the
+## PatrolPath resource or invalidating existing one-argument callers.
+@export_range(0, MAX_AREA_ALERT_LEVEL, 1) var min_alert_level := 0:
+	set(value):
+		min_alert_level = clampi(value, 0, MAX_AREA_ALERT_LEVEL)
+		_update_editor_state()
+
+## Naming aliases retained for level-authored scenes and integrations.
+var min_area_alert_level: int:
+	get:
+		return min_alert_level
+	set(value):
+		min_alert_level = value
+
+var required_alert_level: int:
+	get:
+		return min_alert_level
+	set(value):
+		min_alert_level = value
+
+var area_alert_level: int:
+	get:
+		return min_alert_level
+	set(value):
+		min_alert_level = value
+
+var alert_level: int:
+	get:
+		return min_alert_level
+	set(value):
+		min_alert_level = value
+
 
 func _enter_tree() -> void:
 	set_notify_transform(true)
@@ -88,6 +122,8 @@ func is_geometry_valid() -> bool:
 		and is_finite(repeat_period_seconds)
 		and repeat_period_seconds >= 0.0
 		and repeat_period_seconds <= MAX_SCHEDULE_SECONDS
+		and min_alert_level >= 0
+		and min_alert_level <= MAX_AREA_ALERT_LEVEL
 		and (
 			active_until_seconds <= 0.0
 			or active_until_seconds >= active_from_seconds
@@ -111,8 +147,14 @@ func world_facing_direction() -> Vector3:
 	return direction.normalized() if _is_finite_vector(direction) and direction.length_squared() > 0.000001 else Vector3.FORWARD
 
 
-func is_active_at(elapsed_seconds: float) -> bool:
-	if not enabled or not is_geometry_valid() or not is_finite(elapsed_seconds) or elapsed_seconds < 0.0:
+func is_active_at(elapsed_seconds: float, area_alert_level: int = 0) -> bool:
+	if (
+		not enabled
+		or not is_geometry_valid()
+		or not is_finite(elapsed_seconds)
+		or elapsed_seconds < 0.0
+		or clampi(area_alert_level, 0, MAX_AREA_ALERT_LEVEL) < min_alert_level
+	):
 		return false
 	if elapsed_seconds < active_from_seconds:
 		return false
@@ -122,6 +164,15 @@ func is_active_at(elapsed_seconds: float) -> bool:
 			return cycle_time <= active_until_seconds - active_from_seconds
 		return elapsed_seconds <= active_until_seconds
 	return true
+
+
+func is_available_at(area_alert_level: int) -> bool:
+	var bounded_level := clampi(area_alert_level, 0, MAX_AREA_ALERT_LEVEL)
+	return enabled and is_geometry_valid() and bounded_level >= min_alert_level
+
+
+func alert_level_required() -> int:
+	return min_alert_level
 
 
 func gizmo_segments() -> PackedVector3Array:
@@ -162,6 +213,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 		warnings.append("RoutineStop requires finite transform, bounded dwell/schedule values, and a non-zero facing direction.")
 	if active_until_seconds > 0.0 and active_until_seconds < active_from_seconds:
 		warnings.append("RoutineStop active_until_seconds must be after active_from_seconds.")
+	if min_alert_level > 0:
+		warnings.append("RoutineStop activates at area alert level %d or higher." % min_alert_level)
 	return warnings
 
 
