@@ -16,7 +16,11 @@ const CONTEXT_CORNER: StringName = &"corner"
 
 signal prompt_changed(enemy: EnemyBase, context: StringName)
 
-@export var config: AssassinationConfig
+## Keep the exported contract Resource-typed so Godot can load tuning files even
+## when the editor's script-class cache is not available yet (for example, on a
+## clean headless CI import).  The pure resolver still accepts AssassinationConfig
+## and uses bounded property fallbacks for compatible Resource implementations.
+@export var config: Resource
 
 var _prompt_enemy: EnemyBase
 var _prompt_context: StringName = &""
@@ -26,7 +30,7 @@ var _active_context: StringName = &""
 
 func _ready() -> void:
 	if config == null:
-		config = ResourceLoader.load(DEFAULT_CONFIG_PATH) as AssassinationConfig
+		config = ResourceLoader.load(DEFAULT_CONFIG_PATH) as Resource
 	if config == null:
 		config = AssassinationConfigScript.new()
 	set_process(true)

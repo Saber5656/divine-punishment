@@ -9,8 +9,12 @@ const CONFIG_PATH := "res://data/tuning/assassination.tres"
 
 
 func test_static_resolve_accepts_all_four_tuned_contexts() -> void:
-	var config := load(CONFIG_PATH) as AssassinationConfig
+	var config := load(CONFIG_PATH) as Resource
 	assert_not_null(config)
+	assert_eq(config.get("back_max_distance_m"), 1.5)
+	assert_eq(config.get("above_max_distance_m"), 4.0)
+	assert_eq(config.get("below_max_angle_degrees"), 45.0)
+	assert_eq(config.get("corner_max_angle_degrees"), 60.0)
 	assert_eq(
 		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, 1.0), Enums.AlertState.UNAWARE, false, config),
 		&"back",
@@ -81,12 +85,15 @@ func test_prompt_and_one_input_execution_lock_both_sides() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	enemy.position = Vector3(0.0, 0.0, 1.0)
 	add_child_autofree(enemy)
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-
 	var interactor := player.get_node("Interactor") as Area3D
 	var target_area := enemy.get_node("AssassinateTarget") as Area3D
-	assert_true(interactor.get_overlapping_areas().has(target_area))
+	var overlaps_target := false
+	for _i in range(4):
+		await get_tree().physics_frame
+		overlaps_target = interactor.get_overlapping_areas().has(target_area)
+		if overlaps_target:
+			break
+	assert_true(overlaps_target)
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	watch_signals(resolver)
 	assert_eq(resolver.evaluate(enemy), &"back")
