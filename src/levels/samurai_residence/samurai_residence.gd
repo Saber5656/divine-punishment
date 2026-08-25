@@ -379,10 +379,43 @@ func _build_navigation() -> void:
 	var navigation := Node3D.new()
 	navigation.name = &"Navigation"
 	add_child(navigation)
-	_add_navigation_region(navigation, &"GroundNavigation", PackedVector3Array([
+	# Keep the enemy ground mesh out of the solid house and perimeter walls. The
+	# narrow west-wall bridge is the authored south-veranda opening used by A.
+	var ground_vertices := PackedVector3Array([
 		Vector3(1.0, GROUND_SURFACE_Y, 1.0), Vector3(99.0, GROUND_SURFACE_Y, 1.0),
+		Vector3(99.0, GROUND_SURFACE_Y, 9.0), Vector3(1.0, GROUND_SURFACE_Y, 9.0),
+		Vector3(1.0, GROUND_SURFACE_Y, 29.0), Vector3(99.0, GROUND_SURFACE_Y, 29.0),
 		Vector3(99.0, GROUND_SURFACE_Y, 63.0), Vector3(1.0, GROUND_SURFACE_Y, 63.0),
-	]))
+		Vector3(1.0, GROUND_SURFACE_Y, 9.0), Vector3(42.8, GROUND_SURFACE_Y, 9.0),
+		Vector3(42.8, GROUND_SURFACE_Y, 15.5), Vector3(1.0, GROUND_SURFACE_Y, 15.5),
+		Vector3(1.0, GROUND_SURFACE_Y, 15.5), Vector3(42.8, GROUND_SURFACE_Y, 15.5),
+		Vector3(42.8, GROUND_SURFACE_Y, 18.5), Vector3(1.0, GROUND_SURFACE_Y, 18.5),
+		Vector3(1.0, GROUND_SURFACE_Y, 18.5), Vector3(42.8, GROUND_SURFACE_Y, 18.5),
+		Vector3(42.8, GROUND_SURFACE_Y, 29.0), Vector3(1.0, GROUND_SURFACE_Y, 29.0),
+		Vector3(42.8, GROUND_SURFACE_Y, 15.5), Vector3(43.2, GROUND_SURFACE_Y, 15.5),
+		Vector3(43.2, GROUND_SURFACE_Y, 18.5), Vector3(42.8, GROUND_SURFACE_Y, 18.5),
+		Vector3(43.2, GROUND_SURFACE_Y, 9.2), Vector3(72.8, GROUND_SURFACE_Y, 9.2),
+		Vector3(72.8, GROUND_SURFACE_Y, 15.5), Vector3(43.2, GROUND_SURFACE_Y, 15.5),
+		Vector3(43.2, GROUND_SURFACE_Y, 15.5), Vector3(72.8, GROUND_SURFACE_Y, 15.5),
+		Vector3(72.8, GROUND_SURFACE_Y, 18.5), Vector3(43.2, GROUND_SURFACE_Y, 18.5),
+		Vector3(43.2, GROUND_SURFACE_Y, 18.5), Vector3(72.8, GROUND_SURFACE_Y, 18.5),
+		Vector3(72.8, GROUND_SURFACE_Y, 28.8), Vector3(43.2, GROUND_SURFACE_Y, 28.8),
+		Vector3(73.2, GROUND_SURFACE_Y, 9.0), Vector3(99.0, GROUND_SURFACE_Y, 9.0),
+		Vector3(99.0, GROUND_SURFACE_Y, 29.0), Vector3(73.2, GROUND_SURFACE_Y, 29.0),
+	])
+	var ground_polygons: Array[PackedInt32Array] = [
+		PackedInt32Array([0, 1, 2, 3]),
+		PackedInt32Array([4, 5, 6, 7]),
+		PackedInt32Array([8, 9, 10, 11]),
+		PackedInt32Array([12, 13, 14, 15]),
+		PackedInt32Array([16, 17, 18, 19]),
+		PackedInt32Array([20, 21, 22, 23]),
+		PackedInt32Array([24, 25, 26, 27]),
+		PackedInt32Array([28, 29, 30, 31]),
+		PackedInt32Array([32, 33, 34, 35]),
+		PackedInt32Array([36, 37, 38, 39]),
+	]
+	_add_navigation_region_with_polygons(navigation, &"GroundNavigation", ground_vertices, ground_polygons)
 	_add_navigation_region(navigation, &"OverheadNavigation", PackedVector3Array([
 		Vector3(10.0, OVERHEAD_Y, 1.0), Vector3(76.0, OVERHEAD_Y, 1.0),
 		Vector3(76.0, OVERHEAD_Y, 22.0), Vector3(10.0, OVERHEAD_Y, 22.0),
@@ -654,13 +687,28 @@ func _add_light(parent: Node3D, marker_name: StringName, position: Vector3, indo
 
 
 func _add_navigation_region(parent: Node3D, region_name: StringName, vertices: PackedVector3Array) -> void:
+	_add_navigation_region_with_polygons(
+		parent,
+		region_name,
+		vertices,
+		[PackedInt32Array([0, 1, 2, 3])],
+	)
+
+
+func _add_navigation_region_with_polygons(
+	parent: Node3D,
+	region_name: StringName,
+	vertices: PackedVector3Array,
+	polygons: Array[PackedInt32Array],
+) -> void:
 	var region := NavigationRegion3D.new()
 	region.name = region_name
 	region.enabled = true
 	region.set_meta(&"layer", region_name)
 	var navigation_mesh := NavigationMesh.new()
 	navigation_mesh.vertices = vertices
-	navigation_mesh.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+	for polygon: PackedInt32Array in polygons:
+		navigation_mesh.add_polygon(polygon)
 	region.navigation_mesh = navigation_mesh
 	parent.add_child(region)
 

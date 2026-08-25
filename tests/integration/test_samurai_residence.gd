@@ -32,6 +32,12 @@ func test_residence_builds_bounded_four_layer_graybox_contract() -> void:
 		3,
 		"Ground, overhead, and crawlspace navigation regions are authored separately",
 	)
+	var ground_navigation := residence.get_node(^"Navigation/GroundNavigation") as NavigationRegion3D
+	assert_gte(
+		ground_navigation.navigation_mesh.get_polygon_count(),
+		8,
+		"Ground navigation must partition around the residence walls",
+	)
 	for region: NavigationRegion3D in residence.navigation_regions():
 		assert_true(region.enabled)
 		assert_not_null(region.navigation_mesh)
