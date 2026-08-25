@@ -99,6 +99,15 @@ func test_patrol_path_gizmo_rejects_huge_finite_stop_coordinates() -> void:
 	assert_true(path.gizmo_segments().is_empty())
 
 
+func test_patrol_path_gizmo_rejects_stop_marker_endpoint_overflow() -> void:
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var stop := _add_stop(path, 0, Vector3(PatrolPath.MAX_LOCAL_POINT_DISTANCE - 0.1, 0.0, 0.0))
+
+	assert_true(stop.is_geometry_valid())
+	assert_true(path.gizmo_segments().is_empty())
+
+
 func test_enemy_brain_uses_navigation_agent_for_patrol_and_guard_holds_final_stop() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)

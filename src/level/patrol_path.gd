@@ -260,10 +260,17 @@ func gizmo_segments() -> PackedVector3Array:
 			stop_sampling_complete = false
 			break
 		var size := 0.35
-		segments.append(local_position + Vector3.LEFT * size)
-		segments.append(local_position + Vector3.RIGHT * size)
-		segments.append(local_position + Vector3.FORWARD * size)
-		segments.append(local_position + Vector3.BACK * size)
+		var marker_positions: Array[Vector3] = [
+			local_position + Vector3.LEFT * size,
+			local_position + Vector3.RIGHT * size,
+			local_position + Vector3.FORWARD * size,
+			local_position + Vector3.BACK * size,
+		]
+		for marker_position: Vector3 in marker_positions:
+			if not _is_safe_gizmo_local_position(marker_position):
+				return PackedVector3Array()
+		for marker_position: Vector3 in marker_positions:
+			segments.append(marker_position)
 		if index > 0:
 			segments.append(local_stop_positions[index - 1])
 			segments.append(local_position)
