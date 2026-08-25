@@ -438,9 +438,10 @@ func _build_routes() -> void:
 	)
 
 	var crawl_entrances := _new_marker_root(&"CrawlEntrances")
-	_add_crawl_entrance(crawl_entrances, &"U1_WestWaterEntry", Vector3(78.0, PLAYER_CENTER_Y, 44.0), Vector3(0.0, 0.0, -3.0))
-	_add_crawl_entrance(crawl_entrances, &"U2_VerandaEntry", Vector3(36.0, PLAYER_CENTER_Y, 18.0), Vector3(0.0, 0.0, 2.5))
-	_add_crawl_entrance(crawl_entrances, &"U3_LatrineEntry", Vector3(68.0, PLAYER_CENTER_Y, 25.0), Vector3(-2.5, 0.0, 0.0))
+	# Keep the crawl capsule's lower extent above the authored floor at the inside endpoint.
+	_add_crawl_entrance(crawl_entrances, &"U1_WestWaterEntry", Vector3(78.0, PLAYER_CENTER_Y, 44.0), Vector3(0.0, 0.1, -3.0))
+	_add_crawl_entrance(crawl_entrances, &"U2_VerandaEntry", Vector3(36.0, PLAYER_CENTER_Y, 18.0), Vector3(0.0, 0.1, 2.5))
+	_add_crawl_entrance(crawl_entrances, &"U3_LatrineEntry", Vector3(68.0, PLAYER_CENTER_Y, 25.0), Vector3(-2.5, 0.1, 0.0))
 
 	var water := _new_marker_root(&"Water")
 	_add_water_volume(water, &"W1_Pond", Vector3(22.0, 0.0, 13.0), Vector3(16.0, 4.0, 9.0))
@@ -662,6 +663,80 @@ func _add_navigation_region(parent: Node3D, region_name: StringName, vertices: P
 	navigation_mesh.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 	region.navigation_mesh = navigation_mesh
 	parent.add_child(region)
+
+
+func _route_points_have_support(points: Array[Vector3]) -> bool:
+	var world := get_world_3d()
+	if world == null:
+		return false
+	for point: Vector3 in points:
+		var query := PhysicsRayQueryParameters3D.create(
+			point + Vector3.UP * ROUTE_CLEARANCE_HEIGHT,
+			point + Vector3.DOWN * ROUTE_SUPPORT_RAY_LENGTH,
+			WORLD_COLLISION_LAYER,
+		)
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		if world.direct_space_state.intersect_ray(query).is_empty():
+			return false
+	return true
+
+
+func _route_segments_are_clear(points: Array[Vector3], route_id: StringName) -> bool:
+	var world := get_world_3d()
+	if world == null:
+		return false
+	# Probe above the support plane. Overhead paths use a slightly higher probe
+	# so the platform below is not mistaken for a blocker.
+	var ray_offset := ROUTE_CLEARANCE_HEIGHT
+	if route_layer(route_id) == &"overhead":
+		ray_offset = 0.3
+	for index: int in range(1, points.size()):
+		var query := PhysicsRayQueryParameters3D.create(
+			points[index - 1] + Vector3.UP * ray_offset,
+			points[index] + Vector3.UP * ray_offset,
+			WORLD_COLLISION_LAYER,
+		)
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		if not world.direct_space_state.intersect_ray(query).is_empty():
+			return false
+	return true
+
+
+func _route_navigation_covers(points: Array[Vector3], route_id: StringName) -> bool:
+	var expected_name := StringName("%sNavigation" % String(route_layer(route_id)).capitalize())
+	for region: NavigationRegion3D in navigation_regions():
+		if region.name != expected_name or region.navigation_mesh == null:
+			continue
+		var vertices: PackedVector3Array = region.navigation_mesh.vertices
+		if vertices.size() < 4:
+			return false
+		var min_x := INF
+		var max_x := -INF
+		var min_y := INF
+		var max_y := -INF
+		var min_z := INF
+		var max_z := -INF
+		for vertex: Vector3 in vertices:
+			min_x = minf(min_x, vertex.x)
+			max_x = maxf(max_x, vertex.x)
+			min_y = minf(min_y, vertex.y)
+			max_y = maxf(max_y, vertex.y)
+			min_z = minf(min_z, vertex.z)
+			max_z = maxf(max_z, vertex.z)
+		for point: Vector3 in points:
+			if (
+				point.x < min_x - UNIT_EPSILON
+				or point.x > max_x + UNIT_EPSILON
+				or point.y < min_y - NAVIGATION_Y_TOLERANCE
+				or point.y > max_y + NAVIGATION_Y_TOLERANCE
+				or point.z < min_z - UNIT_EPSILON
+				or point.z > max_z + UNIT_EPSILON
+			):
+				return false
+		return true
+	return false
 
 
 func _add_checkpoint(parent: Node3D, marker_name: StringName, position: Vector3, checkpoint_id: StringName) -> void:

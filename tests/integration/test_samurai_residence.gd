@@ -84,6 +84,41 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 		_box_contains(crawl_roof, Vector3(58.0, 0.5, 20.0)),
 		"Route C must retain crawl clearance at the shoin crawl gap",
 	)
+	for entrance: CrawlEntrance in residence.get_tree().get_nodes_in_group(&"crawl_entrances"):
+		assert_gt(
+			entrance.inside_world_position().y,
+			entrance.outside_world_position().y,
+			"Crawl endpoint %s must clear its authored floor" % [entrance.name],
+		)
+
+	var water_entry_floor := residence.get_node(^"Geometry/Crawlspace/CrawlWaterEntryFloor") as StaticBody3D
+	assert_true(
+		_box_contains(water_entry_floor, Vector3(84.0, -0.92, 52.0)),
+		"Route C must have physical support at the W2 waterway entry",
+	)
+
+
+func test_route_validation_rejects_a_new_blocking_world_body() -> void:
+	var residence := _add_residence()
+	await get_tree().physics_frame
+	assert_true(residence.route_is_traversable(&"A_ground"))
+
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = PlayerController.WORLD_COLLISION_MASK
+	blocker.collision_mask = 0
+	blocker.position = Vector3(14.0, 0.0, 8.0)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.4, 2.0, 2.0)
+	collision.shape = shape
+	blocker.add_child(collision)
+	residence.add_child(blocker)
+	await get_tree().physics_frame
+
+	assert_false(
+		residence.route_is_traversable(&"A_ground"),
+		"Route validation must check live world-body clearance, not only waypoint distance",
+	)
 
 
 func test_residence_uses_existing_marker_contracts_and_light_ratio() -> void:
