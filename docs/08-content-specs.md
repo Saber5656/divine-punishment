@@ -484,7 +484,7 @@ Player (CharacterBody3D)                 layer=2 player_body / mask=1 world
 ├─ StateMachine (PlayerStateMachine)
 ├─ Visibility (PlayerVisibility)         # 遮蔽レイは PhysicsDirectSpaceState3D 直接クエリ（ノード不使用）
 ├─ AssassinationResolver
-├─ Interactor (Area3D)                   layer=0 / mask=7|8|9|12|13|15
+├─ Interactor (Area3D)                   layer=0 / mask=7|8|9|11|12|13|15
 ├─ NoiseEmitter (Node)                   # 足音・着地を EventBus.noise_emitted へ
 ├─ ToolRig (ToolRig, Node3D)             # tool_cycle / tool_use / aim を受ける
 │   ├─ ToolInventory (ToolInventory)     # 最大8スロット、defaultは3、残数は0未満にならない
@@ -552,7 +552,7 @@ project.godot の layer_names に下記を登録すること（Issue #1）。
 | 光量の遮蔽（V 計算） | LightSource → Chest（上位 3 光源は 3 点） | 1\|5 |
 | 音の遮蔽（半減判定） | NoiseEvent.position → 敵 EyePoint | 6（ヒット 1 枚ごとに実効半径 ×0.5、§1） |
 | 忍具投射物の飛翔 | 発射軌道 | 1\|3\|4\|7 |
-| プレイヤー Interactor | Area 重なり | 7\|8\|9\|12\|13\|15 |
+| プレイヤー Interactor | Area 重なり | 7\|8\|9\|11\|12\|13\|15 |
 | 必殺プロンプト検出 | プレイヤー前方の短距離 Area | 11（成立判定本体は AssassinationResolver.resolve） |
 | 敵の捜索時の隠れ場所確認 | Brain → HideSpot | 8 |
 

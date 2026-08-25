@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AssassinationConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/tuning/assassination_config.gd" id="1_assassination_config"]
+
+[resource]
+script = ExtResource("1_assassination_config")
+back_max_distance_m = 1.5
+back_max_angle_degrees = 70.0
+back_allowed_alert_states = Array[int]([0, 1, 2, 4])
+above_max_distance_m = 4.0
+above_max_angle_degrees = 45.0
+above_allowed_alert_states = Array[int]([0, 1, 2, 4])
+below_max_distance_m = 1.5
+below_max_angle_degrees = 45.0
+below_allowed_alert_states = Array[int]([0, 1, 2, 4])
+corner_max_distance_m = 1.5
+corner_max_angle_degrees = 60.0
+corner_allowed_alert_states = Array[int]([0, 1, 2, 4])
