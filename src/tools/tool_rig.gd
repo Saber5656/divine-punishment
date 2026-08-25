@@ -240,8 +240,19 @@ func _update_trajectory() -> void:
 		if display != null:
 			display.clear()
 		return
-	var points := trajectory_points()
-	display.set_points(points)
+	# `trajectory_points()` is intentionally a world-space API (the aim origin
+	# comes from the camera).  AimArc is a child of ToolRig, so convert before
+	# handing points to its local mesh; otherwise a player away from the origin
+	# gets the rig transform applied twice by the renderer.
+	var world_points := trajectory_points()
+	var local_points := PackedVector3Array()
+	for point in world_points:
+		var local_point := display.to_local(point)
+		if not local_point.is_finite():
+			display.clear()
+			return
+		local_points.append(local_point)
+	display.set_points(local_points)
 
 
 func _clear_trajectory() -> void:

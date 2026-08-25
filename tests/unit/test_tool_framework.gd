@@ -112,6 +112,23 @@ func test_trajectory_is_finite_bounded_and_hud_reads_inventory() -> void:
 	assert_eq(display.points().size(), 0)
 
 
+func test_aim_arc_converts_world_trajectory_to_local_points() -> void:
+	var rig := ToolRigScript.new() as ToolRig
+	rig.position = Vector3(12.0, 2.0, -7.0)
+	add_child_autofree(rig)
+	var display := TrajectoryDisplayScript.new() as TrajectoryDisplay
+	display.name = "AimArc"
+	rig.add_child(display)
+	rig.set_tool_definitions([_definition(&"stone", 2)])
+
+	assert_true(rig.set_aiming(true))
+	var world_points := rig.trajectory_points()
+	var local_points := display.points()
+	assert_eq(local_points.size(), world_points.size())
+	assert_eq(local_points[0], display.to_local(world_points[0]))
+	assert_eq(local_points[0], Vector3.ZERO)
+
+
 func test_player_scene_exposes_tool_rig_and_aim_arc_contract() -> void:
 	var player := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	add_child_autofree(player)
