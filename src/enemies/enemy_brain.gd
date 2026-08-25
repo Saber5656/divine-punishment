@@ -39,6 +39,7 @@ const MAX_SEARCH_PLAYER_CANDIDATES := 8
 const SEARCH_POINT_RADIUS := 30.0
 const SEARCH_HIDE_SPOT_RADIUS := 12.0
 const MAX_SEARCH_STEP_DELTA := 0.25
+const MIN_SEARCH_SPEED := 3.0
 const DEFAULT_ROUTINE_SPEED := 1.5
 const MAX_ROUTINE_CLOCK_SECONDS := 86400.0
 const MAX_ROUTINE_STEP_DELTA := 0.25
@@ -892,7 +893,7 @@ func _advance_search(delta: float) -> void:
 			# active before HideSpot visibility is evaluated.
 			enemy.call(&"face_routine_direction", facing, MAX_SEARCH_STEP_DELTA)
 	if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
-		var result: Variant = enemy.call(&"advance_navigation", bounded_delta, target, _routine_speed())
+		var result: Variant = enemy.call(&"advance_navigation", bounded_delta, target, _search_speed())
 		arrived = bool(result) if result is bool else _navigation_has_reached(target)
 	if not arrived:
 		return
@@ -1315,6 +1316,10 @@ func _routine_speed() -> float:
 			if is_finite(float(configured)) and float(configured) > 0.0:
 				speed = float(configured)
 	return clampf(speed, 0.1, 12.0)
+
+
+func _search_speed() -> float:
+	return clampf(maxf(_routine_speed(), MIN_SEARCH_SPEED), 0.1, 12.0)
 
 
 func _routine_path_is_usable(path: PatrolPath) -> bool:

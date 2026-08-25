@@ -114,6 +114,14 @@ func test_search_route_rejects_inaccessible_and_overhead_points() -> void:
 	assert_eq(brain.current_search_point(), valid)
 
 
+func test_search_uses_a_minimum_run_speed() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.brain()
+	enemy.routine_speed = 0.1
+
+	assert_gte(brain._search_speed(), EnemyBrain.MIN_SEARCH_SPEED)
+
+
 func test_search_inspects_bounded_hide_spots_through_perception_gate() -> void:
 	var enemy := _spawn_enemy()
 	var brain := enemy.brain()
