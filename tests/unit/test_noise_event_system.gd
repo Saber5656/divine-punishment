@@ -66,6 +66,31 @@ func test_emit_delivers_to_enemy_once_and_keeps_eventbus_telemetry_once() -> voi
 	assert_eq(listener.events[0].source, source)
 
 
+func test_invalid_noise_payload_is_rejected_before_telemetry_and_dispatch() -> void:
+	var source := Node3D.new()
+	var listener := NoiseListener.new()
+	add_child_autofree(source)
+	add_child_autofree(listener)
+	await get_tree().physics_frame
+	var events: Array[NoiseEvent] = []
+	var capture := func(event: NoiseEvent) -> void: events.append(event)
+	EventBus.noise_emitted.connect(capture)
+	NoiseEventSystem.emit(
+		NoiseEvent.create(Vector3(NAN, 0.0, 0.0), 3.0, Enums.NoiseKind.FOOTSTEP, source),
+		get_tree(),
+	)
+	EventBus.noise_emitted.disconnect(capture)
+
+	assert_eq(events.size(), 0)
+	assert_eq(listener.events.size(), 0)
+	assert_eq(
+		NoiseEventSystem.radius_at_listener(
+			get_tree(), Vector3(NAN, 0.0, 0.0), listener.global_position, 3.0, source,
+		),
+		0.0,
+	)
+
+
 func test_sound_blocker_halves_radius_but_other_layers_do_not() -> void:
 	var source := Node3D.new()
 	var listener := NoiseListener.new()

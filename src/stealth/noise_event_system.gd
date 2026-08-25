@@ -13,6 +13,8 @@ const MAX_OCCLUSION_HITS := 16
 
 
 static func emit(event: NoiseEvent, tree: SceneTree = null) -> NoiseEvent:
+	if not _valid_event(event):
+		return event
 	EventBus.noise_emitted.emit(event)
 	if tree != null:
 		deliver_to_enemies(tree, event)
@@ -20,10 +22,14 @@ static func emit(event: NoiseEvent, tree: SceneTree = null) -> NoiseEvent:
 
 
 static func deliver_to_enemies(tree: SceneTree, event: NoiseEvent) -> void:
+	if tree == null or not _valid_event(event):
+		return
 	for listener in tree.get_nodes_in_group("enemies"):
 		if not listener.has_method("on_noise"):
 			continue
 		var listener_position := _listener_position(listener)
+		if not _valid_vector(listener_position):
+			continue
 		var effective_radius := radius_at_listener(
 			tree,
 			event.position,
@@ -44,6 +50,13 @@ static func radius_at_listener(
 	base_radius: float,
 	source: Node = null,
 ) -> float:
+	if (
+		not _valid_vector(origin)
+		or not _valid_vector(listener_position)
+		or not is_finite(base_radius)
+		or base_radius <= 0.0
+	):
+		return 0.0
 	if tree == null or tree.get_root() == null:
 		return base_radius
 	var scene := tree.current_scene
@@ -108,3 +121,18 @@ static func _listener_position(listener: Node) -> Vector3:
 	if listener is Node3D:
 		return (listener as Node3D).global_position
 	return Vector3.ZERO
+
+
+static func _valid_event(event: NoiseEvent) -> bool:
+	return (
+		event != null
+		and _valid_vector(event.position)
+		and is_finite(event.radius)
+		and event.radius > 0.0
+		and event.kind >= Enums.NoiseKind.FOOTSTEP
+		and event.kind <= Enums.NoiseKind.FIREWORK
+	)
+
+
+static func _valid_vector(value: Vector3) -> bool:
+	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
