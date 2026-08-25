@@ -205,12 +205,12 @@ func test_navigation_arrival_fails_closed_before_map_sync() -> void:
 	NavigationServer3D.free_rid(empty_map)
 
 
-func test_navigation_candidate_rejects_non_improvement_and_invalid_vectors() -> void:
+func test_navigation_candidate_accepts_route_detours_and_rejects_invalid_vectors() -> void:
 	var current := Vector3.ZERO
 	var target := Vector3(4.0, 0.0, 0.0)
 	assert_true(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(1.0, 0.0, 0.0)))
 	assert_false(EnemyBase._navigation_candidate_is_progress(current, target, current))
-	assert_false(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(-1.0, 0.0, 0.0)))
+	assert_true(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(-1.0, 0.0, 0.0)))
 	assert_false(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(INF, 0.0, 0.0)))
 
 

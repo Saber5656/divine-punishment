@@ -138,13 +138,21 @@ func advance_navigation(delta: float, target: Vector3, speed: float = DEFAULT_RO
 	# low-frequency AI updates), so use the bounded routine delta explicitly
 	# while retaining CharacterBody collision resolution.
 	var previous_position := global_position
-	var previous_distance := distance
 	var motion := direction * bounded_speed * bounded_delta
 	velocity = motion / bounded_delta
 	move_and_collide(motion, false, 0.001, false, 1)
 	velocity = Vector3.ZERO
+	var displacement := global_position.distance_to(previous_position)
+	var max_displacement := bounded_speed * bounded_delta + NAVIGATION_MIN_PROGRESS
+	if (
+		not is_finite(displacement)
+		or displacement <= NAVIGATION_MIN_PROGRESS
+		or displacement > max_displacement
+	):
+		global_position = previous_position
+		return false
 	var remaining_distance := global_position.distance_to(target)
-	if not is_finite(remaining_distance) or remaining_distance > previous_distance - NAVIGATION_MIN_PROGRESS:
+	if not is_finite(remaining_distance):
 		global_position = previous_position
 		return false
 	return remaining_distance <= tolerance
@@ -167,14 +175,11 @@ static func _navigation_map_ready(agent: NavigationAgent3D) -> bool:
 static func _navigation_candidate_is_progress(current: Vector3, target: Vector3, candidate: Vector3) -> bool:
 	if not current.is_finite() or not target.is_finite() or not candidate.is_finite():
 		return false
-	var current_distance := current.distance_to(target)
-	var candidate_distance := candidate.distance_to(target)
-	return (
-		is_finite(current_distance)
-		and is_finite(candidate_distance)
-		and candidate.distance_to(current) > 0.000001
-		and candidate_distance < current_distance
-	)
+	# A valid navmesh route may initially detour away from the final target.
+	# Only require a finite, non-zero waypoint displacement here; bounded
+	# movement below enforces the per-tick safety limit.
+	var candidate_displacement := candidate.distance_to(current)
+	return is_finite(candidate_displacement) and candidate_displacement > NAVIGATION_MIN_PROGRESS
 
 
 static func _navigation_point_is_valid(agent: NavigationAgent3D, point: Vector3) -> bool:

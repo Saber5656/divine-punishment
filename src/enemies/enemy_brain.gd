@@ -936,11 +936,6 @@ func _advance_search(delta: float) -> void:
 	if _search_route_complete:
 		return
 	var arrived := _navigation_has_reached(target)
-	# Search fixtures may intentionally place an enemy on an authored point
-	# before a NavigationRegion3D is present. This is a stationary inspection
-	# check only; it never authorizes movement or routine/return transitions.
-	if not arrived and _search_target_is_stationary(target):
-		arrived = true
 	var enemy := _enemy_node()
 	var bounded_delta := minf(delta, MAX_SEARCH_STEP_DELTA)
 	if enemy != null and enemy.has_method(&"face_routine_direction"):
@@ -959,18 +954,6 @@ func _advance_search(delta: float) -> void:
 		_search_point_index += 1
 	else:
 		_search_route_complete = true
-
-
-func _search_target_is_stationary(target: Vector3) -> bool:
-	if not _valid_vector(target):
-		return false
-	var enemy := _enemy_node() as Node3D
-	if enemy == null or not _valid_vector(enemy.global_position):
-		return false
-	var distance := enemy.global_position.distance_to(target)
-	return is_finite(distance) and distance <= 0.5
-
-
 func _inspect_hide_spots_at(position: Vector3) -> void:
 	if _search_hide_spot_checks >= MAX_SEARCH_HIDE_SPOTS or not _valid_vector(position):
 		return

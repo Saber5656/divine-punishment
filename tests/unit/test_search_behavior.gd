@@ -30,6 +30,7 @@ func test_search_point_contract_bounds_group_and_gizmo() -> void:
 
 func test_search_route_orders_confidence_then_distance_and_advances_after_arrival() -> void:
 	var enemy := _spawn_enemy()
+	await _add_synchronized_navigation(enemy)
 	var brain := enemy.brain()
 	var low := _add_search_point(&"Low", Vector3(0.0, 0.0, -3.0), 0.2, 2)
 	var high_far := _add_search_point(&"HighFar", Vector3(0.0, 0.0, -5.0), 0.9, 1)
@@ -96,6 +97,7 @@ func test_search_faces_authored_direction_before_hide_spot_inspection() -> void:
 
 func test_search_route_rejects_inaccessible_and_overhead_points() -> void:
 	var enemy := _spawn_enemy()
+	await _add_synchronized_navigation(enemy)
 	var brain := enemy.brain()
 	var inaccessible := _add_search_point(&"Inaccessible", Vector3(0.0, 0.0, -1.0), 1.0, 0)
 	inaccessible.enemy_accessible = false
@@ -124,8 +126,30 @@ func test_search_uses_a_minimum_run_speed() -> void:
 	assert_gte(brain._search_speed(), EnemyBrain.MIN_SEARCH_SPEED)
 
 
+func test_search_does_not_advance_near_target_without_navigation_map() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.brain()
+	var empty_map := NavigationServer3D.map_create()
+	(enemy.get_node(^"NavigationAgent3D") as NavigationAgent3D).set_navigation_map(empty_map)
+	var point := _add_search_point(&"Unsynchronized", Vector3.ZERO, 1.0, 0)
+	brain.submit_stimulus(PerceptionStimulus.create(
+		Enums.StimulusKind.NOISE,
+		3,
+		point.global_position,
+		1.0,
+	))
+	brain.tick(0.016)
+	assert_eq(brain.search_point_count(), 1)
+	assert_eq(brain.current_search_point(), point)
+	assert_eq(brain._search_point_index, 0)
+	assert_false(brain._search_route_complete)
+	assert_eq(brain.inspected_hide_spot_count(), 0)
+	NavigationServer3D.free_rid(empty_map)
+
+
 func test_search_inspects_bounded_hide_spots_through_perception_gate() -> void:
 	var enemy := _spawn_enemy()
+	await _add_synchronized_navigation(enemy)
 	var brain := enemy.brain()
 	var point := _add_search_point(&"Search", Vector3(0.0, 0.0, -1.0), 1.0, 0)
 	var visible_hide := _add_hide_spot(&"VisibleHide", Vector3(0.0, 0.0, -1.0))
@@ -195,6 +219,24 @@ func _add_hide_spot(spot_name: StringName, position: Vector3) -> HideSpot:
 	hide_spot.position = position
 	add_child_autofree(hide_spot)
 	return hide_spot
+
+
+func _add_synchronized_navigation(enemy: EnemyBase) -> NavigationRegion3D:
+	var region := NavigationRegion3D.new()
+	region.enabled = true
+	var navigation_mesh := NavigationMesh.new()
+	navigation_mesh.vertices = PackedVector3Array([
+		Vector3(-8.0, 0.0, -8.0),
+		Vector3(8.0, 0.0, -8.0),
+		Vector3(8.0, 0.0, 8.0),
+		Vector3(-8.0, 0.0, 8.0),
+	])
+	navigation_mesh.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+	region.navigation_mesh = navigation_mesh
+	enemy.add_child(region)
+	for _frame in 10:
+		await get_tree().physics_frame
+	return region
 
 
 func _add_floor() -> StaticBody3D:
