@@ -80,6 +80,10 @@ func update_enemy_alert(enemy: Node, to_state: int) -> bool:
 		_tracked_alerts.erase(instance_id)
 		_refresh_highest_tier()
 		return true
+	if _enemy_is_neutralized(enemy):
+		_tracked_alerts.erase(instance_id)
+		_refresh_highest_tier()
+		return false
 	_prune_tracked_alerts()
 	if not _tracked_alerts.has(instance_id) and _tracked_alerts.size() >= MAX_TRACKED_ENEMIES:
 		# Keep the aggregate bounded.  A full table must not allocate from an
@@ -129,6 +133,7 @@ func _prune_tracked_alerts() -> void:
 		if (
 			not is_instance_valid(enemy)
 			or not enemy is Node
+			or _enemy_is_neutralized(enemy)
 			or not (state is int or state is float)
 			or not _is_active_alert_state(int(state))
 		):
@@ -142,6 +147,12 @@ func _bind_event_bus() -> void:
 	var callback := Callable(self, &"_on_alert_changed")
 	if not event_bus.is_connected(&"alert_changed", callback):
 		event_bus.connect(&"alert_changed", callback)
+	for signal_name: StringName in [&"enemy_killed", &"enemy_neutralized"]:
+		if not event_bus.has_signal(signal_name):
+			continue
+		var neutralized_callback := Callable(self, &"_on_enemy_neutralized")
+		if not event_bus.is_connected(signal_name, neutralized_callback):
+			event_bus.connect(signal_name, neutralized_callback)
 
 
 func _unbind_event_bus() -> void:
@@ -151,6 +162,12 @@ func _unbind_event_bus() -> void:
 	var callback := Callable(self, &"_on_alert_changed")
 	if event_bus.is_connected(&"alert_changed", callback):
 		event_bus.disconnect(&"alert_changed", callback)
+	for signal_name: StringName in [&"enemy_killed", &"enemy_neutralized"]:
+		if not event_bus.has_signal(signal_name):
+			continue
+		var neutralized_callback := Callable(self, &"_on_enemy_neutralized")
+		if event_bus.is_connected(signal_name, neutralized_callback):
+			event_bus.disconnect(signal_name, neutralized_callback)
 
 
 func _event_bus() -> Node:
@@ -166,6 +183,25 @@ static func _is_active_alert_state(state: int) -> bool:
 
 static func _valid_alert_state(state: int) -> bool:
 	return state >= Enums.AlertState.UNAWARE and state <= Enums.AlertState.RETURN
+
+
+func _on_enemy_neutralized(enemy: Node, _method: String) -> void:
+	if enemy == null or not is_instance_valid(enemy):
+		return
+	_tracked_alerts.erase(enemy.get_instance_id())
+	_refresh_highest_tier()
+
+
+static func _enemy_is_neutralized(enemy: Variant) -> bool:
+	if enemy == null or not is_instance_valid(enemy) or not enemy is Node:
+		return false
+	var enemy_node := enemy as Node
+	if enemy_node.has_method(&"is_defeated") and bool(enemy_node.call(&"is_defeated")):
+		return true
+	if enemy_node.has_method(&"is_assassinated") and bool(enemy_node.call(&"is_assassinated")):
+		return true
+	var brain := enemy_node.get_node_or_null(NodePath("Brain"))
+	return brain != null and brain.has_method(&"is_incapacitated") and bool(brain.call(&"is_incapacitated"))
 
 
 func play_bgm_set(set_id: StringName) -> void:
