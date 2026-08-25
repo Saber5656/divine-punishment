@@ -362,12 +362,15 @@ func _build_geometry() -> void:
 	# Leave the south-veranda opening clear so Route A can enter the house.
 	_add_box(house, &"WestHouseWallNorth", Vector3(43.0, 0.5, 12.0), Vector3(0.4, 3.0, 6.0), &"", &"wall")
 	_add_box(house, &"WestHouseWallSouth", Vector3(43.0, 0.5, 24.0), Vector3(0.4, 3.0, 10.0), &"", &"wall")
-	# Leave a crawl-only opening under the shoin wall so Route C can pass beneath the house.\n	_add_box(house, &"ShoinNorthWallWest", Vector3(50.0, 0.5, 29.0), Vector3(14.0, 3.0, 0.4), &"", &"wall")\n	_add_box(house, &"ShoinNorthWallEast", Vector3(70.5, 0.5, 29.0), Vector3(5.0, 3.0, 0.4), &"", &"wall")
+	# Leave a crawl-only opening under the shoin wall so Route C can pass beneath the house.
+	_add_box(house, &"ShoinNorthWallWest", Vector3(50.0, 0.5, 29.0), Vector3(14.0, 3.0, 0.4), &"", &"wall")
+	_add_box(house, &"ShoinNorthWallEast", Vector3(70.5, 0.5, 29.0), Vector3(5.0, 3.0, 0.4), &"", &"wall")
 	_add_box(house, &"ShoinGapFloor", Vector3(58.0, -0.58, 19.8), Vector3(5.0, 0.15, 0.8), &"creaky_wood", &"creaky_wood")
 
 	_add_box(overhead, &"OuterRoofPlatform", Vector3(26.0, 3.9, 5.0), Vector3(32.0, 0.2, 3.0), &"wood", &"roof")
 	# Route B lands on the veranda roof before crossing to the house roof.
-	# Raise the landing platform with the overhead layer so a standing capsule clears the roof.\n	_add_box(overhead, &"VerandaRoofPlatform", Vector3(40.0, OVERHEAD_Y - 0.1, 8.0), Vector3(8.0, 0.2, 4.0), &"wood", &"roof")
+	# Raise the landing platform with the overhead layer so a standing capsule clears the roof.
+	_add_box(overhead, &"VerandaRoofPlatform", Vector3(40.0, OVERHEAD_Y - 0.1, 8.0), Vector3(8.0, 0.2, 4.0), &"wood", &"roof")
 	_add_box(overhead, &"HouseRoofPlatform", Vector3(58.0, 3.9, 19.0), Vector3(30.0, 0.2, 20.0), &"wood", &"roof")
 	_add_box(overhead, &"ShoinBeamSupport", Vector3(58.0, 3.7, 19.0), Vector3(4.0, 0.2, 16.0), &"creaky_wood", &"roof")
 
