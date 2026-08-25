@@ -61,10 +61,29 @@ func test_suspicious_investigates_sound_or_anomaly_then_returns() -> void:
 	assert_eq(brain.investigation_target(), target)
 
 	brain._physics_process(EnemyBrain.INVESTIGATION_DURATION)
+	assert_eq(brain.alert_state(), Enums.AlertState.SUSPICIOUS)
+	brain.mark_investigation_arrived()
+	brain._physics_process(EnemyBrain.INVESTIGATION_DURATION)
 	assert_eq(brain.alert_state(), Enums.AlertState.RETURN)
 	brain.mark_routine_arrived()
 	brain._physics_process(EnemyBrain.RETURN_ARRIVAL_DURATION)
 	assert_eq(brain.alert_state(), Enums.AlertState.UNAWARE)
+
+
+func test_investigation_dwell_starts_only_after_navigation_arrival() -> void:
+	var enemy := _spawn_enemy()
+	var brain := enemy.get_node("Brain") as EnemyBrain
+	var target := Vector3(20.0, 0.0, 0.0)
+	brain.submit_stimulus(_stimulus(1, target))
+	brain._physics_process(0.016)
+	brain._physics_process(EnemyBrain.INVESTIGATION_DURATION + 1.0)
+	assert_eq(brain.alert_state(), Enums.AlertState.SUSPICIOUS)
+
+	brain.mark_investigation_arrived()
+	brain._physics_process(EnemyBrain.INVESTIGATION_DURATION - 0.1)
+	assert_eq(brain.alert_state(), Enums.AlertState.SUSPICIOUS)
+	brain._physics_process(0.1)
+	assert_eq(brain.alert_state(), Enums.AlertState.RETURN)
 
 
 func test_extinguished_light_is_requested_and_relit_after_bounded_delay() -> void:
@@ -93,6 +112,7 @@ func test_extinguished_light_is_requested_and_relit_after_bounded_delay() -> voi
 	brain.submit_stimulus(stimulus)
 	brain._physics_process(0.016)
 	assert_eq(brain.alert_state(), Enums.AlertState.SUSPICIOUS)
+	brain.mark_investigation_arrived()
 	brain._physics_process(EnemyBrain.INVESTIGATION_DURATION)
 	assert_eq(brain.alert_state(), Enums.AlertState.RETURN)
 	assert_true(brain.relight_pending())

@@ -42,6 +42,7 @@ var _stimulus_memory: PerceptionStimulus
 var _last_known_position := Vector3.ZERO
 var _has_last_known_position := false
 var _investigation_elapsed := 0.0
+var _investigation_arrived := false
 var _search_elapsed := 0.0
 var _combat_lost_sight_elapsed := 0.0
 var _return_elapsed := 0.0
@@ -237,6 +238,14 @@ func set_target_position(position: Vector3) -> void:
 		_has_last_known_position = true
 
 
+func set_investigation_arrived(value: bool) -> void:
+	_investigation_arrived = value
+
+
+func mark_investigation_arrived() -> void:
+	set_investigation_arrived(true)
+
+
 ## Queue one stimulus.  Anomaly stimuli are deduplicated per enemy as required
 ## by §10.4, while all other stimuli remain available to the next frame winner.
 func submit_stimulus(stim: PerceptionStimulus) -> void:
@@ -407,9 +416,11 @@ func _advance_state_without_stimulus(delta: float) -> void:
 		Enums.AlertState.UNAWARE:
 			return
 		Enums.AlertState.SUSPICIOUS:
-			_investigation_elapsed += delta
 			_set_navigation_target(investigation_position())
-			if _investigation_elapsed >= INVESTIGATION_DURATION_SEC:
+			if _investigation_arrived or _navigation_has_reached(investigation_position()):
+				_investigation_arrived = true
+				_investigation_elapsed += delta
+			if _investigation_arrived and _investigation_elapsed >= INVESTIGATION_DURATION_SEC:
 				_complete_investigation()
 		Enums.AlertState.SEARCHING:
 			_search_elapsed += delta
@@ -456,6 +467,7 @@ func _process_stimulus(stim: PerceptionStimulus) -> void:
 		_set_substate(&"search")
 	elif _state == Enums.AlertState.SUSPICIOUS and priority <= 1:
 		_investigation_elapsed = 0.0
+		_investigation_arrived = false
 		_set_substate(&"investigate")
 	elif _state == Enums.AlertState.RETURN and priority <= 1:
 		_investigation_elapsed = 0.0
@@ -502,6 +514,7 @@ func _transition_to(
 			_target_visible = false
 		Enums.AlertState.SUSPICIOUS:
 			_investigation_elapsed = 0.0
+			_investigation_arrived = false
 			_set_substate(&"investigate")
 			_emit_signal_if_available(&"investigation_started", investigation_position())
 		Enums.AlertState.SEARCHING:
@@ -733,6 +746,27 @@ func _set_navigation_target(target: Vector3) -> void:
 	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
 	if agent != null:
 		agent.target_position = target
+
+
+func _navigation_has_reached(target: Vector3) -> bool:
+	if not _valid_vector(target):
+		return false
+	var enemy := _enemy_node() as Node3D
+	if enemy == null or not _valid_vector(enemy.global_position):
+		return false
+	var agent := enemy.get_node_or_null(NodePath("NavigationAgent3D")) as NavigationAgent3D
+	var tolerance := 0.5
+	if agent != null and is_finite(agent.target_desired_distance):
+		tolerance = maxf(agent.target_desired_distance, tolerance)
+	var distance := enemy.global_position.distance_to(target)
+	if not is_finite(distance):
+		return false
+	if distance <= tolerance:
+		return true
+	# A finished agent is only authoritative when the actor is also inside the
+	# desired arrival radius.  This avoids treating an unmapped agent as arrived
+	# while its target is still far away.
+	return agent != null and agent.is_navigation_finished() and distance <= tolerance
 
 
 func _event_bus() -> Node:
