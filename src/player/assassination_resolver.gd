@@ -50,6 +50,7 @@ var _active_enemy: EnemyBase
 var _active_context: StringName = &""
 var _active_origin_state: StringName = PlayerStateMachine.STATE_GROUND
 var _active_elapsed_seconds := 0.0
+var _presentation_fallback_remaining := 0.0
 var _tuning_service: Node
 var _config_override: Resource
 
@@ -60,18 +61,36 @@ func _ready() -> void:
 	_refresh_config()
 	_tuning_service = _find_tuning_service()
 	if _tuning_service != null and _tuning_service.has_signal(&"reloaded"):
-		var callback := Callable(self, &"_refresh_config")
-		if not _tuning_service.is_connected(&"reloaded", callback):
-			_tuning_service.connect(&"reloaded", callback)
+		var tuning_callback := Callable(self, &"_refresh_config")
+		if not _tuning_service.is_connected(&"reloaded", tuning_callback):
+			_tuning_service.connect(&"reloaded", tuning_callback)
+	var presentation := _presentation()
+	if presentation != null and not presentation.completed.is_connected(_on_presentation_completed):
+		presentation.completed.connect(_on_presentation_completed)
 	set_process(true)
 	set_process_unhandled_input(true)
 
 
 func _exit_tree() -> void:
 	if _tuning_service != null and _tuning_service.has_signal(&"reloaded"):
-		var callback := Callable(self, &"_refresh_config")
-		if _tuning_service.is_connected(&"reloaded", callback):
-			_tuning_service.disconnect(&"reloaded", callback)
+		var tuning_callback := Callable(self, &"_refresh_config")
+		if _tuning_service.is_connected(&"reloaded", tuning_callback):
+			_tuning_service.disconnect(&"reloaded", tuning_callback)
+	var presentation := _presentation()
+	if presentation != null:
+		if presentation.completed.is_connected(_on_presentation_completed):
+			presentation.completed.disconnect(_on_presentation_completed)
+		if presentation.is_active():
+			# Scene teardown must not bypass presentation-owned camera/audio
+			# restoration. cancel() is completion-signal-free and idempotent.
+			presentation.cancel()
+	_prompt_enemy = null
+	_prompt_context = &""
+	_active_enemy = null
+	_active_context = &""
+	_active_origin_state = PlayerStateMachine.STATE_GROUND
+	_active_elapsed_seconds = 0.0
+	_presentation_fallback_remaining = 0.0
 
 
 func _refresh_config() -> void:
@@ -98,6 +117,10 @@ func _find_tuning_service() -> Node:
 	return tree.root.get_node_or_null(NodePath("Tuning"))
 
 
+func _is_default_config_resource(candidate: Resource) -> bool:
+	return candidate != null and candidate.resource_path == DEFAULT_CONFIG_PATH
+
+
 static func _config_is_compatible(candidate: Resource) -> bool:
 	if candidate == null:
 		return false
@@ -107,26 +130,24 @@ static func _config_is_compatible(candidate: Resource) -> bool:
 	return true
 
 
-func _is_default_config_resource(candidate: Resource) -> bool:
-	return candidate != null and candidate.resource_path == DEFAULT_CONFIG_PATH
-
-
 func _process(delta: float) -> void:
 	if _active_enemy != null:
-		var state_machine := _state_machine()
-		if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
-			_active_enemy = null
-			_active_context = &""
-			_active_origin_state = PlayerStateMachine.STATE_GROUND
-			_active_elapsed_seconds = 0.0
+		if not is_instance_valid(_active_enemy):
+			var presentation := _presentation()
+			if presentation != null and presentation.is_active():
+				presentation.cancel()
+			_release_lock()
 			return
-		# The production foundation has no animation player yet.  Keep the
-		# presentation lock bounded and complete it through the same release path
-		# that a future animation callback will use.
+		var presentation := _presentation()
+		if presentation != null and presentation.is_active():
+			return
 		if is_finite(delta) and delta >= 0.0:
-			_active_elapsed_seconds += minf(delta, MAX_ASSASSINATION_DELTA_SECONDS)
-		if _active_elapsed_seconds >= _presentation_duration_seconds():
-			release()
+			_presentation_fallback_remaining = maxf(
+				_presentation_fallback_remaining - minf(delta, MAX_ASSASSINATION_DELTA_SECONDS),
+				0.0,
+			)
+		if _presentation_fallback_remaining <= 0.0:
+			_release_lock()
 		return
 	var candidate := _nearest_valid_target()
 	if candidate == null:
@@ -185,6 +206,17 @@ func try_execute(enemy: EnemyBase, context: StringName = &"") -> bool:
 	_active_context = resolved_context
 	_active_origin_state = origin_state
 	_active_elapsed_seconds = 0.0
+	var presentation := _presentation()
+	if presentation != null:
+		# Keep the presentation lock aligned with the shared assassination tuning
+		# resource while retaining the presentation's own 1–2 second clamp.
+		presentation.duration_sec = _presentation_duration_seconds()
+	if presentation != null and presentation.begin(enemy, resolved_context):
+		_presentation_fallback_remaining = 0.0
+	else:
+		# Custom player scenes may omit the presentation node.  Keep the #26
+		# lock bounded even when no animation/camera/audio asset is available.
+		_presentation_fallback_remaining = _presentation_duration_seconds()
 	_set_prompt(null, &"")
 	return true
 
@@ -217,8 +249,24 @@ func active_context() -> StringName:
 ## Release the player-side lock after the presentation/animation hand-off.
 ## The enemy remains dead and cannot be targeted again.
 func release() -> bool:
-	if _active_enemy == null:
+	if _active_enemy == null or not is_instance_valid(_active_enemy):
 		return false
+	var state_machine := _state_machine()
+	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
+		return false
+	var presentation := _presentation()
+	if presentation != null and presentation.is_active():
+		presentation.cancel()
+	return _release_lock()
+
+
+func _on_presentation_completed(enemy: EnemyBase, context: StringName) -> void:
+	if enemy != _active_enemy or context != _active_context:
+		return
+	_release_lock()
+
+
+func _release_lock() -> bool:
 	var state_machine := _state_machine()
 	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
 		return false
@@ -227,6 +275,7 @@ func release() -> bool:
 	_active_context = &""
 	_active_origin_state = PlayerStateMachine.STATE_GROUND
 	_active_elapsed_seconds = 0.0
+	_presentation_fallback_remaining = 0.0
 	return state_machine.change_state(release_state)
 
 
@@ -422,6 +471,10 @@ func _state_machine() -> PlayerStateMachine:
 	return player.get_node_or_null(NodePath("StateMachine")) as PlayerStateMachine if player != null else null
 
 
+func _presentation() -> AssassinationPresentation:
+	return get_node_or_null(NodePath("AssassinationPresentation")) as AssassinationPresentation
+
+
 func _nearest_valid_target() -> EnemyBase:
 	var player := get_parent() as Node3D
 	if player == null:
@@ -487,11 +540,33 @@ func _sensor_overlaps_enemy(player: Node3D, enemy: EnemyBase) -> bool:
 		or not target_area.monitorable
 	):
 		return false
-	# Prompt discovery is bounded below, but evaluating an explicitly requested
-	# enemy must not depend on the shared overlap list's iteration order.  The
-	# physics server performs this direct pair query without truncating unrelated
-	# Interactor overlaps first.
-	return interactor.overlaps_area(target_area)
+	# Explicit target evaluation uses a direct physics pair query so unrelated
+	# overlap entries cannot hide a valid assassination target.  Headless Godot
+	# can expose the synchronized overlap list one frame before `overlaps_area`
+	# reflects the same pair, so retain the engine-owned membership as a
+	# deterministic compatibility fallback without truncating explicit targets.
+	if interactor.overlaps_area(target_area) or interactor.get_overlapping_areas().has(target_area):
+		return true
+	# The monitoring list is updated asynchronously from the physics broadphase.
+	# Query the same interactor shape directly as a bounded, engine-owned fallback
+	# for an explicit target; this preserves collision-layer and actual geometry
+	# checks without trusting groups, distance-only heuristics, or arbitrary nodes.
+	var shape_node := interactor.get_node_or_null(NodePath("CollisionShape3D")) as CollisionShape3D
+	var world := interactor.get_world_3d()
+	if shape_node == null or shape_node.shape == null or world == null:
+		return false
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape_node.shape
+	query.transform = shape_node.global_transform
+	query.collision_mask = interactor.collision_mask
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.exclude = [interactor.get_rid()]
+	var hits := world.direct_space_state.intersect_shape(query, 8)
+	for hit: Dictionary in hits:
+		if hit.get("collider") == target_area or hit.get("rid") == target_area.get_rid():
+			return true
+	return false
 
 
 func _assassination_path_is_clear(
