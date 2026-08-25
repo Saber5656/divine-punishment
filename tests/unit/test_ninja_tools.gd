@@ -140,6 +140,63 @@ func test_blow_dart_knockout_is_anomaly_and_noise_wakes_enemy() -> void:
 	assert_false(enemy.is_incapacitated())
 
 
+func test_blow_dart_knockout_reaches_real_enemy_and_wakes_on_noise() -> void:
+	var enemy_scene := preload("res://src/enemies/enemy_base.tscn")
+	var enemy := enemy_scene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	var brain := enemy.brain()
+	assert_not_null(brain)
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_true(brain.is_incapacitated())
+	assert_eq(brain.incapacitated_kind(), &"knockout")
+	assert_almost_eq(brain.incapacitation_remaining(), 20.0, 0.001)
+
+	enemy.on_noise(NoiseEventScript.create(
+		enemy.hearing_position(),
+		1.0,
+		Enums.NoiseKind.TOOL,
+		user,
+	))
+	assert_false(brain.is_incapacitated())
+
+
+func test_real_enemy_knockout_expires_after_twenty_seconds() -> void:
+	var enemy_scene := preload("res://src/enemies/enemy_base.tscn")
+	var enemy := enemy_scene.instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var user := Node3D.new()
+	add_child_autofree(user)
+	await get_tree().physics_frame
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	var brain := enemy.brain()
+
+	assert_true(effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": enemy,
+	}))
+	assert_almost_eq(brain.incapacitation_remaining(), 20.0, 0.001)
+	brain._physics_process(19.999)
+	assert_true(brain.is_incapacitated())
+	brain._physics_process(0.002)
+	assert_false(brain.is_incapacitated())
+
+
 func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> void:
 	var user := Node3D.new()
 	add_child_autofree(user)
