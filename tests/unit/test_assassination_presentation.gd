@@ -118,6 +118,54 @@ func test_camera_rig_receives_bounded_context_blend_and_resets() -> void:
 	assert_eq(camera.position, Vector3.ZERO)
 
 
+func test_presentation_exit_tree_restores_owned_camera_and_audio_hooks() -> void:
+	var player := Node3D.new()
+	add_child_autofree(player)
+	var camera := PlayerCameraRig.new()
+	camera.name = "CameraRig"
+	player.add_child(camera)
+	var presentation := _presentation(player)
+	var enemy := _enemy()
+	assert_true(presentation.begin(enemy, &"back"))
+	presentation.advance(0.25)
+	presentation.advance(0.25)
+	assert_eq(camera.assassination_context(), &"back")
+	assert_eq(presentation.audio_phase(), &"beat")
+	assert_eq(AudioDirector.assassination_audio_phase, &"beat")
+	presentation.queue_free()
+	await get_tree().process_frame
+	assert_false(is_instance_valid(presentation))
+	assert_eq(camera.assassination_context(), &"")
+	assert_eq(camera.assassination_progress(), 0.0)
+	assert_eq(camera.position, Vector3.ZERO)
+	assert_eq(AudioDirector.assassination_audio_phase, &"ambient")
+	assert_eq(AudioDirector.assassination_context, &"")
+	assert_eq(AudioDirector.current_ambience, &"ambient")
+
+
+func test_resolver_exit_tree_cancels_active_presentation() -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	var enemy := EnemyScene.instantiate() as EnemyBase
+	enemy.position = Vector3(0.0, 0.0, 1.0)
+	add_child_autofree(player)
+	add_child_autofree(enemy)
+	await get_tree().physics_frame
+	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
+	var presentation := resolver.get_node("AssassinationPresentation") as AssassinationPresentation
+	assert_eq(resolver.evaluate(enemy), &"back")
+	assert_true(resolver.confirm())
+	presentation.advance(0.5)
+	assert_true(presentation.is_active())
+	assert_eq(player.camera_rig.assassination_context(), &"back")
+	resolver.queue_free()
+	await get_tree().process_frame
+	assert_false(is_instance_valid(resolver))
+	assert_eq(player.camera_rig.assassination_context(), &"")
+	assert_eq(player.camera_rig.assassination_progress(), 0.0)
+	assert_eq(AudioDirector.assassination_audio_phase, &"ambient")
+	assert_eq(AudioDirector.assassination_context, &"")
+
+
 func test_resolver_releases_lock_when_bounded_presentation_completes() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	var enemy := EnemyScene.instantiate() as EnemyBase

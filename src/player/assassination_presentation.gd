@@ -40,10 +40,22 @@ var _duration_sec := DEFAULT_DURATION_SEC
 var _enemy: EnemyBase
 var _context: StringName = &""
 var _audio_phase: StringName = &""
+var _camera_rig: Node
+var _audio_director: Node
 
 
 func _ready() -> void:
 	set_process(true)
+
+
+func _exit_tree() -> void:
+	# A resolver/presentation can be removed during a scene transition while
+	# the sequence is still active. Restore owned global/player hooks before
+	# the parent is detached; otherwise the camera or audio singleton can keep
+	# the transient assassination state indefinitely.
+	if _active or _camera_rig != null or _audio_director != null:
+		_reset_hooks()
+		_clear_state()
 
 
 func begin(enemy: EnemyBase, context: StringName) -> bool:
@@ -57,6 +69,8 @@ func begin(enemy: EnemyBase, context: StringName) -> bool:
 	_enemy = enemy
 	_context = context
 	_audio_phase = &""
+	_camera_rig = _resolve_camera_rig()
+	_audio_director = _resolve_audio_director()
 	_invoke_animation_hook()
 	_invoke_camera_hook()
 	_set_audio_phase(&"silence")
@@ -174,20 +188,16 @@ func _invoke_animation_hook() -> void:
 
 func _invoke_camera_hook() -> void:
 	camera_blend_requested.emit(_context)
-	var player_node := _player_node()
-	if player_node == null:
-		return
-	var camera_rig := player_node.get_node_or_null(NodePath("CameraRig"))
+	var camera_rig := _camera_rig if is_instance_valid(_camera_rig) else _resolve_camera_rig()
 	if camera_rig != null and camera_rig.has_method(&"begin_assassination_blend"):
+		_camera_rig = camera_rig
 		camera_rig.call(&"begin_assassination_blend", _context, _duration_sec)
 
 
 func _update_camera_progress() -> void:
-	var player_node := _player_node()
-	if player_node == null:
-		return
-	var camera_rig := player_node.get_node_or_null(NodePath("CameraRig"))
+	var camera_rig := _camera_rig if is_instance_valid(_camera_rig) else _resolve_camera_rig()
 	if camera_rig != null and camera_rig.has_method(&"set_assassination_progress"):
+		_camera_rig = camera_rig
 		camera_rig.call(&"set_assassination_progress", progress())
 
 
@@ -198,9 +208,10 @@ func _set_audio_phase(phase: StringName) -> void:
 	audio_phase_changed.emit(_context, phase)
 	if phase == &"beat":
 		se_requested.emit(_context, se_cue_for(_context))
-	var audio_director := get_node_or_null(NodePath("/root/AudioDirector"))
+	var audio_director := _audio_director if is_instance_valid(_audio_director) else _resolve_audio_director()
 	if audio_director == null:
 		return
+	_audio_director = audio_director
 	match phase:
 		&"silence":
 			if audio_director.has_method(&"begin_assassination_audio"):
@@ -226,12 +237,10 @@ func _finish() -> void:
 
 
 func _reset_hooks() -> void:
-	var player_node := _player_node()
-	if player_node != null:
-		var camera_rig := player_node.get_node_or_null(NodePath("CameraRig"))
-		if camera_rig != null and camera_rig.has_method(&"end_assassination_blend"):
-			camera_rig.call(&"end_assassination_blend")
-	var audio_director := get_node_or_null(NodePath("/root/AudioDirector"))
+	var camera_rig := _camera_rig if is_instance_valid(_camera_rig) else _resolve_camera_rig()
+	if camera_rig != null and camera_rig.has_method(&"end_assassination_blend"):
+		camera_rig.call(&"end_assassination_blend")
+	var audio_director := _audio_director if is_instance_valid(_audio_director) else _resolve_audio_director()
 	if audio_director != null and audio_director.has_method(&"restore_assassination_ambient"):
 		audio_director.call(&"restore_assassination_ambient")
 	_audio_phase = &""
@@ -248,8 +257,20 @@ func _player_node() -> Node:
 	return null
 
 
+func _resolve_camera_rig() -> Node:
+	var player_node := _player_node()
+	return player_node.get_node_or_null(NodePath("CameraRig")) if player_node != null else null
+
+
+func _resolve_audio_director() -> Node:
+	var tree := get_tree()
+	return tree.root.get_node_or_null(NodePath("AudioDirector")) if tree != null else null
+
+
 func _clear_state() -> void:
 	_active = false
 	_elapsed_sec = 0.0
 	_enemy = null
 	_context = &""
+	_camera_rig = null
+	_audio_director = null

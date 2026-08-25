@@ -58,8 +58,18 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	var presentation := _presentation()
-	if presentation != null and presentation.completed.is_connected(_on_presentation_completed):
-		presentation.completed.disconnect(_on_presentation_completed)
+	if presentation != null:
+		if presentation.completed.is_connected(_on_presentation_completed):
+			presentation.completed.disconnect(_on_presentation_completed)
+		if presentation.is_active():
+			# Scene teardown must not bypass presentation-owned camera/audio
+			# restoration. cancel() is completion-signal-free and idempotent.
+			presentation.cancel()
+	_prompt_enemy = null
+	_prompt_context = &""
+	_active_enemy = null
+	_active_context = &""
+	_presentation_fallback_remaining = 0.0
 
 
 static func _config_is_compatible(candidate: Resource) -> bool:
