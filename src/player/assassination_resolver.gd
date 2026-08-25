@@ -4,6 +4,7 @@ extends Node
 
 const AssassinationConfigScript := preload("res://src/core/tuning/assassination_config.gd")
 const DEFAULT_CONFIG_PATH := "res://data/tuning/assassination.tres"
+const PRESENTATION_FALLBACK_DURATION_SEC := 1.25
 const MAX_TARGET_CANDIDATES := 64
 const MAX_WORLD_COORDINATE := 10000.0
 const EPSILON_SQUARED := 0.000001
@@ -40,6 +41,7 @@ var _prompt_enemy: EnemyBase
 var _prompt_context: StringName = &""
 var _active_enemy: EnemyBase
 var _active_context: StringName = &""
+var _presentation_fallback_remaining := 0.0
 
 
 func _ready() -> void:
@@ -47,8 +49,17 @@ func _ready() -> void:
 		config = ResourceLoader.load(DEFAULT_CONFIG_PATH) as Resource
 	if not _config_is_compatible(config):
 		config = AssassinationConfigScript.new()
+	var presentation := _presentation()
+	if presentation != null and not presentation.completed.is_connected(_on_presentation_completed):
+		presentation.completed.connect(_on_presentation_completed)
 	set_process(true)
 	set_process_unhandled_input(true)
+
+
+func _exit_tree() -> void:
+	var presentation := _presentation()
+	if presentation != null and presentation.completed.is_connected(_on_presentation_completed):
+		presentation.completed.disconnect(_on_presentation_completed)
 
 
 static func _config_is_compatible(candidate: Resource) -> bool:
@@ -60,11 +71,24 @@ static func _config_is_compatible(candidate: Resource) -> bool:
 	return true
 
 
-func _process(_delta: float) -> void:
-	if _active_enemy != null and is_instance_valid(_active_enemy):
-		# The resolver remains locked for the short assassination presentation.
-		# There is no animation player in the foundation scene yet, so the
-		# explicit release() API is the future presentation hand-off point.
+func _process(delta: float) -> void:
+	if _active_enemy != null:
+		if not is_instance_valid(_active_enemy):
+			var presentation := _presentation()
+			if presentation != null and presentation.is_active():
+				presentation.cancel()
+			_release_lock()
+			return
+		var presentation := _presentation()
+		if presentation != null and presentation.is_active():
+			return
+		if is_finite(delta) and delta >= 0.0:
+			_presentation_fallback_remaining = maxf(
+				_presentation_fallback_remaining - minf(delta, 0.25),
+				0.0,
+			)
+		if _presentation_fallback_remaining <= 0.0:
+			_release_lock()
 		return
 	var candidate := _nearest_valid_target()
 	if candidate == null:
@@ -120,6 +144,13 @@ func try_execute(enemy: EnemyBase, context: StringName = &"") -> bool:
 		return false
 	_active_enemy = enemy
 	_active_context = resolved_context
+	var presentation := _presentation()
+	if presentation != null and presentation.begin(enemy, resolved_context):
+		_presentation_fallback_remaining = 0.0
+	else:
+		# Custom player scenes may omit the presentation node.  Keep the #26
+		# lock bounded even when no animation/camera/audio asset is available.
+		_presentation_fallback_remaining = PRESENTATION_FALLBACK_DURATION_SEC
 	_set_prompt(null, &"")
 	return true
 
@@ -157,8 +188,25 @@ func release() -> bool:
 	var state_machine := _state_machine()
 	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
 		return false
+	var presentation := _presentation()
+	if presentation != null and presentation.is_active():
+		presentation.cancel()
+	return _release_lock()
+
+
+func _on_presentation_completed(enemy: EnemyBase, context: StringName) -> void:
+	if enemy != _active_enemy or context != _active_context:
+		return
+	_release_lock()
+
+
+func _release_lock() -> bool:
+	var state_machine := _state_machine()
+	if state_machine == null or state_machine.current_state() != PlayerStateMachine.STATE_ASSASSINATE:
+		return false
 	_active_enemy = null
 	_active_context = &""
+	_presentation_fallback_remaining = 0.0
 	return state_machine.change_state(PlayerStateMachine.STATE_GROUND)
 
 
@@ -326,6 +374,10 @@ func _state_name() -> StringName:
 func _state_machine() -> PlayerStateMachine:
 	var player := get_parent()
 	return player.get_node_or_null(NodePath("StateMachine")) as PlayerStateMachine if player != null else null
+
+
+func _presentation() -> AssassinationPresentation:
+	return get_node_or_null(NodePath("AssassinationPresentation")) as AssassinationPresentation
 
 
 func _nearest_valid_target() -> EnemyBase:

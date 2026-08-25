@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://src/tools/trajectory_display.gd" id="11_trajectory_display"]
 [ext_resource type="Script" path="res://src/player/assassination_resolver.gd" id="12_assassination_resolver"]
 [ext_resource type="Resource" path="res://data/tuning/assassination.tres" id="13_assassination_config"]
+[ext_resource type="Script" path="res://src/player/assassination_presentation.gd" id="14_assassination_presentation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -202,6 +203,9 @@ vertical_alignment = 1
 [node name="AssassinationResolver" type="Node" parent="."]
 script = ExtResource("12_assassination_resolver")
 config = ExtResource("13_assassination_config")
+
+[node name="AssassinationPresentation" type="Node" parent="AssassinationResolver"]
+script = ExtResource("14_assassination_presentation")
 
 [node name="Interactor" type="Area3D" parent="."]
 collision_layer = 0

@@ -346,6 +346,19 @@ func execute(enemy: EnemyBase, context: StringName) -> void    # 両者を Assas
 static func resolve(player_state: StringName, to_enemy_local: Vector3,
         enemy_alert: Enums.AlertState, seen_by_target: bool, cfg: Resource) -> StringName  # pure, §GDD 3.1
 
+# ── src/player/assassination_presentation.gd  (Node, AssassinationResolver 子)
+class_name AssassinationPresentation
+signal started(enemy: EnemyBase, context: StringName)
+signal animation_requested(context: StringName, clip: StringName)
+signal camera_blend_requested(context: StringName)
+signal se_requested(context: StringName, cue: StringName)
+signal audio_phase_changed(context: StringName, phase: StringName) # silence→beat→ambient
+signal completed(enemy: EnemyBase, context: StringName)
+func begin(enemy: EnemyBase, context: StringName) -> bool  # back/above/below/corner; 1–2 s bounded
+func advance(delta: float) -> bool                         # deterministic driver/test hook
+func cancel() -> bool                                     # fail-safe cleanup, no completion callback
+func is_active() -> bool
+
 # ── src/enemies/enemy_perception.gd  (Node, enemy_base.tscn 直下 "Perception")
 class_name EnemyPerception
 signal stimulus(stim: PerceptionStimulus)
