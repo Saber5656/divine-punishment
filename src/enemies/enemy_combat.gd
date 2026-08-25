@@ -63,7 +63,6 @@ func set_target(target: Node) -> bool:
 	_target = target
 	var brain := _brain()
 	if brain != null:
-		brain.set_target_visible(true)
 		if brain.alert_state() != Enums.AlertState.COMBAT:
 			brain.force_state(Enums.AlertState.COMBAT, &"combat_target")
 	return true
@@ -114,7 +113,6 @@ func receive_damage(amount: int, source: Node = null) -> int:
 	_emit_event(&"enemy_damaged", [_enemy if _enemy != null else self, applied, _health, source])
 	var brain := _brain()
 	if brain != null:
-		brain.set_target_visible(true)
 		if brain.alert_state() != Enums.AlertState.COMBAT:
 			brain.force_state(Enums.AlertState.COMBAT, &"combat_damage")
 	if _health <= 0:

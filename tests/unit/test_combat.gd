@@ -121,6 +121,16 @@ func test_enemy_combat_calls_nearby_reinforcements_through_brain_api() -> void:
 	assert_eq(nearby_brain.alert_state(), Enums.AlertState.SUSPICIOUS)
 
 
+func test_enemy_damage_does_not_pin_a_target_visibility_override() -> void:
+	var production_enemy := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate()
+	add_child_autofree(production_enemy)
+	var brain := production_enemy.get_node("Brain") as EnemyBrain
+	var combat := production_enemy.get_node("Combat") as EnemyCombat
+	brain.force_state(Enums.AlertState.COMBAT, &"test")
+	assert_eq(combat.receive_damage(1), 1)
+	assert_false(brain.target_visible())
+
+
 func test_player_and_enemy_scenes_wire_combat_nodes_without_changing_contract_order() -> void:
 	var player_scene := load(PLAYER_SCENE_PATH) as PackedScene
 	var enemy_scene := load(ENEMY_SCENE_PATH) as PackedScene
