@@ -20,7 +20,7 @@ func definition() -> ToolDefinition:
 
 
 func use(user: Node3D, aim: Dictionary) -> bool:
-	if user == null or tool_definition == null or not _valid_aim(aim):
+	if not _is_runtime_node(user) or tool_definition == null or not _valid_aim(aim):
 		return false
 	_apply_effect({
 		&"user": user,
@@ -51,7 +51,7 @@ func _impact_hit(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> 
 	safe_direction = safe_direction.normalized()
 	var bounded_distance := clampf(max_distance if is_finite(max_distance) else MAX_IMPACT_DISTANCE, 0.1, MAX_IMPACT_DISTANCE)
 	var explicit_target: Variant = hit.get(&"target")
-	if explicit_target is Node3D and is_instance_valid(explicit_target):
+	if explicit_target is Node3D and _is_runtime_node(explicit_target as Node3D):
 		var target_position := (explicit_target as Node3D).global_position
 		if target_position.is_finite() and target_position.distance_to(safe_origin) <= bounded_distance:
 			return {&"position": target_position, &"collider": explicit_target}
@@ -88,6 +88,15 @@ func _world_for_hit(hit: Dictionary) -> World3D:
 	if get_world_3d() != null:
 		return get_world_3d()
 	return null
+
+
+func _is_runtime_node(node: Node) -> bool:
+	return (
+		node != null
+		and is_instance_valid(node)
+		and node.is_inside_tree()
+		and node.get_tree() == get_tree()
+	)
 
 
 func _valid_aim(aim: Dictionary) -> bool:

@@ -390,10 +390,13 @@ func _player_visibility(target: Node3D) -> float:
 
 
 func _is_smoke_blocked(observer: Vector3, target: Vector3) -> bool:
-	if not _valid_vector(observer) or not _valid_vector(target):
+	if not is_inside_tree() or not _valid_vector(observer) or not _valid_vector(target):
+		return false
+	var tree := get_tree()
+	if tree == null:
 		return false
 	var checked := 0
-	for node in get_tree().get_nodes_in_group(&"smoke_volumes"):
+	for node in tree.get_nodes_in_group(&"smoke_volumes"):
 		if checked >= MAX_SMOKE_VOLUMES:
 			break
 		checked += 1

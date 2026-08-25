@@ -13,14 +13,17 @@ var _expires_at := 0.0
 func _apply_effect(hit: Dictionary) -> void:
 	var definition := tool_definition
 	if definition == null:
+		_dispose()
 		return
 	_radius = clampf(definition.parameter_float(&"radius", MAX_SMOKE_RADIUS), 0.0, MAX_SMOKE_RADIUS)
 	var duration := clampf(definition.parameter_float(&"duration", MAX_SMOKE_DURATION), 0.0, MAX_SMOKE_DURATION)
 	if _radius <= 0.0 or duration <= 0.0:
+		_dispose()
 		return
 	global_position = _impact_position(hit)
 	if not global_position.is_finite():
 		_radius = 0.0
+		_dispose()
 		return
 	_expires_at = _now() + duration
 	if not is_in_group(SMOKE_GROUP):
@@ -54,6 +57,11 @@ func blocks_visibility(observer: Vector3, target: Vector3) -> bool:
 
 func _process(_delta: float) -> void:
 	if not is_active():
+		_dispose()
+
+
+func _dispose() -> void:
+	if is_inside_tree() and not is_queued_for_deletion():
 		queue_free()
 
 

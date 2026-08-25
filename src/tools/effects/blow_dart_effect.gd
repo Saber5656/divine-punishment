@@ -61,6 +61,8 @@ func _find_enemy(target: Node) -> Node:
 
 
 func _incapacitate(enemy: Node, duration: float) -> bool:
+	if not enemy is Node3D or not _is_runtime_node(enemy):
+		return false
 	if enemy.has_method(&"set_incapacitated"):
 		return bool(enemy.call(&"set_incapacitated", &"knockout", duration))
 	var brain := enemy.get_node_or_null(NodePath("Brain")) as EnemyBrain
@@ -68,9 +70,11 @@ func _incapacitate(enemy: Node, duration: float) -> bool:
 
 
 func _emit_knockout(enemy: Node, duration: float) -> void:
-	if not has_node("/root/EventBus") or not enemy is Node3D:
+	if not has_node("/root/EventBus") or not enemy is Node3D or not _is_runtime_node(enemy):
 		return
 	var position := (enemy as Node3D).global_position
+	if not position.is_finite():
+		return
 	var expires_at := float(Time.get_ticks_msec()) / 1000.0 + duration
 	var anomaly := Anomaly.create(
 		Enums.AnomalyKind.KNOCKOUT,

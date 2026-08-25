@@ -52,6 +52,39 @@ func test_tool_resources_bind_effect_scenes_and_keep_bounded_parameters() -> voi
 	assert_eq(smoke.parameter_float(&"duration"), 5.0)
 
 
+func test_tools_fail_closed_for_detached_actor_inputs() -> void:
+	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var detached_user := FakeEnemy.new()
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	assert_false(effect.use(detached_user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": detached_user,
+	}))
+	detached_user.free()
+
+	var user := Node3D.new()
+	add_child_autofree(user)
+	var detached_root := Node.new()
+	var detached_target := FakeEnemy.new()
+	detached_root.add_child(detached_target)
+	var second_effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(second_effect)
+	second_effect.tool_definition = definition
+	assert_true(second_effect.use(user, {
+		&"origin": Vector3.ZERO,
+		&"dir": Vector3.FORWARD,
+		&"target": detached_target,
+	}))
+	assert_false(detached_target.is_incapacitated())
+	var detached_perception := EnemyPerceptionScript.new() as EnemyPerception
+	assert_false(detached_perception._is_smoke_blocked(Vector3.ZERO, Vector3.FORWARD))
+	detached_perception.free()
+	detached_root.free()
+
+
 func test_pebble_emits_one_bounded_tool_noise_at_impact() -> void:
 	var user := Node3D.new()
 	add_child_autofree(user)
@@ -145,7 +178,9 @@ func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> vo
 	add_child_autofree(user)
 	var impact := Node3D.new()
 	add_child_autofree(impact)
-	var definition := load("res://data/tools/smoke.tres") as ToolDefinition
+	var definition := (load("res://data/tools/smoke.tres") as ToolDefinition).duplicate(true) as ToolDefinition
+	definition.params[&"radius"] = 999.0
+	definition.params[&"duration"] = 999.0
 	var effect := definition.effect_scene.instantiate() as SmokeBombTool
 	add_child_autofree(effect)
 	effect.tool_definition = definition
@@ -169,7 +204,8 @@ func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> vo
 func test_enemy_incapacitation_duration_is_hard_bounded() -> void:
 	var enemy := FakeEnemy.new()
 	add_child_autofree(enemy)
-	var definition := load("res://data/tools/dart.tres") as ToolDefinition
+	var definition := (load("res://data/tools/dart.tres") as ToolDefinition).duplicate(true) as ToolDefinition
+	definition.params[&"knockout_duration"] = 999.0
 	var effect := definition.effect_scene.instantiate() as ToolBase
 	add_child_autofree(effect)
 	effect.tool_definition = definition
