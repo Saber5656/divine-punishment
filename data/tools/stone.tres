@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ToolDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/tools/tool_definition.gd" id="1_definition"]
+
+[resource]
+script = ExtResource("1_definition")
+id = &"stone"
+display_name = "小石"
+default_count = 10
+is_projectile = true
+lethal = false
+params = {
+&"radius": 6.0,
+&"noise_kind": 2,
+}
+projectile_speed = 18.0
+trajectory_gravity = 9.8
+trajectory_seconds = 1.2
+trajectory_steps = 24
