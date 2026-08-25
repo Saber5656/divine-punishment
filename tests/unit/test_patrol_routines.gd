@@ -108,7 +108,7 @@ func test_patrol_path_gizmo_rejects_stop_marker_endpoint_overflow() -> void:
 	assert_true(path.gizmo_segments().is_empty())
 
 
-func test_enemy_brain_uses_navigation_agent_for_patrol_and_guard_holds_final_stop() -> void:
+func test_enemy_brain_fails_closed_for_patrol_and_guard_without_navigation_map() -> void:
 	var enemy := EnemyScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)
 	var path := PatrolPath.new()
@@ -116,21 +116,26 @@ func test_enemy_brain_uses_navigation_agent_for_patrol_and_guard_holds_final_sto
 	_add_stop(path, 0, Vector3.ZERO, 0.0)
 	_add_stop(path, 1, Vector3(2.0, 0.0, 0.0), 0.0)
 	var brain := enemy.brain()
+	var navigation_agent := enemy.get_node(^"NavigationAgent3D") as NavigationAgent3D
+	var empty_map := NavigationServer3D.map_create()
+	navigation_agent.set_navigation_map(empty_map)
 	assert_true(brain.set_routine_type(&"patrol"))
 	assert_true(brain.set_patrol_path(path))
 	brain.tick(0.1)
 	assert_eq(brain.routine_type(), &"ashigaru_patrol")
-	assert_eq(brain.current_routine_stop_index(), 1)
+	assert_eq(brain.current_routine_stop_index(), 0)
 	assert_eq(
 		(enemy.get_node(^"NavigationAgent3D") as NavigationAgent3D).target_position,
-		Vector3(2.0, 0.0, 0.0),
+		Vector3.ZERO,
 	)
+	assert_eq(enemy.global_position, Vector3.ZERO)
 	for _index in 10:
 		brain.tick(0.1)
-	assert_gt(enemy.global_position.x, 0.5)
+	assert_eq(enemy.global_position, Vector3.ZERO)
 	assert_true(brain.current_routine_stop_index() in [0, 1])
 	for _index in 5:
 		brain.tick(0.1)
+	assert_eq(enemy.global_position, Vector3.ZERO)
 	assert_true(brain.current_routine_stop_index() in [0, 1])
 
 	var guard := GuardScene.instantiate() as EnemyBase
@@ -141,14 +146,16 @@ func test_enemy_brain_uses_navigation_agent_for_patrol_and_guard_holds_final_sto
 	_add_stop(guard_path, 0, Vector3(1.0, 0.0, 0.0), 0.0)
 	_add_stop(guard_path, 1, Vector3(4.0, 0.0, 0.0), 0.0)
 	var guard_brain := guard.brain()
+	(guard.get_node(^"NavigationAgent3D") as NavigationAgent3D).set_navigation_map(empty_map)
 	assert_true(guard_brain.set_patrol_path(guard_path))
 	for _index in 30:
 		guard_brain.tick(0.1)
-	assert_gt(guard.global_position.x, 0.5)
+	assert_eq(guard.global_position, Vector3.ZERO)
 	assert_eq(guard_brain.current_routine_stop_index(), 0)
+	NavigationServer3D.free_rid(empty_map)
 
 
-func test_lantern_bearer_variant_carries_light_along_route() -> void:
+func test_lantern_bearer_variant_carries_light_without_navigation_map() -> void:
 	var enemy := LanternBearerScene.instantiate() as EnemyBase
 	add_child_autofree(enemy)
 	var light := enemy.get_node(^"Lantern") as LightSource
@@ -157,6 +164,8 @@ func test_lantern_bearer_variant_carries_light_along_route() -> void:
 	_add_stop(path, 0, Vector3.ZERO, 0.0)
 	_add_stop(path, 1, Vector3(1.0, 0.0, 0.0), 0.0)
 	var brain := enemy.brain()
+	var empty_map := NavigationServer3D.map_create()
+	(enemy.get_node(^"NavigationAgent3D") as NavigationAgent3D).set_navigation_map(empty_map)
 	assert_eq(brain.routine_type(), &"lantern_bearer")
 	assert_true(brain.is_lantern_bearer())
 	assert_true(light.is_on())
@@ -166,9 +175,10 @@ func test_lantern_bearer_variant_carries_light_along_route() -> void:
 	assert_almost_eq(light.global_position.y, enemy.global_position.y + 1.4, 0.0001)
 	for _index in 8:
 		brain.tick(0.1)
-	assert_gt(enemy.global_position.x, 0.25)
+	assert_eq(enemy.global_position, Vector3.ZERO)
 	assert_almost_eq(light.global_position.x, enemy.global_position.x, 0.0001)
 	assert_true(light.is_on())
+	NavigationServer3D.free_rid(empty_map)
 
 
 func test_navigation_arrival_fails_closed_before_map_sync() -> void:
@@ -177,10 +187,31 @@ func test_navigation_arrival_fails_closed_before_map_sync() -> void:
 	var agent := NavigationAgent3D.new()
 	assert_false(EnemyBase._navigation_map_ready(agent))
 	agent.free()
-	assert_false((enemy.brain() as EnemyBrain)._navigation_has_reached(Vector3(20.0, 0.0, 0.0)))
+	var brain := enemy.brain() as EnemyBrain
+	var enemy_agent := enemy.get_node(^"NavigationAgent3D") as NavigationAgent3D
+	var empty_map := NavigationServer3D.map_create()
+	enemy_agent.set_navigation_map(empty_map)
+	assert_false(EnemyBase._navigation_map_ready(enemy_agent))
+	assert_false(brain._navigation_has_reached(Vector3(20.0, 0.0, 0.0)))
+	enemy_agent.target_position = Vector3(9.0, 0.0, 0.0)
+	brain._set_navigation_target(Vector3(20.0, 0.0, 0.0))
+	assert_eq(enemy_agent.target_position, enemy.global_position)
+	assert_false(brain._navigation_has_reached(enemy.global_position))
+	var initial_position: Vector3 = enemy.global_position
 	var moved := enemy.advance_navigation(0.1, Vector3(2.0, 0.0, 0.0), 1.5)
 	assert_false(moved)
-	assert_true(enemy.global_position.is_finite())
+	assert_eq(enemy.global_position, initial_position)
+	assert_eq(enemy.velocity, Vector3.ZERO)
+	NavigationServer3D.free_rid(empty_map)
+
+
+func test_navigation_candidate_accepts_route_detours_and_rejects_invalid_vectors() -> void:
+	var current := Vector3.ZERO
+	var target := Vector3(4.0, 0.0, 0.0)
+	assert_true(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(1.0, 0.0, 0.0)))
+	assert_false(EnemyBase._navigation_candidate_is_progress(current, target, current))
+	assert_true(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(-1.0, 0.0, 0.0)))
+	assert_false(EnemyBase._navigation_candidate_is_progress(current, target, Vector3(INF, 0.0, 0.0)))
 
 
 func test_corpse_alert_is_owned_by_mission_director_once() -> void:
