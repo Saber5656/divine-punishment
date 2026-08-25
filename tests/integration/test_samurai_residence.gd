@@ -104,6 +104,12 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 		residence._route_points_have_support(residence.route_waypoints(&"B_overhead")),
 		"Route B waypoints must have world collision support",
 	)
+	var veranda_roof := residence.get_node(^"Geometry/Overhead/VerandaRoofPlatform") as StaticBody3D
+	assert_true(
+		_box_contains(veranda_roof, Vector3(40.0, RESIDENCE_SCRIPT.OVERHEAD_Y, 8.0)),
+		"Route B must have bounded support at its veranda-roof waypoint",
+	)
+
 	for entrance: CrawlEntrance in residence.get_tree().get_nodes_in_group(&"crawl_entrances"):
 		assert_gt(
 			entrance.inside_world_position().y,
