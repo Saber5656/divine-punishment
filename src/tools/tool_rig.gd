@@ -141,22 +141,7 @@ func current_aim() -> Dictionary:
 
 func trajectory(origin: Vector3 = Vector3.ZERO, direction: Vector3 = Vector3.FORWARD) -> PackedVector3Array:
 	var definition := selected_definition()
-	if definition == null or not definition.supports_aiming():
-		return PackedVector3Array()
-	var safe_direction := direction.normalized()
-	if not origin.is_finite() or not safe_direction.is_finite() or safe_direction.length_squared() <= 0.000001:
-		return PackedVector3Array()
-	var points := PackedVector3Array()
-	var velocity := safe_direction * clampf(definition.projectile_speed, ToolDefinition.MIN_PROJECTILE_SPEED, ToolDefinition.MAX_PROJECTILE_SPEED)
-	var duration := definition.trajectory_duration()
-	var count := definition.trajectory_sample_count()
-	for index in count:
-		var t := duration * float(index) / float(count - 1)
-		var point := origin + velocity * t + Vector3.DOWN * (0.5 * definition.trajectory_gravity * t * t)
-		if not point.is_finite():
-			return PackedVector3Array()
-		points.append(point)
-	return points
+	return ToolBase.trajectory_points_for_definition(definition, origin, direction)
 
 
 func trajectory_points() -> PackedVector3Array:

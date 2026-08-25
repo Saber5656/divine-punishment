@@ -4,6 +4,7 @@ extends GutTest
 const ToolDefinitionScript := preload("res://src/tools/tool_definition.gd")
 const NoiseEventScript := preload("res://src/core/noise_event.gd")
 const EnemyPerceptionScript := preload("res://src/enemies/enemy_perception.gd")
+const ToolRigScript := preload("res://src/tools/tool_rig.gd")
 
 
 class FakeEnemy extends Node3D:
@@ -105,7 +106,27 @@ func test_pebble_emits_one_bounded_tool_noise_at_impact() -> void:
 	assert_not_null(event)
 	assert_eq(event.kind, Enums.NoiseKind.TOOL)
 	assert_eq(event.radius, 6.0)
-	assert_eq(event.position, Vector3(1.0, 0.0, -22.0))
+	assert_eq(event.position, Vector3(1.0, -7.056, -19.6))
+
+
+func test_impact_matches_the_displayed_bounded_projectile_trajectory() -> void:
+	var definition := load("res://data/tools/stone.tres") as ToolDefinition
+	var origin := Vector3(1.0, 0.0, 2.0)
+	var direction := Vector3.FORWARD
+	var rig := ToolRigScript.new() as ToolRig
+	add_child_autofree(rig)
+	rig.set_tool_definitions([definition])
+	var preview := rig.trajectory(origin, direction)
+	assert_gt(preview.size(), 1)
+	var effect := definition.effect_scene.instantiate() as ToolBase
+	add_child_autofree(effect)
+	effect.tool_definition = definition
+	var impact := effect._impact_position({
+		&"origin": origin,
+		&"dir": direction,
+		&"target": null,
+	})
+	assert_eq(impact, preview[preview.size() - 1])
 
 
 func test_blow_dart_extinguishes_only_eligible_light() -> void:

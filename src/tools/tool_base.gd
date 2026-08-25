@@ -55,23 +55,61 @@ func _impact_hit(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> 
 		var target_position := (explicit_target as Node3D).global_position
 		if target_position.is_finite() and target_position.distance_to(safe_origin) <= bounded_distance:
 			return {&"position": target_position, &"collider": explicit_target}
+	var definition := tool_definition
+	var path := trajectory_points_for_definition(definition, safe_origin, safe_direction, bounded_distance)
+	if path.is_empty():
+		path.append(safe_origin + safe_direction * bounded_distance)
 	var world := _world_for_hit(hit)
 	if world != null:
-		var query := PhysicsRayQueryParameters3D.create(
-			safe_origin,
-			safe_origin + safe_direction * bounded_distance,
-		)
-		query.collision_mask = PROJECTILE_COLLISION_MASK
-		query.collide_with_areas = true
 		var user: Variant = hit.get(&"user")
+		var exclusions: Array[RID] = []
 		if user is CollisionObject3D:
-			query.exclude = [(user as CollisionObject3D).get_rid()]
-		var result := world.direct_space_state.intersect_ray(query)
-		if not result.is_empty():
+			exclusions.append((user as CollisionObject3D).get_rid())
+		for index in range(1, path.size()):
+			var from := path[index - 1]
+			var to := path[index]
+			if from.distance_squared_to(to) <= 0.000001:
+				continue
+			var query := PhysicsRayQueryParameters3D.create(from, to)
+			query.collision_mask = PROJECTILE_COLLISION_MASK
+			query.collide_with_areas = true
+			query.exclude = exclusions
+			var result := world.direct_space_state.intersect_ray(query)
+			if result.is_empty():
+				continue
 			var impact: Variant = result.get(&"position")
 			if impact is Vector3 and (impact as Vector3).is_finite():
 				return {&"position": impact, &"collider": result.get(&"collider")}
-	return {&"position": safe_origin + safe_direction * bounded_distance, &"collider": null}
+	var endpoint := path[path.size() - 1]
+	return {&"position": endpoint, &"collider": null}
+
+
+static func trajectory_points_for_definition(
+	definition: ToolDefinition,
+	origin: Vector3,
+	direction: Vector3,
+	max_distance: float = MAX_IMPACT_DISTANCE,
+) -> PackedVector3Array:
+	if definition == null or not definition.supports_aiming() or not origin.is_finite() or not direction.is_finite():
+		return PackedVector3Array()
+	var safe_direction := direction.normalized()
+	if safe_direction.length_squared() <= 0.000001:
+		return PackedVector3Array()
+	var speed := clampf(definition.projectile_speed, ToolDefinition.MIN_PROJECTILE_SPEED, ToolDefinition.MAX_PROJECTILE_SPEED)
+	var duration := definition.trajectory_duration()
+	var bounded_distance := clampf(max_distance if is_finite(max_distance) else MAX_IMPACT_DISTANCE, 0.1, MAX_IMPACT_DISTANCE)
+	if speed > 0.0:
+		duration = minf(duration, bounded_distance / speed)
+	var points := PackedVector3Array()
+	var count := definition.trajectory_sample_count()
+	var velocity := safe_direction * speed
+	for index in count:
+		var t := duration * float(index) / float(count - 1)
+		var point := origin + velocity * t + Vector3.DOWN * (0.5 * definition.trajectory_gravity * t * t)
+		if not point.is_finite():
+			return PackedVector3Array()
+		points.append(point)
+	return points
 
 
 func _impact_position(hit: Dictionary, max_distance: float = MAX_IMPACT_DISTANCE) -> Vector3:
