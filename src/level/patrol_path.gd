@@ -138,7 +138,7 @@ func stops_for_alert_level(area_alert_level: int = 0) -> Array[RoutineStop]:
 	var result: Array[RoutineStop] = []
 	var bounded_level := clampi(area_alert_level, 0, RoutineStop.MAX_AREA_ALERT_LEVEL)
 	for stop: RoutineStop in ordered_stops():
-		if stop != null and stop.is_geometry_valid() and stop.alert_level_required() <= bounded_level:
+		if stop != null and stop.is_available_at(bounded_level):
 			result.append(stop)
 	return result
 
@@ -198,7 +198,7 @@ func next_stop_index_for_alert(
 		elif candidate_index < 0 or candidate_index >= route_stops.size():
 			break
 		var candidate := route_stops[candidate_index]
-		if candidate != null and candidate.is_geometry_valid() and candidate.alert_level_required() <= bounded_level:
+		if candidate != null and candidate.is_available_at(bounded_level):
 			return candidate_index
 	return -1
 

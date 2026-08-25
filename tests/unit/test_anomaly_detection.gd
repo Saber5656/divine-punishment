@@ -126,6 +126,28 @@ func test_routine_stops_switch_when_area_alert_changes() -> void:
 	GameState.area_alert_level = original_alert
 
 
+func test_patrol_alert_queries_skip_disabled_stops() -> void:
+	var path := PatrolPath.new()
+	add_child_autofree(path)
+	var calm := _add_stop(path, 0, Vector3.ZERO)
+	var disabled := _add_stop(path, 1, Vector3(1.0, 0.0, 0.0))
+	disabled.enabled = false
+	var strict := _add_stop(path, 2, Vector3(2.0, 0.0, 0.0))
+	strict.min_alert_level = 1
+
+	var calm_stops := path.stops_for_alert_level(0)
+	assert_true(calm_stops.has(calm))
+	assert_false(calm_stops.has(disabled))
+	assert_false(calm_stops.has(strict))
+	assert_eq(path.next_stop_index_for_alert(0, 0, true), 0)
+
+	var alert_stops := path.stops_for_alert_level(1)
+	assert_true(alert_stops.has(calm))
+	assert_false(alert_stops.has(disabled))
+	assert_true(alert_stops.has(strict))
+	assert_eq(path.next_stop_index_for_alert(0, 1, true), 2)
+
+
 func _add_stop(path: PatrolPath, index: int, position: Vector3) -> RoutineStop:
 	var stop := RoutineStop.new()
 	stop.route_index = index
