@@ -228,7 +228,8 @@ func receive_damage(amount: int, source: Node = null) -> int:
 		return 0
 	if _hit_invulnerability_remaining > 0.0:
 		return 0
-	_ensure_combat_state()
+	if not _ensure_combat_state():
+		return 0
 	var applied := mini(bounded_amount, _health)
 	_health -= applied
 	_hit_invulnerability_remaining = _config.hit_invulnerability_seconds
