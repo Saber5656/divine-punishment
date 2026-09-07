@@ -106,7 +106,7 @@ func test_death_reaches_menu_and_blocks_checkpoint_writes() -> void:
 	assert_true(_player.state_machine.is_dead())
 	assert_true(get_tree().paused)
 	assert_false(_flow.capture_checkpoint(&"after_death"))
-	await get_tree().create_timer(0.05, true).timeout
+	assert_true(await _wait_for_choices(), "death tween reaches actionable choices")
 	assert_true(_flow.choices_visible())
 	assert_eq(GameState.checkpoint_ref["id"], "mission_entry")
 	GameState.checkpoint_ref.clear()
@@ -119,7 +119,7 @@ func test_director_retry_failure_keeps_menu_and_snapshot() -> void:
 	_mission.add_child(director)
 	director.add_to_group(&"scene_director")
 	(_player.get_node("AssassinationResolver/Combat") as PlayerCombat).receive_damage(20)
-	await get_tree().create_timer(0.05, true).timeout
+	assert_true(await _wait_for_choices(), "death tween reaches actionable choices")
 	var snapshot := GameState.checkpoint_ref.duplicate(true)
 	assert_false(_flow.retry())
 	assert_true(_flow.choices_visible())
@@ -136,10 +136,19 @@ func test_director_abandon_preserves_persistent_campaign_and_settings() -> void:
 	var campaign := SaveManager.campaign().duplicate(true)
 	var settings := SaveManager.settings().duplicate(true)
 	(_player.get_node("AssassinationResolver/Combat") as PlayerCombat).receive_damage(20)
-	await get_tree().create_timer(0.05, true).timeout
+	assert_true(await _wait_for_choices(), "death tween reaches actionable choices")
 	assert_true(_flow.abandon())
 	assert_true(director.abandoned)
 	assert_true(GameState.checkpoint_ref.is_empty())
 	assert_false(get_tree().paused)
 	assert_eq(SaveManager.campaign(), campaign)
 	assert_eq(SaveManager.settings(), settings)
+
+
+func _wait_for_choices() -> bool:
+	# Tween callbacks can arrive after a 50 ms timer on slow runners. SceneTree
+	# frame signals still fire while death pauses the game (GUT's timer does not).
+	var deadline := Time.get_ticks_msec() + 1000
+	while not _flow.choices_visible() and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+	return _flow.choices_visible()
