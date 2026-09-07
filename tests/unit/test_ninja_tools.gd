@@ -8,6 +8,13 @@ const ToolRigScript := preload("res://src/tools/tool_rig.gd")
 const EnemyScene := preload("res://src/enemies/enemy_base.tscn")
 
 
+class ClockedSmoke extends SmokeBombTool:
+	var clock_msec: int = 3018
+
+	func _now_msec() -> int:
+		return clock_msec
+
+
 class FakeEnemy extends Node3D:
 	var active := false
 	var active_kind: StringName = &""
@@ -336,6 +343,39 @@ func test_smoke_bomb_blocks_only_finite_segment_inside_five_meter_volume() -> vo
 	add_child_autofree(perception)
 	assert_true(perception._is_smoke_blocked(Vector3(0.0, 0.0, 8.0), Vector3(0.0, 0.0, -8.0)))
 	assert_false(perception._is_smoke_blocked(Vector3(6.0, 0.0, 8.0), Vector3(6.0, 0.0, -8.0)))
+
+
+func test_smoke_timer_preserves_duration_cap_and_exact_expiry() -> void:
+	var user := Node3D.new()
+	add_child_autofree(user)
+	var effect := ClockedSmoke.new()
+	add_child_autofree(effect)
+	effect.tool_definition = load("res://data/tools/smoke.tres") as ToolDefinition
+	assert_true(effect.use(user, {&"origin": Vector3.ZERO, &"dir": Vector3.FORWARD}))
+	assert_eq(effect.remaining_seconds(), 5.0)
+	effect.clock_msec += 4999
+	assert_true(effect.is_active())
+	assert_eq(effect.remaining_seconds(), 0.001)
+	effect.clock_msec += 1
+	assert_false(effect.is_active())
+	assert_eq(effect.remaining_seconds(), 0.0)
+	assert_false(effect.blocks_visibility(effect.global_position, effect.global_position))
+	effect.clock_msec += 1000
+	assert_eq(effect.remaining_seconds(), 0.0)
+
+
+func test_smoke_timer_never_extends_a_short_configured_duration() -> void:
+	var user := Node3D.new()
+	add_child_autofree(user)
+	var effect := ClockedSmoke.new()
+	add_child_autofree(effect)
+	effect.tool_definition = (load("res://data/tools/smoke.tres") as ToolDefinition).duplicate(true)
+	effect.tool_definition.params[&"duration"] = 0.1234
+	assert_true(effect.use(user, {&"origin": Vector3.ZERO, &"dir": Vector3.FORWARD}))
+	assert_eq(effect.remaining_seconds(), 0.123)
+	effect.clock_msec += 123
+	assert_false(effect.is_active())
+	assert_eq(effect.remaining_seconds(), 0.0)
 
 
 func test_enemy_incapacitation_duration_is_hard_bounded() -> void:
