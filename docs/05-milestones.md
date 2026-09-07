@@ -38,14 +38,27 @@ Phase 2:  M7 ─→ M8 ─→ M9 ─→ M10 ─→ M11 ─→ M12
 
 ## Issue 分割方針
 
-- 1 Issue = 1 PR 相当の縦切りスコープ（レビュー可能サイズ、目安 0.5〜3 日）
+- task / process と PR は独立した目的・完了条件を持つ機能単位の縦切りスコープとする（目安 0.5〜3 日）。Issue と PR の一対一対応は必須にせず、関連 Issue と担当する受け入れ条件・残作業を明記する
 - **例外（エピック）**: ミッション制作のゲームプレイ実装 Issue（#60/#62/#64/#66/#68/#70/#72/#75）は着手時に 4 サブ Issue へ分割する（CONTRIBUTING.md §6 の分割ルール）。分割前の実装着手は禁止
-- 各 Issue の**実行指示書**はマイルストーン着手時に `docs/instructions/M<x>/` へ作成する（Just-in-Time 方式、CONTRIBUTING.md §5）。M0 分は作成済みで粒度の基準
+- 実装する機能と直接の依存範囲の**実行指示書**を、追加変更への着手前に `docs/instructions/M<x>/` へ作成・更新する（Just-in-Time 方式、[CONTRIBUTING.md §5](../CONTRIBUTING.md)）。マイルストーン全 Issue の一括設計や累積レビューは着手条件にしない。M0 分を粒度の基準にする
+- 指示書は現在の `main` commit、受け入れ条件との対応、依存の実装状況、担当 path / symbol、共有契約の互換性、変更手順、影響範囲の検証、scope 外事項を定義する。共有契約や依存の変更時は影響する指示書と検証を更新する
+- ユーザーの最新の明示指示を優先し、Issue・承認済み設計・指示書を整合させる。受け入れ条件を黙って緩和せず、承認範囲内の差異は理由を記録して修正し、範囲外の要件・設計・権限変更だけ人間へ判断を求める
 - レベル実装はマップ図面（`docs/maps/`、見本: [m02-yashiki.md](maps/m02-yashiki.md)）を先に作成・合意してから着手する
 - 品質判定は [10-quality-gates.md](10-quality-gates.md) のゲート（G1〜G5）に従う
 - 各 Issue に: 目的 / 対象ドキュメント参照 / 受け入れ条件（チェックリスト）/ 依存 Issue を記載
 - ラベル: `milestone:M0`〜`M7` は GitHub Milestone で管理し、ラベルは領域（`area:player` `area:ai` `area:stealth` `area:level` `area:ui` `area:audio` `area:infra` `area:design`）+ `type:feature` `type:tuning` `type:test` を付与
 - チューニング・プレイテスト系 Issue は「数値確定」を成果物とし、`data/tuning/` への反映と docs 更新を完了条件に含める
+
+### 部分実装済みマイルストーンの JIT 復旧方針
+
+詳細な実行手順は [CONTRIBUTING.md §3・§5・§7](../CONTRIBUTING.md) に従う。メインエージェントが機能単位で進行と担当を管理し、ハーネスに関する作業限りの免除を恒久方針へ読み替えない。
+
+1. 完了済み Issue の code、merged PR、test、CI は「遡及的ベースライン」として扱う。後から作った指示書や遡及日付で実装前の指示・承認があったように記録しない
+2. 再開対象の既存 commit と staged / unstaged / untracked 内容を保全し、今回の追加変更と区別する。後から用意した指示書に従って既存内容が作られたものと読み替えない
+3. open / reopened Issue では、再開する機能の現在の `main`・既存差分・依存・受け入れ条件を確認し、将来向けの指示書を先に用意する。reopen では corrective scope だけを対象にする
+4. 検証の実行時点・対象・残課題を明記する。非影響の結果は再利用し、影響範囲を再検証する。full validation は統合変更一式に一度行い、未実行・失敗・不明を成功扱いしない
+5. 通常の復旧で追加レビュー・CodeRabbit 応答・人間の再承認を待たない。権限拡大・認証や secret・データ消失リスクだけ一度レビューし、修正後は元指摘の確認と影響範囲の検証を行う。CI 成功と対応必須指摘の解消後は、GitHub の保護条件と current head を確認して機能単位の PR を進める。他の全 Issue 完遂やハーネス全体の完成を前提にしない
+6. 目的、変更理由、既存作業との区別、検証、PR / commit、残作業を Vault に簡潔に残す。過去の成果物を実装前の指示・承認や未実施の検証の証明に使わない
 
 ## Issue 一覧（起票対象）
 
