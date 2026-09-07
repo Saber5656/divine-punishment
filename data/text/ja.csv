@@ -1,0 +1,116 @@
+key,ja
+app.title,天罰
+app.subtitle,DIVINE PUNISHMENT
+app.eyebrow,影に潜み、一撃に賭ける。
+app.build,修練版 ─ 開発中の本編とは独立した稽古
+nav.start,始める
+nav.select,任務を選ぶ
+nav.settings,設定
+nav.quit,終わる
+nav.back,戻る
+nav.resume,任務へ戻る
+nav.retry,チェックポイントから再開
+nav.abandon,任務を中止
+nav.restart,もう一度
+nav.to_select,任務選択へ
+select.title,任務選択
+select.eyebrow,巻物をひらく
+practice.title,修練場 ─ 夜の庭
+practice.summary,背後から標的を討ち、朱の門から離脱せよ。\n遮蔽物に身を隠し、距離を詰める。短い稽古は何度でも挑める。
+practice.tools,持ち込み：小石・吹き矢・煙玉
+practice.start,修練を開始
+campaign.pending,本編 ─ 制作中
+campaign.detail,山道の関所・武家屋敷は、後続の任務制作で公開予定です。
+pause.title,一服
+pause.eyebrow,時を止め、次の一手を。
+settings.title,設定
+settings.master,主音量
+settings.sensitivity,視点の感度
+settings.session,この画面の変更は現在のプレイに反映されます。
+objective.practice_target,背後から修練の標的を討て
+objective.practice_escape,朱の門へ向かい、離脱せよ
+hud.controls,WASD 移動　C しゃがむ　F 必殺　Esc 一服
+hud.escape,離脱の門が開いた
+hud.mission,修練 ─ 夜の庭
+result.title,任務結果
+result.success,修練達成
+result.failed,任務未達
+result.score,評価点　%d
+result.nontarget,標的以外の殺害　%d
+result.next,次に目指すもの
+result.all_done,すべての型を達成。もう一度、静かな一撃を。
+result.flag.shadow_walker,未発見
+result.flag.no_traces,死体未発見
+result.flag.one_strike,一撃
+result.flag.swift,疾風
+result.flag.side_objective,副目標
+result.rank.kaiden,皆伝
+result.rank.okuden,奥伝
+result.rank.chuden,中伝
+result.rank.shoden,初伝
+result.flag_pass,○　%s　＋%d
+result.flag_fail,×　%s　＋0
+result.flag_na,―　%s　対象なし
+result.next.shadow_walker,敵に見つからずに離脱する。
+result.next.no_traces,死体を見つけられる前に離脱する。
+result.next.one_strike,標的を一撃の必殺で仕留める。
+result.next.swift,寄り道を減らし、制限時間内に離脱する。
+result.next.side_objective,副目標も達成して離脱する。
+error.load,任務を読み込めませんでした。選択画面からもう一度お試しください。
+error.retry,再開できませんでした。もう一度お試しください。
+error.restore,チェックポイントを復元できません。任務を中止してください。
+error.exit,画面を切り替えられませんでした。
+death.title,落命
+death.abandoned,任務を中止しました
+death.restart,任務を最初から開始
+death.quit,ゲームを終了
+death.load_error,任務を読み込めません。任務を中止してください。
+settings.volume_master,主音量
+settings.volume_bgm,BGM音量
+settings.volume_se,効果音
+settings.sensitivity_x,横方向の倍率
+settings.sensitivity_y,縦方向の倍率
+settings.invert_y,縦方向を反転
+settings.fullscreen,全画面
+settings.vsync,垂直同期
+settings.quality_preset,描画品質
+settings.quality.low,低
+settings.quality.medium,中
+settings.quality.high,高
+settings.bindings,キー割り当て
+settings.binding_help,変更する項目を選びキーかマウスボタンを押してください。パッド割り当ては維持されます。
+settings.unassigned,未割り当て
+settings.reset_bindings,割り当てを初期値へ戻す
+settings.save_back,保存して戻る
+settings.press_binding,キーかマウスボタンを押してください（Escで取消）
+settings.binding_conflict,他の操作と競合するか使用できないキーです。
+settings.save_failed,保存できませんでした。元のセーブは保護されています。保存先を確認して再試行してください。
+settings.unavailable,設定を開けませんでした。
+input.move_forward,前進
+input.move_backward,後退
+input.move_left,左移動
+input.move_right,右移動
+input.stance_toggle,姿勢切替
+input.sprint,走る
+input.camera_up,カメラ上
+input.camera_down,カメラ下
+input.camera_left,カメラ左
+input.camera_right,カメラ右
+input.interact,調べる・操作
+input.assassinate,必殺
+input.tool_use,忍具使用
+input.tool_cycle,忍具切替
+input.aim,狙う
+input.peek,覗く
+input.attack,斬撃
+input.parry,受け流し
+input.dodge,回避
+input.debug_overlay_toggle,検証表示切替
+input.pause,一時停止
+input.sword,刀
+input.assassinate_lethal,致死必殺
+input.dart,吹き矢
+settings.back_without_save,保存せず戻る
+settings.recovery_notice,セーブデータを復旧しました。以前のファイルはバックアップとして残しています。
+settings.corrupt_notice,セーブを読み取れませんでした。元のファイルを退避し、新しいデータで開始します。
+select.best,最高評価　%s

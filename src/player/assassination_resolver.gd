@@ -365,9 +365,9 @@ static func _context_for_state(player_state: StringName) -> StringName:
 static func _context_axis(context: StringName, to_enemy_local: Vector3) -> Vector3:
 	match context:
 		CONTEXT_BACK:
-			if to_enemy_local.z <= 0.0:
+			if to_enemy_local.z >= 0.0:
 				return Vector3.ZERO
-			return Vector3(0.0, 0.0, 1.0)
+			return Vector3.FORWARD
 		CONTEXT_ABOVE:
 			if to_enemy_local.y >= 0.0:
 				return Vector3.ZERO

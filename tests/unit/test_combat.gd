@@ -304,8 +304,8 @@ func test_combat_actions_cannot_enter_from_assassination_or_input_from_other_sta
 func test_player_damage_is_rejected_while_assassination_presentation_is_active() -> void:
 	var player_instance := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
 	var enemy_instance := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate() as EnemyBase
-	enemy_instance.position = Vector3(0.0, 0.0, 1.0)
-	enemy_instance.rotation.y = PI
+	enemy_instance.position = Vector3(0.0, 0.0, -1.0)
+	enemy_instance.rotation.y = 0.0
 	add_child_autofree(player_instance)
 	add_child_autofree(enemy_instance)
 	var resolver := player_instance.get_node("AssassinationResolver") as AssassinationResolver

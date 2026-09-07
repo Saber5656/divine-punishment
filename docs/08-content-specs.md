@@ -224,6 +224,10 @@ Crawlspace は `movement.tres` の `crawl`（速度 1.0 m/s、発音半径 1 m�
 }
 ```
 
+- settingsの追加任意field: `sensitivity_x/y:1.0`（0.1..3）、`invert_y:false`、`fullscreen:false`、`vsync:true`。既存`sensitivity:0.5`はカメラ基準倍率1（最小倍率0.05）。input_overridesはproject action名→`{type:"key"|"mouse",code:int}`、keyboard/mouseのみ置換しgamepadは保持。
+- 音量0..1はMaster/BGM/SEバスへ、quality低/中/高はViewport解像度倍率0.7/0.85/1.0とMSAAなし/2x/4xへ反映。音声素材のバス割当は#47が担当。
+- best結果はrank優先、同rankならscore優先で保持し低い再挑戦結果で置換しない。旧日本語rankは英語IDへ正規化。
+- `migrate`は未知version/不正型を空Dictionaryとして拒否。load時は原本保持と書込block。JSON破損は一意corrupt backupへ退避成功時のみdefaultsへ復旧。commitはtemp検証後renameし、失敗時は元へrollback。rollback失敗でもbakを保持する。last_error/last_statusをUIが確認し保存済みと誤表示しない。
 - version フィールドでマイグレーション。checkpoint はミッション中断時のみ非 null（位置・忍具残・エリア警戒・目標進行・ナラティブ変数のスナップショット）
 - 進行済みセーブ例は docs/examples/save-progressed.example.json に分離する。new-game 初期化で進行済み値を使ってはならない
 
@@ -407,14 +411,33 @@ static func compute_score(stats: MissionStats, cfg: ScoringConfig,
 
 # ── src/autoload/save_manager.gd
 class_name SaveManager
-func load_save() -> void                              # 破損時は初期化（NFR-06）+ migrate()
-func commit() -> void                                 # 一時ファイル + rename
+func load_save() -> void                              # malformedは退避成功後のみ初期化。未知version/型不正は原本保持して書込block
+func commit() -> void                                 # temp + flush/readback + backup/rename。last_error==OKのみ成功
+var last_error: Error                                  # load/commit結果。失敗をUIが表示する
+var last_status: StringName                            # loaded/saved/recovered/write_blocked等
+var load_notice: StringName                            # 起動時復旧の通知。commit成功でも消さない
 func campaign() -> Dictionary                         # §5 スキーマの campaign 節（参照でなくコピー禁止: 直接編集する）
 func settings() -> Dictionary
 func record_mission_result(mission_id: StringName, result: MissionResult, first_clear: bool) -> void
 func write_checkpoint(snapshot: Dictionary) -> void
 func clear_checkpoint() -> void
 static func migrate(data: Dictionary) -> Dictionary   # pure: version フィールドを見て最新へ
+
+# ── src/ui/settings_controller.gd（Mainの子、autoloadに追加しない）
+class_name SettingsController
+func apply_master_volume(value: float) -> void
+func apply_sensitivity(value: float) -> void
+func apply_value(key: String, value: Variant) -> bool
+func save_settings() -> bool                         # 保存失敗はfalse、UIを自動で閉じない
+func apply_all() -> bool                             # 保存値をaudio/viewport/inputへ反映
+func set_binding(action: StringName, event: InputEvent) -> bool # 競合時false、変更しない
+func reset_bindings() -> void
+static func actions() -> Array[StringName]            # project input全action
+
+# ── src/ui/settings_panel.gd（#36の画面管理に接続）
+class_name SettingsPanel
+signal closed
+func configure(controller: SettingsController) -> void
 
 # ── src/autoload/audio_director.gd
 class_name AudioDirector
@@ -506,8 +529,8 @@ EnemyBase (CharacterBody3D)              layer=3 enemy_body / mask=1
 ├─ CollisionShape3D
 ├─ Visual (Node3D) ─ Model
 ├─ Brain (EnemyBrain)
-├─ Perception (EnemyPerception)
-│   └─ EyePoint (Marker3D)               # 視覚レイの始点
+├─ Perception (EnemyPerception, Node3D)
+│   └─ EyePoint (Marker3D, y=0.7)        # capsule-center root、視覚レイの始点
 ├─ NavigationAgent3D
 ├─ Combat (Node)                         # 攻撃・被弾・HP（§6 の値は PerceptionConfig と別の EnemyStats Resource）
 ├─ AssassinateTarget (Area3D)            layer=11 / mask=0   # 必殺プロンプト検出用
@@ -692,3 +715,27 @@ func is_geometry_valid() -> bool
 - `tool_use` は `ToolBase.use()` が成立した後にだけ残数を 1 消費する。`ToolBase.use()` の失敗は残数へ副作用を持たない。Effect scene が未実装の Resource でも、フレームワークの検証用 no-op 基底で API 契約を維持する。
 - Aim は Player FSM に新しい状態を追加せず、Ground/Crouch など現在状態を保持したまま `ToolRig` が入力を所有する。HUD は `ToolInventory` の slot/count signal を購読し、選択 slot・名称・残数を既存の `SwimHud/ToolSlots` へ反映する。HUD Control は pointer event を受け取らない（既存 §M2 のカメラ操作を妨げない）。
 - Projectile は layer 10 (`projectile`) に載せ、飛翔時に参照する world/enemy/civilian/interactable mask は既存表の `1|3|4|7` を使用する。新しい layer や個別エフェクトの衝突判定は本 Issue では追加しない。
+
+### 10.8 Death / Checkpoint / Retry (Issue #31)
+
+- `player.tscn` adds `RetryFlow (PlayerRetryFlow, CanvasLayer)` at the end of the existing child contract. It observes `StateMachine.state_changed(..., Dead)`, pauses gameplay, presents 落命 then retry/abandon buttons, and restores input after retry. Dead remains terminal: scene reload creates a fresh Player.
+- `CheckpointArea (Area3D)` uses layer 15 / mask 2, exports `checkpoint_id`, emits the existing `mission_event(checkpoint_reached, {id})` through RetryFlow for a living Player only. The collision shape remains visible as the standard editor gizmo.
+- `CheckpointSnapshot.capture/is_valid/restore` stores a versioned JSON-compatible mission-local snapshot: scene identity, checkpoint ID, finite position/yaw, tool IDs/counts/selected slot, area alert. Incompatible scenes/loadouts or malformed values are rejected before mutation.
+- `GameState.checkpoint_ref` owns the in-memory checkpoint. Entering a mission creates its initial checkpoint; passing an area replaces it. Reload recreates scene actors/effects, restores counts/alert/position, and measures request-to-first-playable-frame elapsed time. Campaign/settings and SaveManager disk data are untouched; disk checkpoints remain reserved for interrupted missions (§5).
+- `PlayerRetryFlow.retry() -> bool`, `abandon() -> bool`, `capture_checkpoint(id: StringName) -> bool`, `choices_visible() -> bool`; `retry_finished(elapsed_ms: float)` reports measured time. Abandon opens `mission_abandoned.tscn` with restart/exit choices and clears only the in-memory checkpoint.
+- Presentation duration/veil opacity are configured in `data/tuning/retry.tres`.
+- When a `scene_director` group member exists, RetryFlow calls `retry_from_checkpoint(snapshot: Dictionary) -> bool` or `show_mission_select()` instead of replacing the persistent Main root. The director recreates the mission child and preserves `GameState.checkpoint_ref`; RetryFlow restores when the nearest scene ancestor matches `pending_scene`. Standalone mission scenes retain the PackedScene reload/abandon-screen fallback.
+
+### 10.9 Screen flow and forward-facing assassination (Issue #36)
+
+Main owns `SceneDirector (CanvasLayer)` and a replaceable `Mission` child; no new autoload. The practice mission uses production Player/TargetNpc, uppercase KILL_TARGET/ESCAPE objective kinds, and completion events from MissionDirector. Unfinished campaign levels are labelled unavailable.
+
+`AssassinationResolver.resolve` keeps `to_enemy_local = player.global_transform.affine_inverse() * enemy.global_position`. The back context now requires a target in the player's **-Z forward cone**, consistent with movement/camera (`-basis.z`); independently, the enemy must face away from the player. A target behind the player's camera (+Z) is rejected. Earlier +Z fixtures encoded an inverted player-facing assumption and are corrected with production F-input regression coverage.
+
+GameText reads `data/text/ja.csv` (`key,ja`, where the second header is Godot's locale identifier). During export Godot replaces the CSV source with its imported `ja.ja.translation`; GameText uses that resource when the source file is absent. GameUi supplies the shared ink/paper/vermilion theme. RetryFlow exposes `request_retry()` for the pause menu while death-only `retry()` retains its choice guard. SceneDirector is the sole owner of mission replacement/selection/results.
+
+Production enemy root is the center of its 1.8 m capsule (feet -0.9). Perception is Node3D to preserve transforms through EyePoint; its local y is 0.7, AssassinateTarget sphere y is 0.1, and MeterAnchor y is 1.2. This applies to translated/rotated actors, not only enemies at world origin.
+
+`SceneDirector.set_mission_hint(text: String)` displays one bounded, wrapping tutorial hint; empty text hides it. Mission content resolves its external text and current InputMap binding. RetryFlow restores the player snapshot, then calls `restore_checkpoint_world(snapshot) -> bool` on the mission scene root or its `Mission` runtime child if implemented. False is a restore error and keeps gameplay paused.
+
+Player DetectPoints sample the live capsule at 90% / 65% / 35% of height above its bottom (Head / Chest / Hips). Capsule posture updates reposition these samples for crouch, crawl, swimming and Hidden while preserving feet position; camera peek never changes them. Existing Hidden visibility exclusion remains in force.

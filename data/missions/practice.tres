@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/levels/gym/mission_flow_gym.tscn" id="3"]
+
+[sub_resource type="Resource" id="target"]
+script = ExtResource("2")
+id = &"practice_target"
+text_key = &"objective.practice_target"
+kind = &"KILL_TARGET"
+target_group = &"practice_target"
+
+[sub_resource type="Resource" id="escape"]
+script = ExtResource("2")
+id = &"practice_escape"
+text_key = &"objective.practice_escape"
+kind = &"ESCAPE"
+target_group = &"practice_exit"
+
+[resource]
+script = ExtResource("1")
+id = &"practice"
+title = "practice.title"
+level_scene = ExtResource("3")
+objectives = Array[ExtResource("2")]([SubResource("target"), SubResource("escape")])
+par_time_minutes = 2.0

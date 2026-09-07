@@ -86,6 +86,7 @@ func test_production_gym_detection_hide_search_return_and_back_assassination() -
 
 	assert_true(player.try_exit_hide_spot())
 	await _place_player(guard.global_position + guard.global_basis.z * 1.0)
+	player.rotation.y = guard.rotation.y # Player forward -Z faces into the guard's back.
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	for _frame in 8:
 		await get_tree().physics_frame
