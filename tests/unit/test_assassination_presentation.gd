@@ -210,8 +210,8 @@ func test_presentation_exit_tree_restores_owned_camera_and_audio_hooks() -> void
 func test_resolver_exit_tree_cancels_active_presentation() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
-	enemy.rotation.y = PI
+	enemy.position = Vector3(0.0, 0.0, -1.0)
+	enemy.rotation.y = 0.0
 	add_child_autofree(player)
 	add_child_autofree(enemy)
 	await get_tree().physics_frame
@@ -234,8 +234,8 @@ func test_resolver_exit_tree_cancels_active_presentation() -> void:
 func test_resolver_releases_lock_when_bounded_presentation_completes() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
-	enemy.rotation.y = PI
+	enemy.position = Vector3(0.0, 0.0, -1.0)
+	enemy.rotation.y = 0.0
 	add_child_autofree(player)
 	add_child_autofree(enemy)
 	await get_tree().physics_frame

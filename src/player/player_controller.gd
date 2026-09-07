@@ -912,6 +912,19 @@ func _apply_capsule_height(capsule: CapsuleShape3D, height: float) -> void:
 	collision_shape.transform = _standing_collision_transform
 	capsule.height = height
 	collision_shape.position.y -= (_standing_capsule_height - height) * 0.5
+	_update_detection_points(height)
+
+
+func _update_detection_points(height: float) -> void:
+	# Match the live capsule, whose bottom stays fixed when the player crouches.
+	# These are body samples; camera peeking must never move them.
+	var names := ["Head", "Chest", "Hips"]
+	var fractions := [0.9, 0.65, 0.35]
+	for index in names.size():
+		var point := get_node_or_null("DetectPoints/" + names[index]) as Node3D
+		if point != null:
+			var shape_local := Vector3(0, (fractions[index] - 0.5) * height, 0)
+			point.position = point.get_parent().transform.affine_inverse() * (collision_shape.transform * shape_local)
 
 
 func _apply_camera_posture_for_state(state: StringName) -> void:
