@@ -301,6 +301,40 @@ func test_combat_actions_cannot_enter_from_assassination_or_input_from_other_sta
 	assert_true(combat.call("_combat_input_allowed"))
 
 
+func test_player_damage_is_rejected_while_assassination_presentation_is_active() -> void:
+	var player_instance := (load(PLAYER_SCENE_PATH) as PackedScene).instantiate() as PlayerController
+	var enemy_instance := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate() as EnemyBase
+	enemy_instance.position = Vector3(0.0, 0.0, 1.0)
+	enemy_instance.rotation.y = PI
+	add_child_autofree(player_instance)
+	add_child_autofree(enemy_instance)
+	var resolver := player_instance.get_node("AssassinationResolver") as AssassinationResolver
+	var combat := player_instance.get_node("AssassinationResolver/Combat") as PlayerCombat
+	var presentation := resolver.get_node("AssassinationPresentation") as AssassinationPresentation
+	var interactor := player_instance.get_node("Interactor") as Area3D
+	var target_area := enemy_instance.get_node("AssassinateTarget") as Area3D
+	for _i in range(8):
+		await get_tree().physics_frame
+		if interactor.get_overlapping_areas().has(target_area):
+			break
+	assert_true(interactor.get_overlapping_areas().has(target_area))
+	assert_eq(resolver.evaluate(enemy_instance), &"back")
+	assert_true(resolver.confirm())
+	assert_eq(player_instance.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	assert_true(presentation.is_active())
+	var health_before := combat.health()
+
+	assert_eq(combat.receive_damage(1, enemy_instance), 0)
+	assert_eq(combat.health(), health_before)
+	assert_eq(player_instance.state_machine.current_state(), PlayerStateMachine.STATE_ASSASSINATE)
+	assert_eq(resolver.active_enemy(), enemy_instance)
+	assert_eq(resolver.active_context(), &"back")
+	assert_true(presentation.is_active())
+
+	assert_true(resolver.release())
+	assert_eq(player_instance.state_machine.current_state(), PlayerStateMachine.STATE_GROUND)
+
+
 func test_player_and_enemy_scenes_wire_combat_nodes_without_changing_contract_order() -> void:
 	var player_scene := load(PLAYER_SCENE_PATH) as PackedScene
 	var enemy_scene := load(ENEMY_SCENE_PATH) as PackedScene
