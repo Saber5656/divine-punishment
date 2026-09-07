@@ -96,3 +96,10 @@ git status --short                         # .godot/, build/, *.uid, *.import �
 
 - リリース署名・Steam アップロード（#85）、ブランチ保護の実設定（PO 作業）
 - renderer、texture asset、export preset architecture、CI trigger/job 構成の変更
+
+## 2026-09-07: Linux 成果物の起動確認を自動化
+
+- 起点 main `cb4ba25a0cb905ebaa1b647042dcfe7d95f78e79`。#138 の実main run 34079550991 は3OS export/upload成功、macOS成果物の実起動も成功済み（遡及的ベースライン）。
+- 今回の所有は本指示と `.github/workflows/ci.yml` の Linux export 後の smoke step。Linux成果物をUbuntu runnerで30秒上限・120フレーム起動し、非0終了/timeout/script errorを失敗にする。stdout/stderrはbuild artifactに保持する。
+- export処理・バージョン・署名・workflow適用条件・権限は変更しない。shell構文と失敗伝播をfocused確認、非影響GUTは直近400件の結果を再利用。PR CIとactual main Export内の起動stepで完了を確認する。
+- 最新の通常運用に従い、失敗は影響範囲を修正する。未検証の別機能やハーネス復旧で無関係なPRを一律停止しない。
