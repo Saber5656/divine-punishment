@@ -199,3 +199,60 @@ func _make_path(definitions: Array) -> PatrolPath:
 		stop.dwell_seconds = definition["dwell"]
 		path.add_child(stop)
 	return path
+
+
+func test_unseen_target_death_alerts_escort_without_counting_player_until_contact() -> void:
+	var target := TargetScene.instantiate() as TargetNpc
+	add_child_autofree(target)
+	var escort := EscortScene.instantiate() as EscortGuard
+	add_child_autofree(escort)
+	escort.set_physics_process(false)
+	escort.brain().set_physics_process(false)
+	escort.brain().set_target_visible(false)
+	assert_true(escort.set_escort_target(target))
+	watch_signals(EventBus)
+	assert_true(target.notify_target_defeated(&"assassination"))
+	assert_signal_not_emitted(EventBus,&"player_detected")
+	assert_eq(escort.brain().alert_state(),Enums.AlertState.COMBAT)
+	escort.brain().set_target_visible(true)
+	escort.brain().tick(0.1)
+	assert_signal_emit_count(EventBus,&"player_detected",1)
+	escort.brain().tick(0.1)
+	assert_signal_emit_count(EventBus,&"player_detected",1)
+	escort.brain().set_target_visible(false)
+	for step in 14:
+		escort.brain().tick(0.25)
+		escort._physics_process(0.25)
+	assert_eq(escort.brain().alert_state(),Enums.AlertState.SEARCHING)
+	assert_signal_emit_count(EventBus,&"player_detected",1)
+
+
+func test_escort_checkpoint_keeps_consumed_death_reaction_and_pending_contact() -> void:
+	var target := TargetScene.instantiate() as TargetNpc
+	add_child_autofree(target)
+	var escort := EscortScene.instantiate() as EscortGuard
+	add_child_autofree(escort)
+	escort.set_physics_process(false)
+	escort.brain().set_physics_process(false)
+	escort.brain().set_target_visible(false)
+	escort.set_escort_target(target)
+	target.notify_target_defeated(&"assassination")
+	for step in 14:
+		escort.brain().tick(0.25)
+		escort._physics_process(0.25)
+	var saved := MissionNpcSnapshot.capture(escort)
+	var restored := EscortScene.instantiate() as EscortGuard
+	add_child_autofree(restored)
+	restored.set_physics_process(false)
+	restored.brain().set_physics_process(false)
+	restored.set_escort_target(target)
+	assert_true(MissionNpcSnapshot.restore(saved,restored))
+	restored._physics_process(0.1)
+	assert_eq(restored.brain().alert_state(),Enums.AlertState.SEARCHING,"Reload must not replay the already consumed target-death reaction")
+	watch_signals(EventBus)
+	restored.brain().set_target_visible(false)
+	for step in 14:
+		restored.brain().tick(0.25)
+		restored._physics_process(0.25)
+	assert_eq(restored.brain().alert_state(),Enums.AlertState.SEARCHING)
+	assert_signal_not_emitted(EventBus,&"player_detected")

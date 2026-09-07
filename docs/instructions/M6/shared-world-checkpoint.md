@@ -18,3 +18,7 @@ Issue #40 が導入し、#38 のチュートリアルも利用する共通 API�
 `PlayerRetryFlow` のプレイヤー復元が成功した後、scene root または `Mission` child の `restore_checkpoint_world(snapshot) -> bool` から適用する。途中失敗なら復元エラーを返し、成功と扱わない。body storage はレベルが stable HideSpot ID を解決して既存 `begin_storage()` を使用する。nav の実行中 path cache と瞬間的な視認/刺激は保存せず、復元後に実世界から再計算する。
 
 初期実装は 2026-09-07、2026-09-08 の再開後に TDD で新規シーンの前回状態残留、矛盾した完了フラグ、存在しない地点、体力と死亡フラグの不整合を再現・修正した。`test_mission_world_checkpoint.gd` はこの契約の回帰テストであり、実操作の所要時間や各ミッションの G3 合格を証明するものではない。
+
+## 護衛の死亡反応（Issue #40）
+
+標的死亡時の護衛のCOMBAT移行とエリア警戒は保持する。視認していないプレイヤーを発見回数に加えず、最初の視認または直接接触時に一度だけ通知する。`brain.combat_detection_pending` とNPCの `escort_reacted` はboolとして保存する。既存snapshotで省略された場合はfalseとし、復元時に標的死亡反応や発見通知を再発行しない。護衛は一度反応した後、視線を失えば通常のSearchへ移行できる。

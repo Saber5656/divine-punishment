@@ -119,6 +119,15 @@ func is_separated() -> bool:
 	return target != null and target.is_escort_separated()
 
 
+## Checkpoint bookkeeping is separate from reacting to a fresh target death.
+func has_reacted_to_target_defeat() -> bool:
+	return _target_defeated
+
+
+func restore_checkpoint_reaction(reacted: bool) -> void:
+	_target_defeated = reacted
+
+
 func target_defeated() -> bool:
 	return _target_defeated or (escort_target() != null and escort_target().is_target_defeated())
 
@@ -179,6 +188,8 @@ func _on_enemy_killed(enemy: Node, _method: String) -> void:
 
 
 func _enter_target_combat() -> void:
+	if _target_defeated:
+		return
 	var enemy_brain := brain()
 	if enemy_brain == null or enemy_brain.is_incapacitated():
 		return
