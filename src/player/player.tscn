@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -16,6 +16,8 @@
 [ext_resource type="Script" path="res://src/player/player_combat.gd" id="14_player_combat"]
 [ext_resource type="Resource" path="res://data/tuning/combat.tres" id="15_combat_config"]
 [ext_resource type="Script" path="res://src/player/assassination_presentation.gd" id="16_assassination_presentation"]
+
+[ext_resource type="Script" path="res://src/player/player_retry_flow.gd" id="17_retry"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -252,3 +254,6 @@ position = Vector3(0, 0.5, 0)
 [node name="Combat" type="Node" parent="AssassinationResolver"]
 script = ExtResource("14_player_combat")
 combat_config = ExtResource("15_combat_config")
+
+[node name="RetryFlow" type="CanvasLayer" parent="."]
+script = ExtResource("17_retry")

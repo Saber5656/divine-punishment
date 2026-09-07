@@ -808,7 +808,8 @@ func _route_navigation_covers(points: Array[Vector3], route_id: StringName) -> b
 
 
 func _add_checkpoint(parent: Node3D, marker_name: StringName, position: Vector3, checkpoint_id: StringName) -> void:
-	var checkpoint := Area3D.new()
+	var checkpoint := CheckpointArea.new()
+	checkpoint.checkpoint_id = checkpoint_id
 	checkpoint.name = marker_name
 	checkpoint.position = position
 	checkpoint.collision_layer = MISSION_TRIGGER_LAYER

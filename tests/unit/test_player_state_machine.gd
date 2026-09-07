@@ -232,7 +232,7 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 
 	assert_eq(player.collision_layer, 2)
 	assert_eq(player.collision_mask, 1)
-	assert_eq(player.get_child_count(), 10)
+	assert_eq(player.get_child_count(), 11)
 	assert_eq(player.get_child(0).name, &"CollisionShape3D")
 	assert_eq(player.get_child(1).name, &"Visual")
 	assert_eq(player.get_child(2).name, &"StateMachine")
@@ -243,6 +243,7 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 	assert_eq(player.get_child(7).name, &"ToolRig")
 	assert_eq(player.get_child(8).name, &"CameraRig")
 	assert_eq(player.get_child(9).name, &"DetectPoints")
+	assert_true(player.get_child(10) is PlayerRetryFlow)
 	assert_true(player.get_node("StateMachine") is PlayerStateMachine)
 	assert_eq((player.get_node("Interactor") as Area3D).collision_layer, 0)
 	assert_eq((player.get_node("Interactor") as Area3D).collision_mask, 24000)
