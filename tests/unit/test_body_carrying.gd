@@ -11,7 +11,7 @@ func test_dead_body_carry_slows_player_and_blocks_ninja_tools() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	player.position = Vector3(0.0, 1.0, 0.0)
 	add_child_autofree(player)
-	var body := _add_dead_body(Vector3(0.0, 1.0, -0.5))
+	var body := _add_dead_body(Vector3(0.0, 1.0, 0.5))
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	assert_eq(body.collision_layer, EnemyBase.CORPSE_LAYER)

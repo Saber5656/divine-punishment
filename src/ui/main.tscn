@@ -1,12 +1,22 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/ui/stealth_debug_overlay.gd" id="1_debug_overlay"]
 [ext_resource type="Script" path="res://src/ui/enemy_alert_meter_hud.gd" id="2_enemy_alert_meter"]
 
+[ext_resource type="Script" path="res://src/ui/scene_director.gd" id="3_director"]
+
+[ext_resource type="Script" path="res://src/ui/settings_controller.gd" id="4_settings"]
+
 [node name="Main" type="Node"]
+
+[node name="SettingsController" type="Node" parent="."]
+script = ExtResource("4_settings")
 
 [node name="StealthDebugOverlay" type="Node3D" parent="."]
 script = ExtResource("1_debug_overlay")
 
 [node name="EnemyAlertMeterHud" type="CanvasLayer" parent="."]
 script = ExtResource("2_enemy_alert_meter")
+
+[node name="SceneDirector" type="CanvasLayer" parent="."]
+script = ExtResource("3_director")

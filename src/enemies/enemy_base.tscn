@@ -30,12 +30,12 @@ shape = SubResource("CapsuleShape3D_enemy")
 [node name="Brain" type="Node" parent="."]
 script = ExtResource("2_brain")
 
-[node name="Perception" type="Node" parent="."]
+[node name="Perception" type="Node3D" parent="."]
 script = ExtResource("3_perception")
 perception_config = ExtResource("4_perception")
 
 [node name="EyePoint" type="Marker3D" parent="Perception"]
-position = Vector3(0, 1.5, 0)
+position = Vector3(0, 0.7, 0)
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 path_desired_distance = 0.1
@@ -51,11 +51,11 @@ collision_layer = 1024
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="AssassinateTarget"]
-position = Vector3(0, 1.0, 0)
+position = Vector3(0, 0.1, 0)
 shape = SubResource("SphereShape3D_assassinate")
 
 [node name="MeterAnchor" type="Marker3D" parent="."]
-position = Vector3(0, 2.0, 0)
+position = Vector3(0, 1.2, 0)
 
 [node name="Carryable" type="Node" parent="."]
 

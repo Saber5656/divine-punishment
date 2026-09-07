@@ -9,3 +9,5 @@
 - Main-agent self-review covered scope, source provenance, skin binding, export paths, generated-file inventory, licensing, and machine-path/secret exclusion. CI now verifies the asset contract and includes the notices in all platform packages.
 
 This is asset procurement. It does not claim finished AnimationTree integration, all gameplay poses, collision placement, or a release build. Those remain #43/#44 work.
+
+The original upstream notices retain their CRLF and whitespace verbatim. Diff whitespace warnings are limited to those unmodified notices; authored code and documentation pass the whitespace check. Integration with main preserves both the Japanese CSV export filter and the new license filters.

@@ -22,7 +22,7 @@ func test_static_resolve_accepts_all_four_tuned_contexts() -> void:
 	assert_eq(config.get("below_max_angle_degrees"), 45.0)
 	assert_eq(config.get("corner_max_angle_degrees"), 60.0)
 	assert_eq(
-		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, 1.0), Enums.AlertState.UNAWARE, false, config),
+		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, -1.0), Enums.AlertState.UNAWARE, false, config),
 		&"back",
 	)
 	assert_eq(
@@ -54,15 +54,15 @@ func test_resolver_provides_a_fallback_config_when_resource_load_is_unavailable(
 func test_static_resolve_enforces_distance_and_angle_boundaries() -> void:
 	var config := ConfigScript.new() as AssassinationConfig
 	assert_eq(
-		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, 1.5), Enums.AlertState.UNAWARE, false, config),
+		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, -1.5), Enums.AlertState.UNAWARE, false, config),
 		&"back",
 	)
 	assert_eq(
-		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, 1.501), Enums.AlertState.UNAWARE, false, config),
+		ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, -1.501), Enums.AlertState.UNAWARE, false, config),
 		&"",
 	)
 	assert_eq(
-		ResolverScript.resolve(&"Ground", Vector3(1.3, 0.0, 0.4), Enums.AlertState.UNAWARE, false, config),
+		ResolverScript.resolve(&"Ground", Vector3(1.3, 0.0, -0.4), Enums.AlertState.UNAWARE, false, config),
 		&"",
 	)
 	assert_eq(
@@ -80,19 +80,19 @@ func test_static_resolve_rejects_combat_seen_and_invalid_contexts() -> void:
 		Enums.AlertState.RETURN,
 	]:
 		assert_eq(
-			ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, 1.0), Enums.AlertState.COMBAT, false, config),
+			ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, -1.0), Enums.AlertState.COMBAT, false, config),
 			&"",
 		)
 		assert_eq(
-			ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, 1.0), state, true, config),
+			ResolverScript.resolve(&"Ground", Vector3(0.0, 0.0, -1.0), state, true, config),
 			&"",
 		)
 	assert_eq(
-		ResolverScript.resolve(&"Sprint", Vector3(0.0, 0.0, 1.0), Enums.AlertState.UNAWARE, false, config),
+		ResolverScript.resolve(&"Sprint", Vector3(0.0, 0.0, -1.0), Enums.AlertState.UNAWARE, false, config),
 		&"",
 	)
 	assert_eq(
-		ResolverScript.resolve(&"Ground", Vector3(NAN, 0.0, 1.0), Enums.AlertState.UNAWARE, false, config),
+		ResolverScript.resolve(&"Ground", Vector3(NAN, 0.0, -1.0), Enums.AlertState.UNAWARE, false, config),
 		&"",
 	)
 
@@ -101,8 +101,8 @@ func test_prompt_and_one_input_execution_lock_both_sides() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
-	enemy.rotation.y = PI
+	enemy.position = Vector3(0.0, 0.0, -1.0)
+	enemy.rotation.y = 0.0
 	add_child_autofree(enemy)
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	watch_signals(resolver)
@@ -136,7 +136,7 @@ func test_prompt_and_evaluate_reject_enemy_in_combat() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.position = Vector3(0.0, 0.0, -1.0)
 	add_child_autofree(enemy)
 	await get_tree().process_frame
 	(enemy.get_node("Brain") as EnemyBrain).force_state(Enums.AlertState.COMBAT, &"test")
@@ -151,7 +151,7 @@ func test_prompt_and_evaluate_reject_enemy_seen_by_perception() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.position = Vector3(0.0, 0.0, -1.0)
 	add_child_autofree(enemy)
 	await get_tree().process_frame
 	var perception := enemy.get_node("Perception") as EnemyPerception
@@ -230,13 +230,14 @@ func test_back_context_requires_enemy_to_face_away_from_player() -> void:
 	var player := PlayerScene.instantiate() as PlayerController
 	add_child_autofree(player)
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
+	enemy.position = Vector3(0.0, 0.0, -1.0)
+	enemy.rotation.y = PI
 	add_child_autofree(enemy)
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	await _wait_for_sensor_overlap(player, enemy)
 
 	assert_eq(resolver.evaluate(enemy), &"")
-	enemy.rotation.y = PI
+	enemy.rotation.y = 0.0
 	await get_tree().physics_frame
 	assert_eq(resolver.evaluate(enemy), &"back")
 
@@ -292,7 +293,7 @@ func test_assassination_requires_clear_world_path() -> void:
 	var enemy := _add_valid_back_enemy()
 	var resolver := player.get_node("AssassinationResolver") as AssassinationResolver
 	await _wait_for_sensor_overlap(player, enemy)
-	var blocker := _add_occluder(Vector3(0.0, 0.5, 0.5))
+	var blocker := _add_occluder(Vector3(0.0, 0.5, -0.5))
 	await get_tree().physics_frame
 	assert_eq(resolver.evaluate(enemy), &"")
 	blocker.queue_free()
@@ -386,8 +387,8 @@ func test_crawl_posture_is_preserved_while_assassination_is_locked() -> void:
 
 func _add_valid_back_enemy() -> EnemyBase:
 	var enemy := EnemyScene.instantiate() as EnemyBase
-	enemy.position = Vector3(0.0, 0.0, 1.0)
-	enemy.rotation.y = PI
+	enemy.position = Vector3(0.0, 0.0, -1.0)
+	enemy.rotation.y = 0.0
 	add_child_autofree(enemy)
 	return enemy
 
@@ -418,3 +419,9 @@ func _add_world_box(at: Vector3, size: Vector3) -> StaticBody3D:
 	blocker.add_child(collision)
 	add_child_autofree(blocker)
 	return blocker
+
+
+func test_back_context_rejects_a_target_behind_the_player_camera() -> void:
+	var config := ConfigScript.new()
+	assert_eq(ResolverScript.resolve(&"Ground", Vector3.BACK, Enums.AlertState.UNAWARE, false, config), &"")
+	assert_eq(ResolverScript.resolve(&"Ground", Vector3.FORWARD, Enums.AlertState.UNAWARE, false, config), &"back")

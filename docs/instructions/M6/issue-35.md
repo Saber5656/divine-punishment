@@ -43,7 +43,7 @@
 ## 検証
 
 ```bash
-export GODOT_BIN=/Users/takagiyasushi/.codex/task-evidence/divine-resume-20260907/godot43/Godot.app/Contents/MacOS/Godot
+: "${GODOT_BIN:?Set GODOT_BIN to your local Godot 4.3 executable}"
 "$GODOT_BIN" --version
 "$GODOT_BIN" --headless --path . --import
 "$GODOT_BIN" --headless --path . -s addons/gut/gut_cmdln.gd -gselect=test_mission_director.gd -gexit

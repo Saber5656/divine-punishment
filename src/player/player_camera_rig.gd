@@ -27,13 +27,13 @@ func _ready() -> void:
 func apply_mouse_look(screen_relative: Vector2) -> float:
 	if _camera_config == null:
 		return 0.0
-	return _apply_look(screen_relative * _camera_config.mouse_look_sensitivity)
+	return _apply_look(screen_relative * _camera_config.mouse_look_sensitivity * _settings_multiplier())
 
 
 func apply_gamepad_look(input_vector: Vector2, delta: float) -> float:
 	if _camera_config == null:
 		return 0.0
-	return _apply_look(input_vector * _camera_config.gamepad_look_speed * delta)
+	return _apply_look(input_vector * _camera_config.gamepad_look_speed * delta * _settings_multiplier())
 
 
 func set_peek_offset(requested_offset: Vector3) -> void:
@@ -147,3 +147,13 @@ static func _clamp_offset_component(value: float, limit: float) -> float:
 		return 0.0
 	var absolute_limit := absf(limit)
 	return clampf(value, -absolute_limit, absolute_limit)
+
+
+func _settings_multiplier() -> Vector2:
+	var config := SaveManager.settings()
+	# 0.5 preserves the authored CameraConfig baseline; never mutate shared tuning.
+	var base := maxf(0.05, float(config.get("sensitivity", 0.5)) * 2.0)
+	var result := Vector2(float(config.get("sensitivity_x", 1.0)), float(config.get("sensitivity_y", 1.0))) * base
+	if config.get("invert_y", false):
+		result.y *= -1.0
+	return result
