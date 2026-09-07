@@ -9,3 +9,4 @@ var bodies_found: int = 0
 var one_strike: bool = true
 var knockouts: int = 0
 var elapsed_sec: float = 0.0
+var side_objective_completed: bool = false
