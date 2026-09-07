@@ -1,11 +1,16 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/levels/samurai_residence/samurai_residence.gd" id="1_residence"]
 
 [ext_resource type="PackedScene" path="res://src/player/player.tscn" id="2_player"]
+
+[ext_resource type="Script" path="res://src/levels/samurai_residence/samurai_mission.gd" id="3_mission"]
 
 [node name="SamuraiResidence" type="Node3D"]
 script = ExtResource("1_residence")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector3(8, 0, 8)
+
+[node name="Mission" type="Node3D" parent="."]
+script = ExtResource("3_mission")

@@ -49,3 +49,7 @@ standing radius 0.35 / height 1.8 の capsule を旧標的 (58,0,19) に置く�
 - MissionDirectorの既存公開start/current/completeを使う。UI所有者のSceneDirectorが既に開始している場合は二重resetしない。未開始のscene直接起動でも再現できる。
 - snapshotにはmission内のstable NPC ID、位置・向き・生死/気絶・routine phase、mission objective/statsを記録。retry reloadで検証して復元し、標的死亡済みはkill eventの重複加算を避けてESCAPEと一貫させる。必要な共通snapshot APIは所有者と合意して追加する。
 - 暗殺checkpointは接近時に無効、成功event後にcaptureする。gateとescapeはmission状態を毎回検査。新規UI文言はGameTextの既存契約を利用し、担当外のloaderを作らない。
+
+## 実装中の確認（2026-09-08）
+
+NPCの所有するMissionRoutineはtop_levelとし、移動・旋回でworld座標の巡回点と向きが動かないようにする。PatrolPathは2stop契約のため、立哨/休息は同一点のholdを2個持たせる。屋根取付き/池南岸の更新はmap§6参照。G3aはこの段階では未通過であり、fixtureによる境界試験を実360秒観察や未発見プレイと扱わない。

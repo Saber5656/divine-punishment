@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/levels/samurai_residence/samurai_residence.tscn" id="3"]
+
+[sub_resource type="Resource" id="Target"]
+script = ExtResource("2")
+id = &"m02_target"
+text_key = &"m02.objective.target"
+kind = &"KILL_TARGET"
+target_group = &"m02_target"
+
+[sub_resource type="Resource" id="Escape"]
+script = ExtResource("2")
+id = &"m02_escape"
+text_key = &"m02.objective.escape"
+kind = &"ESCAPE"
+
+[resource]
+script = ExtResource("1")
+id = &"m02"
+title = "武家屋敷の粛清"
+level_scene = ExtResource("3")
+objectives = Array[ExtResource("2")]([SubResource("Target"), SubResource("Escape")])
+par_time_minutes = 18.0
