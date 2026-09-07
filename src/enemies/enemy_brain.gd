@@ -147,7 +147,12 @@ func tick(delta: float) -> void:
 	_advance_timers(delta)
 	var stimulus := _pop_highest_stimulus()
 	if stimulus != null:
+		var was_in_combat := _state == Enums.AlertState.COMBAT
 		_process_stimulus(stimulus)
+		# Footsteps and distractions do not establish visual contact. Keep the
+		# lost-sight clock running even when one is delivered every frame.
+		if was_in_combat and _state == Enums.AlertState.COMBAT and _effective_priority(stimulus) < 4:
+			_advance_state_without_stimulus(delta)
 	else:
 		_advance_state_without_stimulus(delta)
 
@@ -808,10 +813,20 @@ func _advance_state_without_stimulus(delta: float) -> void:
 			if _combat_lost_sight_elapsed >= COMBAT_LOST_SIGHT_DURATION_SEC:
 				_transition_to(Enums.AlertState.SEARCHING, null, &"lost_sight")
 		Enums.AlertState.RETURN:
-			_set_navigation_target(_return_target())
+			var target := _return_target()
+			_set_navigation_target(target)
+			var arrived := _routine_arrived or _navigation_has_reached(target)
+			var enemy := _enemy_node()
+			var step := minf(delta, MAX_ROUTINE_STEP_DELTA)
+			if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
+				var result: Variant = enemy.call(&"advance_navigation", step, target, _routine_speed())
+				arrived = bool(result) if result is bool else _navigation_has_reached(target)
+			if enemy != null and enemy.has_method(&"face_routine_direction"):
+				enemy.call(&"face_routine_direction", _routine_facing_direction(), step)
+			_update_lantern_light()
 			if (
 				not _relight_pending
-				and (_routine_arrived or _navigation_has_reached(_routine_target()))
+				and arrived
 			):
 				_transition_to(Enums.AlertState.UNAWARE, null, &"routine_arrived")
 
