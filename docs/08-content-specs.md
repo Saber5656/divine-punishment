@@ -692,3 +692,13 @@ func is_geometry_valid() -> bool
 - `tool_use` は `ToolBase.use()` が成立した後にだけ残数を 1 消費する。`ToolBase.use()` の失敗は残数へ副作用を持たない。Effect scene が未実装の Resource でも、フレームワークの検証用 no-op 基底で API 契約を維持する。
 - Aim は Player FSM に新しい状態を追加せず、Ground/Crouch など現在状態を保持したまま `ToolRig` が入力を所有する。HUD は `ToolInventory` の slot/count signal を購読し、選択 slot・名称・残数を既存の `SwimHud/ToolSlots` へ反映する。HUD Control は pointer event を受け取らない（既存 §M2 のカメラ操作を妨げない）。
 - Projectile は layer 10 (`projectile`) に載せ、飛翔時に参照する world/enemy/civilian/interactable mask は既存表の `1|3|4|7` を使用する。新しい layer や個別エフェクトの衝突判定は本 Issue では追加しない。
+
+### 10.8 Death / Checkpoint / Retry (Issue #31)
+
+- `player.tscn` adds `RetryFlow (PlayerRetryFlow, CanvasLayer)` at the end of the existing child contract. It observes `StateMachine.state_changed(..., Dead)`, pauses gameplay, presents 落命 then retry/abandon buttons, and restores input after retry. Dead remains terminal: scene reload creates a fresh Player.
+- `CheckpointArea (Area3D)` uses layer 15 / mask 2, exports `checkpoint_id`, emits the existing `mission_event(checkpoint_reached, {id})` through RetryFlow for a living Player only. The collision shape remains visible as the standard editor gizmo.
+- `CheckpointSnapshot.capture/is_valid/restore` stores a versioned JSON-compatible mission-local snapshot: scene identity, checkpoint ID, finite position/yaw, tool IDs/counts/selected slot, area alert. Incompatible scenes/loadouts or malformed values are rejected before mutation.
+- `GameState.checkpoint_ref` owns the in-memory checkpoint. Entering a mission creates its initial checkpoint; passing an area replaces it. Reload recreates scene actors/effects, restores counts/alert/position, and measures request-to-first-playable-frame elapsed time. Campaign/settings and SaveManager disk data are untouched; disk checkpoints remain reserved for interrupted missions (§5).
+- `PlayerRetryFlow.retry() -> bool`, `abandon() -> bool`, `capture_checkpoint(id: StringName) -> bool`, `choices_visible() -> bool`; `retry_finished(elapsed_ms: float)` reports measured time. Abandon opens `mission_abandoned.tscn` with restart/exit choices and clears only the in-memory checkpoint.
+- Presentation duration/veil opacity are configured in `data/tuning/retry.tres`.
+- When a `scene_director` group member exists, RetryFlow calls `retry_from_checkpoint(snapshot: Dictionary) -> bool` or `show_mission_select()` instead of replacing the persistent Main root. The director recreates the mission child and preserves `GameState.checkpoint_ref`; RetryFlow restores when the nearest scene ancestor matches `pending_scene`. Standalone mission scenes retain the PackedScene reload/abandon-screen fallback.
