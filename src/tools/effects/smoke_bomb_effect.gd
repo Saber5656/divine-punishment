@@ -7,7 +7,7 @@ const MAX_SMOKE_DURATION := 5.0
 const SMOKE_GROUP := &"smoke_volumes"
 
 var _radius := 0.0
-var _expires_at := 0.0
+var _expires_at_msec: int = 0
 
 
 func _apply_effect(hit: Dictionary) -> void:
@@ -25,14 +25,15 @@ func _apply_effect(hit: Dictionary) -> void:
 		_radius = 0.0
 		_dispose()
 		return
-	_expires_at = _now() + duration
+	# Integer ticks avoid cancellation reporting slightly more than the hard cap.
+	_expires_at_msec = _now_msec() + int(duration * 1000.0)
 	if not is_in_group(SMOKE_GROUP):
 		add_to_group(SMOKE_GROUP)
 	set_process(true)
 
 
 func is_active() -> bool:
-	return _radius > 0.0 and _expires_at > _now()
+	return _radius > 0.0 and _expires_at_msec > _now_msec()
 
 
 func smoke_radius() -> float:
@@ -40,7 +41,7 @@ func smoke_radius() -> float:
 
 
 func remaining_seconds() -> float:
-	return maxf(_expires_at - _now(), 0.0) if is_active() else 0.0
+	return float(maxi(_expires_at_msec - _now_msec(), 0)) / 1000.0 if _radius > 0.0 else 0.0
 
 
 func blocks_visibility(observer: Vector3, target: Vector3) -> bool:
@@ -65,5 +66,5 @@ func _dispose() -> void:
 		queue_free()
 
 
-func _now() -> float:
-	return float(Time.get_ticks_msec()) / 1000.0
+func _now_msec() -> int:
+	return Time.get_ticks_msec()
