@@ -224,6 +224,10 @@ Crawlspace は `movement.tres` の `crawl`（速度 1.0 m/s、発音半径 1 m�
 }
 ```
 
+- settingsの追加任意field: `sensitivity_x/y:1.0`（0.1..3）、`invert_y:false`、`fullscreen:false`、`vsync:true`。既存`sensitivity:0.5`はカメラ基準倍率1（最小倍率0.05）。input_overridesはproject action名→`{type:"key"|"mouse",code:int}`、keyboard/mouseのみ置換しgamepadは保持。
+- 音量0..1はMaster/BGM/SEバスへ、quality低/中/高はViewport解像度倍率0.7/0.85/1.0とMSAAなし/2x/4xへ反映。音声素材のバス割当は#47が担当。
+- best結果はrank優先、同rankならscore優先で保持し低い再挑戦結果で置換しない。旧日本語rankは英語IDへ正規化。
+- `migrate`は未知version/不正型を空Dictionaryとして拒否。load時は原本保持と書込block。JSON破損は一意corrupt backupへ退避成功時のみdefaultsへ復旧。commitはtemp検証後renameし、失敗時は元へrollback。rollback失敗でもbakを保持する。last_error/last_statusをUIが確認し保存済みと誤表示しない。
 - version フィールドでマイグレーション。checkpoint はミッション中断時のみ非 null（位置・忍具残・エリア警戒・目標進行・ナラティブ変数のスナップショット）
 - 進行済みセーブ例は docs/examples/save-progressed.example.json に分離する。new-game 初期化で進行済み値を使ってはならない
 
@@ -407,14 +411,33 @@ static func compute_score(stats: MissionStats, cfg: ScoringConfig,
 
 # ── src/autoload/save_manager.gd
 class_name SaveManager
-func load_save() -> void                              # 破損時は初期化（NFR-06）+ migrate()
-func commit() -> void                                 # 一時ファイル + rename
+func load_save() -> void                              # malformedは退避成功後のみ初期化。未知version/型不正は原本保持して書込block
+func commit() -> void                                 # temp + flush/readback + backup/rename。last_error==OKのみ成功
+var last_error: Error                                  # load/commit結果。失敗をUIが表示する
+var last_status: StringName                            # loaded/saved/recovered/write_blocked等
+var load_notice: StringName                            # 起動時復旧の通知。commit成功でも消さない
 func campaign() -> Dictionary                         # §5 スキーマの campaign 節（参照でなくコピー禁止: 直接編集する）
 func settings() -> Dictionary
 func record_mission_result(mission_id: StringName, result: MissionResult, first_clear: bool) -> void
 func write_checkpoint(snapshot: Dictionary) -> void
 func clear_checkpoint() -> void
 static func migrate(data: Dictionary) -> Dictionary   # pure: version フィールドを見て最新へ
+
+# ── src/ui/settings_controller.gd（Mainの子、autoloadに追加しない）
+class_name SettingsController
+func apply_master_volume(value: float) -> void
+func apply_sensitivity(value: float) -> void
+func apply_value(key: String, value: Variant) -> bool
+func save_settings() -> bool                         # 保存失敗はfalse、UIを自動で閉じない
+func apply_all() -> bool                             # 保存値をaudio/viewport/inputへ反映
+func set_binding(action: StringName, event: InputEvent) -> bool # 競合時false、変更しない
+func reset_bindings() -> void
+static func actions() -> Array[StringName]            # project input全action
+
+# ── src/ui/settings_panel.gd（#36の画面管理に接続）
+class_name SettingsPanel
+signal closed
+func configure(controller: SettingsController) -> void
 
 # ── src/autoload/audio_director.gd
 class_name AudioDirector

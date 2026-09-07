@@ -4,13 +4,18 @@ extends GutTest
 const PLAYER_SCENE_PATH := "res://src/player/player.tscn"
 
 var original_camera_config: CameraConfig
+var original_camera_settings: Dictionary
 
 
 func before_each() -> void:
 	original_camera_config = Tuning.camera()
+	original_camera_settings = SaveManager.settings().duplicate(true)
+	SaveManager.settings().merge({"sensitivity": 0.5, "sensitivity_x": 1.0, "sensitivity_y": 1.0, "invert_y": false}, true)
 
 
 func after_each() -> void:
+	SaveManager.settings().clear()
+	SaveManager.settings().merge(original_camera_settings, true)
 	if Tuning.camera() != original_camera_config:
 		Tuning._camera = original_camera_config
 		Tuning.reloaded.emit()
