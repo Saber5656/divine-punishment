@@ -529,8 +529,8 @@ EnemyBase (CharacterBody3D)              layer=3 enemy_body / mask=1
 ├─ CollisionShape3D
 ├─ Visual (Node3D) ─ Model
 ├─ Brain (EnemyBrain)
-├─ Perception (EnemyPerception)
-│   └─ EyePoint (Marker3D)               # 視覚レイの始点
+├─ Perception (EnemyPerception, Node3D)
+│   └─ EyePoint (Marker3D, y=0.7)        # capsule-center root、視覚レイの始点
 ├─ NavigationAgent3D
 ├─ Combat (Node)                         # 攻撃・被弾・HP（§6 の値は PerceptionConfig と別の EnemyStats Resource）
 ├─ AssassinateTarget (Area3D)            layer=11 / mask=0   # 必殺プロンプト検出用
@@ -725,3 +725,17 @@ func is_geometry_valid() -> bool
 - `PlayerRetryFlow.retry() -> bool`, `abandon() -> bool`, `capture_checkpoint(id: StringName) -> bool`, `choices_visible() -> bool`; `retry_finished(elapsed_ms: float)` reports measured time. Abandon opens `mission_abandoned.tscn` with restart/exit choices and clears only the in-memory checkpoint.
 - Presentation duration/veil opacity are configured in `data/tuning/retry.tres`.
 - When a `scene_director` group member exists, RetryFlow calls `retry_from_checkpoint(snapshot: Dictionary) -> bool` or `show_mission_select()` instead of replacing the persistent Main root. The director recreates the mission child and preserves `GameState.checkpoint_ref`; RetryFlow restores when the nearest scene ancestor matches `pending_scene`. Standalone mission scenes retain the PackedScene reload/abandon-screen fallback.
+
+### 10.9 Screen flow and forward-facing assassination (Issue #36)
+
+Main owns `SceneDirector (CanvasLayer)` and a replaceable `Mission` child; no new autoload. The practice mission uses production Player/TargetNpc, uppercase KILL_TARGET/ESCAPE objective kinds, and completion events from MissionDirector. Unfinished campaign levels are labelled unavailable.
+
+`AssassinationResolver.resolve` keeps `to_enemy_local = player.global_transform.affine_inverse() * enemy.global_position`. The back context now requires a target in the player's **-Z forward cone**, consistent with movement/camera (`-basis.z`); independently, the enemy must face away from the player. A target behind the player's camera (+Z) is rejected. Earlier +Z fixtures encoded an inverted player-facing assumption and are corrected with production F-input regression coverage.
+
+GameText reads `data/text/ja.csv` (`key,ja`, where the second header is Godot's locale identifier). During export Godot replaces the CSV source with its imported `ja.ja.translation`; GameText uses that resource when the source file is absent. GameUi supplies the shared ink/paper/vermilion theme. RetryFlow exposes `request_retry()` for the pause menu while death-only `retry()` retains its choice guard. SceneDirector is the sole owner of mission replacement/selection/results.
+
+Production enemy root is the center of its 1.8 m capsule (feet -0.9). Perception is Node3D to preserve transforms through EyePoint; its local y is 0.7, AssassinateTarget sphere y is 0.1, and MeterAnchor y is 1.2. This applies to translated/rotated actors, not only enemies at world origin.
+
+`SceneDirector.set_mission_hint(text: String)` displays one bounded, wrapping tutorial hint; empty text hides it. Mission content resolves its external text and current InputMap binding. RetryFlow restores the player snapshot, then calls `restore_checkpoint_world(snapshot) -> bool` on the mission scene root or its `Mission` runtime child if implemented. False is a restore error and keeps gameplay paused.
+
+Player DetectPoints sample the live capsule at 90% / 65% / 35% of height above its bottom (Head / Chest / Hips). Capsule posture updates reposition these samples for crouch, crawl, swimming and Hidden while preserving feet position; camera peek never changes them. Existing Hidden visibility exclusion remains in force.

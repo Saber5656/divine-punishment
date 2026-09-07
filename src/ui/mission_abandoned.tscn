@@ -29,15 +29,12 @@ theme_override_constants/separation = 24
 [node name="Title" type="Label" parent="Center/Choices"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 36
-text = "任務を中止しました"
 horizontal_alignment = 1
 
 [node name="Restart" type="Button" parent="Center/Choices"]
 custom_minimum_size = Vector2(340, 56)
 layout_mode = 2
-text = "任務を最初から開始"
 
 [node name="Quit" type="Button" parent="Center/Choices"]
 custom_minimum_size = Vector2(340, 56)
 layout_mode = 2
-text = "ゲームを終了"

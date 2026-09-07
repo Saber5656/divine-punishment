@@ -1,0 +1,258 @@
+[gd_scene load_steps=37 format=3]
+
+[ext_resource type="Script" path="res://src/levels/gym/mission_flow_gym.gd" id="1"]
+[ext_resource type="PackedScene" path="res://src/player/player.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://src/enemies/target_npc.tscn" id="3"]
+[ext_resource type="Script" path="res://src/level/checkpoint_area.gd" id="4"]
+
+[sub_resource type="Environment" id="environment"]
+background_mode = 1
+background_color = Color(0.045, 0.075, 0.11, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.65, 0.82, 1)
+ambient_light_energy = 0.65
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="ground_mat"]
+albedo_color = Color(0.19, 0.23, 0.22, 1)
+roughness = 0.95
+[sub_resource type="StandardMaterial3D" id="wall_mat"]
+albedo_color = Color(0.39, 0.37, 0.31, 1)
+[sub_resource type="StandardMaterial3D" id="wood_mat"]
+albedo_color = Color(0.22, 0.14, 0.11, 1)
+[sub_resource type="StandardMaterial3D" id="red_mat"]
+albedo_color = Color(0.5, 0.115, 0.08, 1)
+[sub_resource type="StandardMaterial3D" id="ink_mat"]
+albedo_color = Color(0.075, 0.09, 0.11, 1)
+[sub_resource type="StandardMaterial3D" id="glow_mat"]
+albedo_color = Color(1, 0.63, 0.27, 1)
+emission_enabled = true
+emission = Color(1, 0.36, 0.1, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="CapsuleMesh" id="body_mesh"]
+radius = 0.32
+height = 1.55
+[sub_resource type="CylinderMesh" id="hat_mesh"]
+top_radius = 0.05
+bottom_radius = 0.48
+height = 0.25
+[sub_resource type="SphereMesh" id="lantern_mesh"]
+radius = 0.2
+height = 0.4
+
+[sub_resource type="BoxShape3D" id="escape_shape"]
+size = Vector3(3.2, 3, 2)
+[sub_resource type="BoxShape3D" id="checkpoint_shape"]
+size = Vector3(3, 2, 3)
+
+[sub_resource type="BoxMesh" id="mesh_Ground"]
+size = Vector3(24, 0.5, 24)
+material = SubResource("ground_mat")
+[sub_resource type="BoxShape3D" id="shape_Ground"]
+size = Vector3(24, 0.5, 24)
+
+[sub_resource type="BoxMesh" id="mesh_NorthWall"]
+size = Vector3(24, 3, 1)
+material = SubResource("wall_mat")
+[sub_resource type="BoxShape3D" id="shape_NorthWall"]
+size = Vector3(24, 3, 1)
+
+[sub_resource type="BoxMesh" id="mesh_WestWall"]
+size = Vector3(1, 3, 24)
+material = SubResource("wall_mat")
+[sub_resource type="BoxShape3D" id="shape_WestWall"]
+size = Vector3(1, 3, 24)
+
+[sub_resource type="BoxMesh" id="mesh_EastWall"]
+size = Vector3(1, 3, 24)
+material = SubResource("wall_mat")
+[sub_resource type="BoxShape3D" id="shape_EastWall"]
+size = Vector3(1, 3, 24)
+
+[sub_resource type="BoxMesh" id="mesh_SouthWall"]
+size = Vector3(24, 3, 1)
+material = SubResource("wall_mat")
+[sub_resource type="BoxShape3D" id="shape_SouthWall"]
+size = Vector3(24, 3, 1)
+
+[sub_resource type="BoxMesh" id="mesh_CoverLeft"]
+size = Vector3(3, 2, 2)
+material = SubResource("wall_mat")
+[sub_resource type="BoxShape3D" id="shape_CoverLeft"]
+size = Vector3(3, 2, 2)
+
+[sub_resource type="BoxMesh" id="mesh_CoverRight"]
+size = Vector3(2, 2, 3)
+material = SubResource("wall_mat")
+[sub_resource type="BoxShape3D" id="shape_CoverRight"]
+size = Vector3(2, 2, 3)
+
+[sub_resource type="BoxMesh" id="mesh_GateLeft"]
+size = Vector3(0.35, 4, 0.4)
+material = SubResource("red_mat")
+[sub_resource type="BoxShape3D" id="shape_GateLeft"]
+size = Vector3(0.35, 4, 0.4)
+
+[sub_resource type="BoxMesh" id="mesh_GateRight"]
+size = Vector3(0.35, 4, 0.4)
+material = SubResource("red_mat")
+[sub_resource type="BoxShape3D" id="shape_GateRight"]
+size = Vector3(0.35, 4, 0.4)
+
+[sub_resource type="BoxMesh" id="mesh_GateBeam"]
+size = Vector3(3.8, 0.4, 0.7)
+material = SubResource("red_mat")
+[sub_resource type="BoxShape3D" id="shape_GateBeam"]
+size = Vector3(3.8, 0.4, 0.7)
+
+[node name="MissionFlowGym" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("environment")
+[node name="Moonlight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-50, -35, 0)
+light_color = Color(0.6, 0.73, 1, 1)
+light_energy = 0.8
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+position = Vector3(0, -1.15, 0)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("shape_Ground")
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("mesh_Ground")
+
+[node name="NorthWall" type="StaticBody3D" parent="."]
+position = Vector3(0, 0.6, -11)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="NorthWall"]
+shape = SubResource("shape_NorthWall")
+[node name="Mesh" type="MeshInstance3D" parent="NorthWall"]
+mesh = SubResource("mesh_NorthWall")
+
+[node name="WestWall" type="StaticBody3D" parent="."]
+position = Vector3(-11, 0.6, 0)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="WestWall"]
+shape = SubResource("shape_WestWall")
+[node name="Mesh" type="MeshInstance3D" parent="WestWall"]
+mesh = SubResource("mesh_WestWall")
+
+[node name="EastWall" type="StaticBody3D" parent="."]
+position = Vector3(11, 0.6, 0)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="EastWall"]
+shape = SubResource("shape_EastWall")
+[node name="Mesh" type="MeshInstance3D" parent="EastWall"]
+mesh = SubResource("mesh_EastWall")
+
+[node name="SouthWall" type="StaticBody3D" parent="."]
+position = Vector3(0, 0.6, 11)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="SouthWall"]
+shape = SubResource("shape_SouthWall")
+[node name="Mesh" type="MeshInstance3D" parent="SouthWall"]
+mesh = SubResource("mesh_SouthWall")
+
+[node name="CoverLeft" type="StaticBody3D" parent="."]
+position = Vector3(-3, 0.1, 0)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="CoverLeft"]
+shape = SubResource("shape_CoverLeft")
+[node name="Mesh" type="MeshInstance3D" parent="CoverLeft"]
+mesh = SubResource("mesh_CoverLeft")
+
+[node name="CoverRight" type="StaticBody3D" parent="."]
+position = Vector3(3, 0.1, 0)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="CoverRight"]
+shape = SubResource("shape_CoverRight")
+[node name="Mesh" type="MeshInstance3D" parent="CoverRight"]
+mesh = SubResource("mesh_CoverRight")
+
+[node name="GateLeft" type="StaticBody3D" parent="."]
+position = Vector3(4.7, 1.1, 6)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="GateLeft"]
+shape = SubResource("shape_GateLeft")
+[node name="Mesh" type="MeshInstance3D" parent="GateLeft"]
+mesh = SubResource("mesh_GateLeft")
+
+[node name="GateRight" type="StaticBody3D" parent="."]
+position = Vector3(7.3, 1.1, 6)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="GateRight"]
+shape = SubResource("shape_GateRight")
+[node name="Mesh" type="MeshInstance3D" parent="GateRight"]
+mesh = SubResource("mesh_GateRight")
+
+[node name="GateBeam" type="StaticBody3D" parent="."]
+position = Vector3(6, 3, 6)
+collision_layer = 49
+collision_mask = 0
+[node name="Shape" type="CollisionShape3D" parent="GateBeam"]
+shape = SubResource("shape_GateBeam")
+[node name="Mesh" type="MeshInstance3D" parent="GateBeam"]
+mesh = SubResource("mesh_GateBeam")
+
+[node name="Player" parent="." instance=ExtResource("2")]
+position = Vector3(0, 0, 5)
+
+[node name="Body" type="MeshInstance3D" parent="Player/Visual/Model"]
+mesh = SubResource("body_mesh")
+material_override = SubResource("ink_mat")
+[node name="Target" parent="." groups=["practice_target"] instance=ExtResource("3")]
+position = Vector3(0, 0, -3)
+target_routine_enabled = false
+[node name="Body" type="MeshInstance3D" parent="Target/Visual/Model"]
+mesh = SubResource("body_mesh")
+material_override = SubResource("red_mat")
+[node name="Hat" type="MeshInstance3D" parent="Target/Visual/Model"]
+position = Vector3(0, 0.9, 0)
+mesh = SubResource("hat_mesh")
+material_override = SubResource("ink_mat")
+
+[node name="Checkpoint" type="Area3D" parent="."]
+position = Vector3(0, 0, 5)
+script = ExtResource("4")
+checkpoint_id = &"practice_entry"
+[node name="Shape" type="CollisionShape3D" parent="Checkpoint"]
+shape = SubResource("checkpoint_shape")
+
+[node name="Escape" type="Area3D" parent="." groups=["practice_exit"]]
+position = Vector3(6, 0, 6)
+collision_layer = 16384
+collision_mask = 2
+[node name="Shape" type="CollisionShape3D" parent="Escape"]
+shape = SubResource("escape_shape")
+[node name="Lantern" type="MeshInstance3D" parent="."]
+position = Vector3(6, 2.5, 6)
+mesh = SubResource("lantern_mesh")
+material_override = SubResource("glow_mat")
+[node name="GateLight" type="OmniLight3D" parent="."]
+position = Vector3(6, 2.5, 6)
+light_color = Color(1, 0.62, 0.3, 1)
+light_energy = 2.5
+omni_range = 8.0
+[node name="TargetLabel" type="Label3D" parent="."]
+position = Vector3(0, 2.4, -3)
+billboard = 1
+font_size = 32
+pixel_size = 0.01
+[node name="ExitLabel" type="Label3D" parent="."]
+position = Vector3(6, 4, 6)
+billboard = 1
+font_size = 32
+pixel_size = 0.01

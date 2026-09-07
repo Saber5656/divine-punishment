@@ -49,6 +49,11 @@ func _initialize() -> void:
 		if not CheckpointSnapshot.restore(GameState.checkpoint_ref, _player, _scene_path):
 			_show_restore_error()
 			return
+		var world_owner: Node = scene if scene.has_method(&"restore_checkpoint_world") else scene.get_node_or_null("Mission")
+		if world_owner != null and world_owner.has_method(&"restore_checkpoint_world"):
+			if world_owner.call(&"restore_checkpoint_world", GameState.checkpoint_ref.duplicate(true)) != true:
+				_show_restore_error()
+				return
 		_finish_retry()
 	else:
 		# A freshly entered mission always starts a fresh in-memory baseline.
@@ -71,14 +76,19 @@ func choices_visible() -> bool:
 
 
 func retry() -> bool:
+	return request_retry() if choices_visible() else false
+
+
+## The pause menu may request retry before death.
+func request_retry() -> bool:
 	var requested_usec := Time.get_ticks_usec()
-	if not choices_visible() or not CheckpointSnapshot.is_valid(GameState.checkpoint_ref, _scene_path):
+	if _transitioning or not CheckpointSnapshot.is_valid(GameState.checkpoint_ref, _scene_path):
 		return false
 	if not CheckpointSnapshot.matches_inventory(GameState.checkpoint_ref, (_player.get_node("ToolRig") as ToolRig).inventory):
 		return false
 	var scene := ResourceLoader.load(_scene_path) as PackedScene
 	if scene == null:
-		_message.text = "任務を読み込めません。任務を中止してください。"
+		_message.text = GameText.get_text(&"death.load_error")
 		return false
 	_transitioning = true
 	_retry_button.disabled = true
@@ -94,7 +104,7 @@ func retry() -> bool:
 		pending_scene = ""
 		_transitioning = false
 		_retry_button.disabled = false
-		_message.text = "再開できませんでした。もう一度お試しください。"
+		_message.text = GameText.get_text(&"error.retry")
 		return false
 	return true
 
@@ -110,7 +120,7 @@ func abandon() -> bool:
 	else:
 		accepted = get_tree().change_scene_to_file(ABANDON_SCENE) == OK
 	if not accepted:
-		_message.text = "画面を切り替えられませんでした。"
+		_message.text = GameText.get_text(&"error.exit")
 		return false
 	_transitioning = true
 	abandoned_scene = _scene_path
@@ -129,7 +139,7 @@ func _on_state_changed(_from: StringName, to: StringName) -> void:
 	_owns_pause = not get_tree().paused
 	get_tree().paused = true
 	visible = true
-	_message.text = "落命"
+	_message.text = GameText.get_text(&"death.title")
 	_veil.modulate.a = 0.0
 	var tween := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(_veil, "modulate:a", 1.0, clampf(config.death_fade_seconds, 0.0, 3.0))
@@ -149,7 +159,7 @@ func _show_restore_error() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	visible = true
-	_message.text = "チェックポイントを復元できません。任務を中止してください。"
+	_message.text = GameText.get_text(&"error.restore")
 	_choices.show()
 	_retry_button.disabled = true
 	(_choices.get_node("Abandon") as Button).grab_focus()
@@ -178,6 +188,7 @@ func _release_pause() -> void:
 
 func _build_ui() -> void:
 	_veil = ColorRect.new()
+	_veil.theme = GameUi.theme()
 	_veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_veil.color = Color(0.12, 0.015, 0.02, clampf(config.death_veil_opacity, 0.0, 0.9))
 	add_child(_veil)
@@ -196,13 +207,13 @@ func _build_ui() -> void:
 	content.add_child(_choices)
 	_retry_button = Button.new()
 	_retry_button.name = "Retry"
-	_retry_button.text = "チェックポイントから再開"
+	_retry_button.text = GameText.get_text(&"nav.retry")
 	_retry_button.custom_minimum_size = Vector2(340, 56)
 	_retry_button.pressed.connect(retry)
 	_choices.add_child(_retry_button)
 	var abandon_button := Button.new()
 	abandon_button.name = "Abandon"
-	abandon_button.text = "任務を中止"
+	abandon_button.text = GameText.get_text(&"nav.abandon")
 	abandon_button.custom_minimum_size = Vector2(340, 56)
 	abandon_button.pressed.connect(abandon)
 	_choices.add_child(abandon_button)
