@@ -66,6 +66,12 @@ jobs:
       - name: Prepare build directories
         run: mkdir -p build/windows build/macos build/linux
 
+      - name: Include font license in platform packages
+        run: |
+          for platform in windows macos linux; do
+            cp assets/fonts/OFL.txt "build/$platform/NotoSerifJP-OFL.txt"
+          done
+
       - name: Export Windows
         run: |
           ".godot-ci/$GODOT_BINARY" --headless --path . --export-release "Windows Desktop" build/windows/dp.exe
