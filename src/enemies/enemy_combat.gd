@@ -70,6 +70,7 @@ func set_target(target: Node) -> bool:
 		or not target is Node3D
 		or _target_is_defeated(target)
 		or _target_is_incapacitated(target)
+		or _target_is_hidden(target)
 	):
 		return false
 	_target = target
@@ -89,7 +90,7 @@ func attack_target() -> bool:
 		return false
 	if _target == null or not is_instance_valid(_target):
 		return false
-	if _target_is_defeated(_target) or _target_is_incapacitated(_target):
+	if _target_is_defeated(_target) or _target_is_incapacitated(_target) or _target_is_hidden(_target):
 		return false
 	var range_m := _stats.attack_range_m if _stats != null else _config.enemy_attack_range_m
 	if not _target_in_range(_target, range_m):
@@ -284,6 +285,12 @@ func _target_is_defeated(target: Node) -> bool:
 				combat = candidate
 				break
 	return combat != null and combat.has_method(&"is_defeated") and bool(combat.call(&"is_defeated"))
+
+
+func _target_is_hidden(target: Node) -> bool:
+	# A retained combat target is not permission to track an unseen HideSpot
+	# occupant. Brain/Perception owns searching and exposing that occupant.
+	return target.has_method(&"is_visibility_excluded") and bool(target.call(&"is_visibility_excluded"))
 
 
 func _target_is_incapacitated(target: Node) -> bool:

@@ -38,6 +38,8 @@ perception_config = ExtResource("4_perception")
 position = Vector3(0, 1.5, 0)
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.1
+target_desired_distance = 0.25
 
 [node name="Combat" type="Node" parent="."]
 script = ExtResource("5_enemy_combat")

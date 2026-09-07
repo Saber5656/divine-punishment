@@ -158,6 +158,48 @@ func test_combat_stance_escape_waits_for_attack_recovery() -> void:
 	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CROUCH)
 
 
+func test_gym_navigation_rounds_wall_corners_before_returning() -> void:
+	await _place_player((gym.get_node("HideSpot") as HideSpot).global_position)
+	assert_true(player.try_enter_hide_spot())
+	# Reproduce the actual escape route seen during real-time input QA. The
+	# enemy must reach the corner waypoint before turning toward the next one.
+	guard.global_position = Vector3(0, 0, -5)
+	var escaped_position := Vector3(-5, 0, -4)
+	for _step in 120:
+		if guard.advance_navigation(0.25, escaped_position, 3.0):
+			break
+		await get_tree().physics_frame
+	assert_lt(guard.global_position.distance_to(escaped_position), 0.51)
+	brain.force_state(Enums.AlertState.RETURN, &"corner_recovery")
+	for _step in 150:
+		brain.tick(0.1)
+		await get_tree().physics_frame
+		if brain.alert_state() == Enums.AlertState.UNAWARE:
+			break
+	assert_eq(brain.alert_state(), Enums.AlertState.UNAWARE)
+	assert_lt(guard.global_position.distance_to(Vector3.ZERO), 0.51)
+
+
+func test_retained_combat_target_cannot_chase_or_hit_hidden_player() -> void:
+	var combat := guard.combat()
+	assert_true(combat.set_target(player))
+	await _place_player((gym.get_node("HideSpot") as HideSpot).global_position)
+	assert_true(player.try_enter_hide_spot())
+	var old_position := guard.global_position
+	assert_false(combat.attack_target(), "A retained target does not reveal a Hidden player's position")
+	assert_eq(guard.global_position, old_position)
+	guard.global_position = player.global_position + Vector3(0.0, 0.0, 0.7)
+	var health := player.health()
+	assert_false(combat.attack_target(), "Hidden exclusion is rechecked immediately before applying damage")
+	assert_eq(player.health(), health)
+	assert_true(player.is_hidden())
+	assert_false(combat.set_target(player))
+	assert_true(player.try_exit_hide_spot())
+	assert_true(combat.set_target(player))
+	assert_true(combat.attack_target(), "Leaving cover restores the normal damage contract")
+	assert_eq(player.health(), health - 1)
+
+
 func _place_player(position: Vector3) -> void:
 	# Test navigation between named stations, never forcing gameplay/AI states.
 	player.global_position = position
