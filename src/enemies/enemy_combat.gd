@@ -379,3 +379,24 @@ func _emit_event(signal_name: StringName, args: Array) -> void:
 	if event_bus == null or not event_bus.has_signal(signal_name):
 		return
 	event_bus.callv(&"emit_signal", [signal_name] + args)
+
+
+func capture_checkpoint_state() -> Dictionary:
+	return {"health":_health,"cooldown":_attack_cooldown_remaining,"defeated":_defeated,"reinforcements":_reinforcements_called}
+
+
+func checkpoint_state_is_valid(value: Dictionary) -> bool:
+	return (CheckpointSnapshot._whole_number(value.get("health"),0,_max_health)
+		and CheckpointSnapshot._finite_number(value.get("cooldown")) and float(value["cooldown"]) >= 0.0 and float(value["cooldown"]) <= 600.0
+		and value.get("defeated") is bool and value.get("reinforcements") is bool
+		and (int(value["health"]) == 0) == bool(value["defeated"]))
+
+
+func restore_checkpoint_state(value: Dictionary) -> bool:
+	if not checkpoint_state_is_valid(value): return false
+	_health = int(value["health"])
+	_attack_cooldown_remaining = float(value["cooldown"])
+	_defeated = value["defeated"]
+	_reinforcements_called = value["reinforcements"]
+	_target = null
+	return true
