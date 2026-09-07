@@ -261,6 +261,31 @@ func test_search_propagates_suspicion_to_nearby_enemies_within_bounded_radius() 
 	assert_eq((distant.get_node("Brain") as EnemyBrain).alert_state(), Enums.AlertState.UNAWARE)
 
 
+func test_distraction_noise_cannot_freeze_combat_lost_sight_timer() -> void:
+	var brain := _spawn_enemy().brain()
+	brain.force_state(Enums.AlertState.COMBAT, &"detected")
+	brain.set_target_visible(false)
+	for _index in 12:
+		brain.submit_stimulus(_stimulus(1, Vector3(0.0, 0.0, -2.0)))
+		brain.tick(0.25)
+	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
+
+
+func test_visual_reacquisition_resets_lost_sight_despite_distractions() -> void:
+	var brain := _spawn_enemy().brain()
+	brain.force_state(Enums.AlertState.COMBAT, &"detected")
+	brain.set_target_visible(false)
+	brain.tick(2.5)
+	brain.set_target_visible(true)
+	brain.submit_stimulus(_stimulus(1, Vector3(0.0, 0.0, -2.0)))
+	brain.tick(0.25)
+	brain.set_target_visible(false)
+	brain.tick(2.5)
+	assert_eq(brain.alert_state(), Enums.AlertState.COMBAT)
+	brain.tick(0.5)
+	assert_eq(brain.alert_state(), Enums.AlertState.SEARCHING)
+
+
 func test_full_stimulus_buffer_retains_damage_over_later_low_priority_noise() -> void:
 	var enemy := _spawn_enemy()
 	var brain := enemy.get_node("Brain") as EnemyBrain

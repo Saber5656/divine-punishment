@@ -142,13 +142,16 @@ func advance_navigation(delta: float, target: Vector3, speed: float = DEFAULT_RO
 	var direction := next_position - global_position
 	if not direction.is_finite() or direction.length_squared() <= 0.000001:
 		return false
+	var waypoint_distance := direction.length()
 	direction = direction.normalized()
 	# `move_and_slide()` derives its step from the engine physics clock.  Brain
 	# ticks are also driven by deterministic callers (tests, cut-scenes, and
 	# low-frequency AI updates), so use the bounded routine delta explicitly
 	# while retaining CharacterBody collision resolution.
 	var previous_position := global_position
-	var motion := direction * bounded_speed * bounded_delta
+	# Stop at the next corner instead of overshooting a tight waypoint and
+	# oscillating across it when a deterministic/LOD tick has a larger delta.
+	var motion := direction * minf(bounded_speed * bounded_delta, waypoint_distance)
 	velocity = motion / bounded_delta
 	move_and_collide(motion, false, 0.001, false, 1)
 	velocity = Vector3.ZERO

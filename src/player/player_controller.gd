@@ -709,9 +709,6 @@ func _update_state_from_input() -> void:
 		return
 	if current_state == PlayerStateMachine.STATE_DEAD:
 		return
-	if current_state == PlayerStateMachine.STATE_COMBAT:
-		# Combat owns attack/parry/dodge input; movement remains available.
-		return
 	var interact_pressed := Input.is_action_pressed(&"interact")
 	var interact_just_pressed := interact_pressed and not _interact_was_pressed
 	_interact_was_pressed = interact_pressed
@@ -721,6 +718,18 @@ func _update_state_from_input() -> void:
 	)
 	_stance_toggle_queued = false
 	_stance_was_pressed = stance_pressed
+	if current_state == PlayerStateMachine.STATE_COMBAT:
+		# The existing stance/sprint inputs let the player disengage after a
+		# strike finishes, without cancelling attack recovery or defensive moves.
+		if combat != null and not combat.can_disengage():
+			return
+		if stance_just_pressed:
+			state_machine.change_state(PlayerStateMachine.STATE_CROUCH)
+		elif Input.is_action_pressed(&"sprint") and _has_standing_clearance():
+			# Sprint resumes its origin on release; do not restore Combat.
+			if state_machine.change_state(PlayerStateMachine.STATE_GROUND):
+				state_machine.change_state(PlayerStateMachine.STATE_SPRINT)
+		return
 
 	if state_machine.current_state() == PlayerStateMachine.STATE_SWIM_SURFACE:
 		if stance_just_pressed:

@@ -148,6 +148,16 @@ func is_attack_active() -> bool:
 	return _attack_elapsed >= active_start and _attack_elapsed < active_end
 
 
+func can_disengage() -> bool:
+	return (
+		not _defeated
+		and _attack_elapsed < 0.0
+		and _attack_recovery_remaining <= 0.0
+		and not is_parrying()
+		and not is_dodging()
+	)
+
+
 func can_chain_attack() -> bool:
 	return (
 		_attack_elapsed < 0.0
