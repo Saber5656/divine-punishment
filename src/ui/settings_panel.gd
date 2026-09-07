@@ -24,6 +24,7 @@ func _ready() -> void:
 	add_child(margin)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
 	margin.add_child(scroll)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -61,7 +62,10 @@ func _ready() -> void:
 		label.text = _text(StringName("input." + String(action)))
 		row.add_child(label)
 		var button := Button.new()
+		button.clip_text = true
+		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.text = controller.binding_label(action)
+		button.tooltip_text = button.text
 		if button.text.is_empty():
 			button.text = _text(&"settings.unassigned")
 		button.pressed.connect(func(): _begin_capture(action))
@@ -137,6 +141,7 @@ func _refresh_bindings() -> void:
 	for action in _binding_buttons:
 		var text := controller.binding_label(action)
 		_binding_buttons[action].text = text if not text.is_empty() else _text(&"settings.unassigned")
+		_binding_buttons[action].tooltip_text = text
 
 
 func _save_and_close() -> void:

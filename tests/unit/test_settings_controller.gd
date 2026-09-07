@@ -44,7 +44,7 @@ func _key(code: Key) -> InputEventKey:
 func test_all_project_actions_are_remappable_and_joypad_is_preserved() -> void:
 	var expected := 0
 	for property in ProjectSettings.get_property_list():
-		if String(property.name).begins_with("input/"):
+		if String(property.name).begins_with("input/") and not String(property.name).begins_with("input/ui_"):
 			expected += 1
 	assert_eq(SettingsController.actions().size(), expected)
 	var joy_count := 0

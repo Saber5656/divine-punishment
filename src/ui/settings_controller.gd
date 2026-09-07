@@ -79,7 +79,7 @@ static func actions() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for property in ProjectSettings.get_property_list():
 		var name := String(property.name)
-		if name.begins_with("input/"):
+		if name.begins_with("input/") and not name.begins_with("input/ui_"):
 			result.append(StringName(name.trim_prefix("input/")))
 	result.sort()
 	return result
