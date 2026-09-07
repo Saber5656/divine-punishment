@@ -20,3 +20,13 @@
 - Style unification method for future production: use this sample set as the reference baseline, then keep prompts, palette constraints, composition rules, and generated outputs aligned with `docs/09-ui-spec.md` §7.
 - Codex Image generation in this workflow did not expose a reusable seed value. If later tooling provides seed or model-configuration controls, record them here before production-scale generation.
 - This ledger records the sample/reference assets. Final commercial/release assets still require release clearance before shipping.
+
+## UI font — Issue #42 subset
+
+| Path | Source | License | Modification |
+|---|---|---|---|
+| `assets/fonts/NotoSerifJP.ttf` | [Google Fonts immutable source](https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf) | SIL Open Font License 1.1; original copyright and full license in [OFL.txt](../assets/fonts/OFL.txt) | None; local filename only |
+
+The font is bundled for Japanese UI consistency across operating systems. Do not sell the font by itself or remove its license. Each CI platform package includes a readable `NotoSerifJP-OFL.txt`; the license is also included in the exported resource bundle. Other art procurement and final release remain separate.
+
+Source verification: font SHA256 `2fd527ba12b6a44ec30d796d633360da0aeba6c5d4af1304ce12bb4dc15a7dfc`, license SHA256 `5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6`.
