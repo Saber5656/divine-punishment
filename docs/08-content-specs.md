@@ -393,10 +393,17 @@ func complete_objective(id: StringName) -> void       # mission_event("objective
 func fail_mission(reason: StringName) -> void         # M9 殺害等。mission_event("mission_failed")
 func current_objective() -> ObjectiveData
 func stats() -> MissionStats                          # RefCounted: detections/nontarget_kills/civilian_kills/
-                                                      #   bodies_found/one_strike/knockouts/elapsed_sec
+                                                      #   bodies_found/one_strike/knockouts/elapsed_sec/side_objective_completed
 func build_result() -> MissionResult                  # {score:int, rank:StringName, flags:Dictionary} §5 の形
 static func compute_score(stats: MissionStats, cfg: ScoringConfig,
-        def: MissionDefinition) -> MissionResult      # pure（M9/M10 特例も cfg 経由でここで解決）
+        def: MissionDefinition) -> MissionResult      # pure（標準評価と副目標bonusはcfg経由）
+# start_missionは統計/順序/失敗をreset。complete_objectiveは現在idだけを受理し、最終後current_objective=null。
+# objective_changed / escape_opened payload: {id:StringName}。objective_completedは状態更新後に発火。
+# side_objectiveの完了は主目標を進めず、{id, side_objective:true}を一度発火。
+# build_result.flagsは標準4項目+side_objective/completed/failed_reason。完了・失敗後は時間/統計を停止。
+# KILL_TARGETはtarget_group（空ならtarget_npcs）で照合し、enemy_killedとtarget_killedを同一個体で重複排除。
+# 一撃は実際の標的暗殺で成立。非標的殺害、民間人殺害、knockoutは対応EventBusから一度加算。
+# M9/M10連携は各mission実装時に接触数/宗玄以外の検知の契約を定める（現在の標準compute_scoreでは未実装）。
 
 # ── src/autoload/save_manager.gd
 class_name SaveManager
@@ -611,7 +618,7 @@ match state:
   COMBAT:
     attack_or_chase(); call_for_help()
     if lost_sight_for(3 s): to(SEARCHING, last_known_position)
-    # COMBAT 突入は 1 回だけ MissionDirector.stats().detections += 1 と area_alert +1（戦闘発生, §GDD 4.1）
+    # COMBAT 突入は 1 回だけ player_detected 発火（MissionDirectorが実行中のみdetections加算）と area_alert +1（戦闘発生, §GDD 4.1）
 
   RETURN:
     navigate_back_to_routine()

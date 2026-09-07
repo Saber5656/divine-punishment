@@ -1193,17 +1193,7 @@ func _on_combat_enter(previous: Enums.AlertState) -> void:
 	var event_bus := _event_bus()
 	if event_bus != null:
 		event_bus.emit_signal(&"player_detected")
-	_increment_detection_stats()
 	_raise_area_alert()
-
-
-func _increment_detection_stats() -> void:
-	var director := _autoload(&"MissionDirector")
-	if director == null or not director.has_method(&"stats"):
-		return
-	var stats: Variant = director.call(&"stats")
-	if stats != null:
-		stats.detections = int(stats.detections) + 1
 
 
 func _raise_area_alert() -> void:

@@ -78,6 +78,14 @@ jobs:
         run: |
           ".godot-ci/$GODOT_BINARY" --headless --path . --export-release "Linux/X11" build/linux/dp.x86_64
 
+      - name: Boot exported Linux game
+        run: |
+          set -euo pipefail
+          timeout 30s build/linux/dp.x86_64 --headless --quit-after 120 2>&1 | tee build/linux/boot.log
+          if grep -Eq '^(SCRIPT ERROR|ERROR):' build/linux/boot.log; then
+            exit 1
+          fi
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
