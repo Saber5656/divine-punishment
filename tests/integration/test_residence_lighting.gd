@@ -15,6 +15,7 @@ func test_residence_has_baked_static_moonlight_and_only_gameplay_dynamic_shadows
 	assert_false(moon.shadow_enabled)
 	for light in level.get_node("Markers/Lights").get_children():
 		assert_true(light.render_light.shadow_enabled)
+		assert_true(light.render_light.distance_fade_enabled, "Distant light/shadow work must fade outside the gameplay radius")
 		assert_eq(light.render_light.light_bake_mode,Light3D.BAKE_DISABLED)
 		assert_almost_eq(light.render_light.omni_range,light.gameplay_radius,0.001)
 		light.set_extinguished(true)
