@@ -93,3 +93,21 @@ func test_replay_updates_rank_without_recounting_narrative_even_if_first_clear_i
 	save.record_mission_result(&"m02", result, true)
 	assert_eq(save.campaign().shura, before, "Existing clear receipt overrides a mistaken first_clear flag")
 	save.free()
+
+func test_training_and_noncampaign_ids_cannot_change_story_totals_or_unlocks() -> void:
+	var save = SaveScript.new()
+	save.save_path = PATH
+	save.load_save()
+	var stats := MissionStats.new()
+	stats.nontarget_kills = 5
+	stats.detections = 2
+	var definition := MissionDefinition.new()
+	for id in [&"practice", &"custom", &"m11"]:
+		definition.id = id
+		var result := MissionDirector.compute_score(stats, ScoringConfig.new(), definition)
+		save.record_mission_result(id, result, true)
+		assert_eq(save.campaign().shura, 0)
+		assert_eq(save.campaign().total_detections, 0)
+		assert_eq(save.campaign().unlocked_mission, 1)
+		assert_true(save.campaign().mission_results.has(String(id)), "Training still records best rank")
+	save.free()
