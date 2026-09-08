@@ -24,3 +24,5 @@ The first first-clear-aware full run executed534 tests/4366 assertions, but one 
 CI independently exposed the stale 遠山 assertion after the canonical display-name correction. The assertion was updated to the confirmed 毒山刑部 text, retaining the localized objective check. Final verification below supersedes the earlier mistaken pass summary.
 
 Verified after correcting the stale assertion: exit code0,534 passing tests,4366 assertions, no failing tests or script errors (`narrative51-ci-fix-full.log`).
+
+PR160 review follow-up: all four findings adopted. Training/custom/out-of-range IDs now retain best results without affecting narrative totals or campaign unlocks; practice/tutorial resources use title_key; resource text_key/speaker_key references are linted. Each new regression failed before its fix. Main-agent self-review checked exact m01–m10 membership, first-clear receipt behavior, literal-name fallback and resource references. Verified exit0,536 passing tests/4380 assertions, Python3 tests passed, catalog0 findings. The fourth finding (stale target-name assertion) was already fixed and remains covered. Known headless shutdown warnings remain.

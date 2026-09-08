@@ -6,7 +6,7 @@ import sys
 
 JAPANESE = re.compile(r'[\u3040-\u30ff\u3400-\u9fff]')
 TOKENS = re.compile(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|#[^\n]*')
-REFERENCES = re.compile(r'(?:GameText\.(?:get_text|with_bindings)\(\s*&?|(?:title_key|display_name_key)\s*=\s*&?)"([a-z][a-z0-9_.]+)"')
+REFERENCES = re.compile(r'(?:GameText\.(?:get_text|with_bindings)\(\s*&?|(?:title_key|display_name_key|text_key|speaker_key)\s*=\s*&?)"([a-z][a-z0-9_.]+)"')
 
 
 def hardcoded_lines(source):

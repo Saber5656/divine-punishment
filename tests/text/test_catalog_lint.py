@@ -26,3 +26,16 @@ class CatalogLintTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         self.assertEqual(module.check(ROOT), [])
+
+    def test_resource_dialogue_keys_are_checked(self):
+        import tempfile
+        spec = importlib.util.spec_from_file_location('catalog_lint', ROOT / 'tools/text/lint_catalog.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'src').mkdir()
+            (root / 'data/text').mkdir(parents=True)
+            (root / 'data/text/ja.csv').write_text('key,ja\nknown,既知\n')
+            (root / 'data/scene.tres').write_text('text_key = &"missing.line"\nspeaker_key = &"missing.speaker"\n')
+            self.assertEqual(len(module.check(root)), 2)
