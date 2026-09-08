@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"naruko"
-display_name = "鳴子"
+display_name_key = &"tool.naruko"
 default_count = 3
 is_projectile = true
 lethal = false

@@ -110,7 +110,7 @@ mesh = SubResource("HideMarker")
 [node name="Label" type="Label3D" parent="HideSpot"]
 position = Vector3(0, 1.8, 0)
 billboard = 1
-text = "退避地点\nE: 隠れる / 出る"
+text = ""
 font_size = 40
 
 [node name="LightSource" type="Area3D" parent="."]
@@ -154,7 +154,7 @@ mouse_filter = 2
 
 [node name="Text" type="Label" parent="Instructions/Panel"]
 theme_override_font_sizes/font_size = 18
-text = "再潜伏ジム"
+text = ""
 
 [editable path="Guard"]
 [editable path="Player"]

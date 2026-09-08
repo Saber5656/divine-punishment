@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"rope"
-display_name = "縄"
+display_name_key = &"tool.rope"
 default_count = 4
 is_projectile = false
 lethal = false
