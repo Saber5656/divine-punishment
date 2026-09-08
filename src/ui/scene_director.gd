@@ -107,11 +107,12 @@ func start_mission(next_definition: MissionDefinition = PRACTICE) -> bool:
 	mission = definition.level_scene.instantiate()
 	mission.name = "Mission"
 	get_parent().add_child(mission)
+	_apply_mission_loadout()
 	screen = &"playing"
 	_result_pending = false
 	_menu.hide()
 	_hud.show()
-	_controls.text = GameText.with_bindings(&"hud.controls")
+	_controls.text = GameText.with_bindings(&"hud.controls" if MissionDirector.allows_action(&"sword") else &"hud.controls.nonlethal")
 	_update_objective()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	return true
@@ -135,7 +136,7 @@ func resume_mission() -> void:
 	screen = &"playing"
 	_menu.hide()
 	_hud.show()
-	_controls.text = GameText.with_bindings(&"hud.controls")
+	_controls.text = GameText.with_bindings(&"hud.controls" if MissionDirector.allows_action(&"sword") else &"hud.controls.nonlethal")
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -231,8 +232,12 @@ func show_result() -> void:
 	_focus_if_visible.call_deferred(rank_label)
 
 
-func _on_mission_event(event: StringName, _payload: Dictionary) -> void:
+func _on_mission_event(event: StringName, payload: Dictionary) -> void:
 	if not is_instance_valid(mission):
+		return
+	if event == EventBus.EV_MISSION_FAILED and payload.get("reason") == &"killing_forbidden":
+		get_tree().paused = true
+		_retry_forbidden_kill.call_deferred()
 		return
 	if event in [EventBus.EV_OBJECTIVE_CHANGED, EventBus.EV_OBJECTIVE_COMPLETED]:
 		_update_objective()
@@ -331,7 +336,7 @@ func _build_shell() -> void:
 	_hint.add_theme_color_override("font_color", Color("e6c289"))
 	hud_stack.add_child(_hint)
 	_controls = Label.new()
-	_controls.text = GameText.with_bindings(&"hud.controls")
+	_controls.text = GameText.with_bindings(&"hud.controls" if MissionDirector.allows_action(&"sword") else &"hud.controls.nonlethal")
 	_controls.add_theme_font_size_override("font_size", 14)
 	_controls.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud_stack.add_child(_controls)
@@ -432,3 +437,26 @@ func title_background() -> Texture2D:
 func _update_menu_width() -> void:
 	if is_instance_valid(_content):
 		_content.custom_minimum_size.x = minf(1000 if screen == &"select" else 400, maxf(280, get_viewport().get_visible_rect().size.x-104))
+
+func _apply_mission_loadout() -> void:
+	if definition.tool_loadout.is_empty(): return
+	var rig := mission.get_node_or_null("Player/ToolRig") as ToolRig
+	if rig == null: return
+	var tools: Array[ToolDefinition] = []
+	var counts: Dictionary = {}
+	for id in definition.tool_loadout:
+		if not MissionDirector.allows_action(StringName(id)): continue
+		var path := "res://data/tools/%s.tres" % id
+		if not ResourceLoader.exists(path): continue
+		var tool := load(path) as ToolDefinition
+		if tool == null: continue
+		counts[tools.size()] = definition.tool_loadout[id]
+		tools.append(tool)
+	rig.inventory.slot_limit = clampi(tools.size(),ToolInventory.DEFAULT_SLOT_COUNT,ToolInventory.MAX_SLOT_COUNT)
+	rig.inventory.loadout(tools,counts)
+
+func _retry_forbidden_kill() -> void:
+	if not is_instance_valid(mission): return
+	if not request_checkpoint_retry():
+		start_mission(definition)
+	set_mission_hint(GameText.get_text(&"nonlethal.failed"))

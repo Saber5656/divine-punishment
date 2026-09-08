@@ -226,7 +226,7 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	var enemy_brain := brain()
 	if enemy_brain == null or not enemy_brain.set_incapacitated(kind, duration_seconds):
 		return false
-	if kind == &"dead":
+	if kind in [&"dead", &"restrained"]:
 		_activate_corpse_layer()
 	return true
 
@@ -243,7 +243,7 @@ func corpse_anomaly() -> Anomaly:
 	var enemy_brain := brain()
 	if (
 		enemy_brain == null
-		or enemy_brain.incapacitated_kind() != &"dead"
+		or enemy_brain.incapacitated_kind() not in [&"dead", &"restrained"]
 		or _carried_by != null
 		or _stored_by != null
 		or not global_position.is_finite()
@@ -256,7 +256,7 @@ func corpse_anomaly() -> Anomaly:
 		collision_layer = CORPSE_LAYER
 	if _corpse_anomaly == null:
 		_corpse_anomaly = Anomaly.create(
-			Enums.AnomalyKind.CORPSE,
+			Enums.AnomalyKind.RESTRAINED if enemy_brain.incapacitated_kind() == &"restrained" else Enums.AnomalyKind.CORPSE,
 			global_position,
 			self,
 			3,
@@ -277,7 +277,7 @@ func is_corpse_anomaly_current(candidate: Anomaly) -> bool:
 		candidate != null
 		and candidate == _corpse_anomaly
 		and enemy_brain != null
-		and enemy_brain.incapacitated_kind() == &"dead"
+		and enemy_brain.incapacitated_kind() in [&"dead", &"restrained"]
 		and _carried_by == null
 		and _stored_by == null
 		and _carry_original_parent == null
@@ -290,7 +290,7 @@ func is_body_carryable() -> bool:
 	return (
 		is_inside_tree()
 		and enemy_brain != null
-		and enemy_brain.incapacitated_kind() == &"dead"
+		and enemy_brain.incapacitated_kind() in [&"dead", &"restrained"]
 		and _carried_by == null
 		and _stored_by == null
 		and _carry_original_parent == null

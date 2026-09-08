@@ -322,3 +322,8 @@ campaign.target.10,宗玄
 campaign.summary.10,"宗玄が天守にいる。
 行っといで。
 ……帰ってくるんだよ。"
+nonlethal.prompt,{knockout}  当身
+nonlethal.binding,拘束している……
+hud.controls.nonlethal,{move_forward}{move_left}{move_backward}{move_right} 移動　{stance_toggle} しゃがむ　{knockout} 当身　{pause} 一服
+nonlethal.failed,殺めてはならない。直前の地点からやり直す。
+input.knockout,当身

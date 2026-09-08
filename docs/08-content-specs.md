@@ -759,3 +759,13 @@ Player DetectPoints sample the live capsule at 90% / 65% / 35% of height above i
 - `GameState.total_nontarget_kills / total_civilian_kills / total_detections / shura` はSaveManagerの値を読む。別のコピーは保持しない。v1→v2の既存migrationは原データと未知フィールドを保持し、欠落カウンターを0で補う。過去の保存済みshuraも移行時に保持し、次の成功結果で累計カウンターから再計算する。
 - CSVは概念上key/textの2列で、Godot import/exportのため見出しを `key,ja` とする。`GameText` はraw CSVとexport済みTranslationの両方を読む。
 - `python3 tools/text/lint_catalog.py` はsrc/dataの日本語リテラル混入、重複・空CSV項目、静的GameText参照とリソース表示キーを検査する。移行専用の旧日本語ランク対応表だけ明示除外。英語の内部識別子・デバッグ数値表現は翻訳対象の表示文言とは区別する。CIは `tests/text` を実行する。
+
+### Non-lethal runtime extension (#54)
+
+`Player/NonlethalActions (Node)` is appended after RetryFlow; existing child paths and physics layers are unchanged. `knockout` defaults to G and is remappable through Settings. `try_knockout(enemy) -> bool` requires a facing rear approach within1.2m and clear world/door line of sight; it applies60 seconds without damage or noise wake. Generic EnemyBrain knockout callers retain their configurable noise-wake behavior.
+
+`begin_restraint(enemy, inventory) -> bool` and `advance_restraint(delta)` require a sleeping/knocked-out body within2m for2 seconds. Movement out of range, obstruction, inventory change or wake cancels without consumption. Success consumes one rope, creates a permanent RESTRAINED anomaly and enables existing carry/storage. Restraint is not lethal defeat.
+
+`MissionDirector.allows_action(action)` maps attack/parry to sword and assassinate to assassinate_lethal. Public combat, assassination prompt/execute and ToolRig use/trajectory honor forbidden_actions. The inventory HUD hides forbidden tools; SceneDirector applies authored loadouts before checkpoint initialization. FORBIDDEN killing fails before target completion and the host retries the checkpoint.
+
+M9 one-strike awards full points when knockouts are at least80% of distinct contacted enemies. Contact means entering combat with the player or receiving a knockout; repeated alerts/knockouts do not duplicate identities. Zero-contact evasion satisfies the condition. Contact counts/identity receipts and incapacitation noise-wake policy survive checkpoint round trips; older snapshots default missing fields.

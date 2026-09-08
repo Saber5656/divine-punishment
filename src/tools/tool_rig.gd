@@ -153,13 +153,16 @@ func trajectory_points() -> PackedVector3Array:
 
 func use_selected(user: Node3D = null) -> bool:
 	var definition := selected_definition()
-	if definition == null or inventory == null or not inventory.can_use():
+	if definition == null or not MissionDirector.allows_action(definition.id) or inventory == null or not inventory.can_use():
 		return false
 	var actor := user if user != null else _default_user()
 	if actor == null:
 		return false
 	if _tools_blocked(actor):
 		return false
+	if definition.id == &"rope":
+		var nonlethal := actor.get_node_or_null("NonlethalActions") as NonlethalActions
+		return nonlethal != null and nonlethal.begin_restraint(nonlethal.find_target(true),inventory)
 	var effect := _create_effect(definition)
 	if effect == null:
 		return false
@@ -275,7 +278,7 @@ func _apply_player_slot_limit() -> void:
 
 func _update_trajectory() -> void:
 	var display := get_node_or_null("AimArc") as TrajectoryDisplay
-	if display == null or not _aiming:
+	if display == null or not _aiming or (selected_definition() != null and not MissionDirector.allows_action(selected_definition().id)):
 		if display != null:
 			display.clear()
 		return

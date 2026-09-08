@@ -551,7 +551,7 @@ func submit_stimulus(stim: PerceptionStimulus) -> void:
 		and stim.kind == Enums.StimulusKind.NOISE
 	):
 		if _wake_by_noise and _incapacitated_kind != &"dead":
-			# Sleep/knockout/restrained enemies wake when the noise reaches their
+			# Noise-wake-enabled sleepers wake when the noise reaches their
 			# perception component.  Keep the stimulus so the normal FSM can process
 			# the waking sound on the next brain tick.
 			wake()
@@ -679,7 +679,7 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 	if not _started or not is_finite(duration_seconds) or duration_seconds < 0.0:
 		return false
 	if kind.is_empty():
-		if not _incapacitated or _incapacitated_kind == &"dead":
+		if not _incapacitated or _incapacitated_kind in [&"dead", &"restrained"]:
 			return false
 		_incapacitated = false
 		_incapacitated_kind = &""
@@ -695,13 +695,13 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 		return true
 	if kind not in [&"sleep", &"knockout", &"restrained", &"dead"]:
 		return false
-	if kind == &"dead" and duration_seconds > 0.0:
+	if kind in [&"dead", &"restrained"] and duration_seconds > 0.0:
 		# Death is permanent until a separate corpse/revive system changes it;
 		# never allow a timer to wake a dead enemy back into the FSM.
 		return false
 	# Each incapacitation starts with the documented default.  A caller that
 	# deliberately disables noise wake can apply the hook after this state set.
-	_wake_by_noise = true
+	_wake_by_noise = kind not in [&"restrained", &"dead"]
 	_incapacitated = true
 	_incapacitated_kind = kind
 	_incapacitation_remaining = _bounded_incapacitation_duration(duration_seconds)
@@ -1815,7 +1815,7 @@ func capture_checkpoint_state() -> Dictionary:
 		"stop_elapsed": _routine_stop_elapsed, "arrived": _routine_arrived,
 		"vigilance": _return_vigilance_remaining, "search_elapsed": _search_elapsed,
 		"lost_sight": _combat_lost_sight_elapsed, "kind": String(_incapacitated_kind),
-		"incapacitation_remaining": _incapacitation_remaining,
+		"incapacitation_remaining": _incapacitation_remaining, "wake_by_noise": _wake_by_noise,
 		"last_known": [_last_known_position.x, _last_known_position.y, _last_known_position.z],
 		"has_last_known": _has_last_known_position,
 		"combat_detection_pending": _combat_detection_pending,
@@ -1831,6 +1831,7 @@ func checkpoint_state_is_valid(value: Dictionary) -> bool:
 	if not value.get("combat_detection_pending", false) is bool: return false
 	if not value.get("arrived") is bool or not value.get("has_last_known") is bool: return false
 	if value.get("kind") not in ["", "dead", "knockout", "sleep", "restrained"]: return false
+	if not value.get("wake_by_noise",true) is bool: return false
 	var point: Variant = value.get("last_known")
 	if not point is Array or point.size() != 3: return false
 	for coordinate in point:
@@ -1850,7 +1851,8 @@ func restore_checkpoint_state(value: Dictionary) -> bool:
 	_combat_lost_sight_elapsed = float(value["lost_sight"])
 	_incapacitated_kind = StringName(value["kind"])
 	_incapacitated = not _incapacitated_kind.is_empty()
-	_incapacitation_remaining = float(value["incapacitation_remaining"])
+	_wake_by_noise = value.get("wake_by_noise",true) and _incapacitated_kind not in [&"restrained", &"dead"]
+	_incapacitation_remaining = 0.0 if _incapacitated_kind == &"restrained" else float(value["incapacitation_remaining"])
 	var point: Array = value["last_known"]
 	_last_known_position = Vector3(point[0], point[1], point[2])
 	_has_last_known_position = value["has_last_known"]

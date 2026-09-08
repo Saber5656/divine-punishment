@@ -48,6 +48,7 @@ const TUNING_KEYS_BY_STANCE: Dictionary = {
 	&"sprint",
 	&"interact",
 	&"assassinate",
+	&"knockout",
 	&"tool_use",
 	&"tool_cycle",
 	&"aim",

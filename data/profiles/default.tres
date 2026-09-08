@@ -29,4 +29,4 @@ stationary_visibility_mod = 0.8
 breath_seconds = 20.0
 max_health = 3
 tool_slots = 3
-allowed_actions = Array[StringName]([&"move_forward", &"move_backward", &"move_left", &"move_right", &"camera_up", &"camera_down", &"camera_left", &"camera_right", &"stance_toggle", &"sprint", &"interact", &"assassinate", &"tool_use", &"tool_cycle", &"aim", &"peek", &"attack", &"parry", &"dodge", &"pause", &"sword", &"assassinate_lethal", &"dart"])
+allowed_actions = Array[StringName]([&"move_forward", &"move_backward", &"move_left", &"move_right", &"camera_up", &"camera_down", &"camera_left", &"camera_right", &"stance_toggle", &"sprint", &"interact", &"assassinate", &"knockout", &"tool_use", &"tool_cycle", &"aim", &"peek", &"attack", &"parry", &"dodge", &"pause", &"sword", &"assassinate_lethal", &"dart"])

@@ -178,6 +178,7 @@ func test_default_profile_matches_schema_and_current_movement_tuning() -> void:
 		&"sprint",
 		&"interact",
 		&"assassinate",
+		&"knockout",
 		&"tool_use",
 		&"tool_cycle",
 		&"aim",
@@ -232,7 +233,8 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 
 	assert_eq(player.collision_layer, 2)
 	assert_eq(player.collision_mask, 1)
-	assert_eq(player.get_child_count(), 11)
+	assert_eq(player.get_child_count(), 12)
+	assert_true(player.get_child(11) is NonlethalActions)
 	assert_eq(player.get_child(0).name, &"CollisionShape3D")
 	assert_eq(player.get_child(1).name, &"Visual")
 	assert_eq(player.get_child(2).name, &"StateMachine")
