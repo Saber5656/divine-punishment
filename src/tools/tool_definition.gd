@@ -14,7 +14,8 @@ const MAX_TRAJECTORY_SECONDS := 10.0
 const MAX_TRAJECTORY_STEPS := 128
 
 @export var id: StringName = &""
-@export var display_name: String = ""
+@export var display_name: String = "" # Legacy/custom-resource fallback.
+@export var display_name_key: StringName = &""
 @export_range(0, MAX_COUNT, 1) var default_count: int = 0
 @export var is_projectile: bool = false
 @export var lethal: bool = false
@@ -33,7 +34,7 @@ const MAX_TRAJECTORY_STEPS := 128
 func is_valid() -> bool:
 	return (
 		id != &""
-		and not display_name.strip_edges().is_empty()
+		and (display_name_key != &"" or not display_name.strip_edges().is_empty())
 		and default_count >= 0
 		and default_count <= MAX_COUNT
 		and (not is_projectile or (is_finite(projectile_speed) and projectile_speed > 0.0))
@@ -73,3 +74,6 @@ func parameter_float(key: StringName, fallback: float = 0.0) -> float:
 func parameter_bool(key: StringName, fallback: bool = false) -> bool:
 	var value: Variant = params.get(key, fallback)
 	return value if value is bool else fallback
+
+func localized_name() -> String:
+	return GameText.get_text(display_name_key) if display_name_key != &"" else display_name

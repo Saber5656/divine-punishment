@@ -56,7 +56,7 @@ kind = &"ESCAPE"
 [resource]
 script = ExtResource("1")
 id = &"m01"
-title = "mission.tutorial"
+title_key = &"mission.tutorial"
 level_scene = ExtResource("3")
 objectives = Array[ExtResource("2")]([SubResource("sneak"), SubResource("hide"), SubResource("lure"), SubResource("lights"), SubResource("assassinate"), SubResource("body"), SubResource("document"), SubResource("escape")])
 tool_loadout = {&"stone": 10}

@@ -157,7 +157,23 @@ input.mouse_left,左クリック
 input.mouse_right,右クリック
 input.mouse_middle,中央クリック
 m02.title,武家屋敷の粛清
-m02.summary,遠山の屋敷へ潜入せよ。庭・屋根・床下の三つの経路で好機を探り、標的を討って離脱する。
+m02.summary,毒山刑部の屋敷へ潜入せよ。庭・屋根・床下の三つの経路で好機を探り、標的を討って離脱する。
 m02.start,屋敷へ潜入
-m02.objective.target,遠山を討て。庭・屋根・床下から好機を探れ
+m02.objective.target,毒山刑部を討て。庭・屋根・床下から好機を探れ
 m02.objective.escape,侵入路を戻るか西の水路から離脱せよ。警戒中は正門が閉じる
+tool.stone,小石
+tool.dart,吹き矢
+tool.smoke,煙玉
+tool.rope,縄
+tool.naruko,鳴子
+gym.title,再潜伏ジム
+gym.hide,退避地点\n{interact}: 隠れる / 出る
+gym.instructions,再潜伏ジム — {move_forward}/{move_left}/{move_backward}/{move_right}: 移動 / マウス: 視点 / {stance_toggle}: しゃがむ / {sprint}: 走る\n正面で発見 → 壁を回って緑の退避地点で {interact} → 帰投を待つ\n{interact} で退出 → しゃがんで背後へ → {assassinate} で必殺（再試行はシーン再起動）\n
+gym.status,警戒: %s  |  プレイヤー: %s  |  残留警戒: ×%.1f / %.1f 秒\n
+gym.complete,連鎖達成: 発見 → 隠れる → 捜索 → 帰投 → 背後必殺
+gym.pending,捜索は 60 秒、残留警戒は帰投開始から 120 秒。視認されたまま隠れることはできません。
+phase.unaware,平常
+phase.suspicious,不審
+phase.searching,捜索
+phase.combat,戦闘
+phase.return,帰投

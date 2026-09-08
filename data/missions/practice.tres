@@ -21,7 +21,7 @@ target_group = &"practice_exit"
 [resource]
 script = ExtResource("1")
 id = &"practice"
-title = "practice.title"
+title_key = &"practice.title"
 level_scene = ExtResource("3")
 objectives = Array[ExtResource("2")]([SubResource("target"), SubResource("escape")])
 par_time_minutes = 2.0

@@ -1,0 +1,28 @@
+# Issue #51 narrative totals and text catalog
+
+Main-agent self-review, Godot4.3, 2026-09-08.
+
+Completed results carry a detached count snapshot. On the first clear of each mission, SaveManager accumulates non-target kills, civilian kills and detections, then computes shura from cumulative totals, so two detections in different first-cleared missions produce one point. Replays update best rank/score without changing narrative totals; the stored clear receipt prevents a mistaken first_clear=true from recounting. Existing result-screen save-once behavior prevents repeated display from accumulating again. Failed attempts/checkpoint retries retain the existing uncommitted-attempt behavior. GameState reads the saved values directly.
+
+The existing v2 migration already contains these counters; it was reused and tested with nonzero v1 counts, original-data preservation and missing-field defaults. Legacy stored shura is preserved during migration, then recalculated from counters on the next completed result. No historical kills are fabricated from an old shura value.
+
+Tool/mission display keys and remaining Japanese gym hints moved to CSV. Tool names resolve through `localized_name()` including the live inventory HUD. Legacy custom resource names remain valid. The displayed M2 target name was corrected from the old placeholder to the confirmed narrative name, 毒山刑部. This is a text consistency correction; actor IDs are unchanged.
+
+Validation:
+- Stats/save/formula tests failed before implementation; then2 tests/14 assertions passed.
+- Localization API test failed before implementation; then1 test/6 assertions passed.
+- Text lint was missing in the red run; both Python tests now pass, including literal/comment distinction and repository references.
+- Integrated suite:531 tests/4352 assertions passed. Additional migration and GameState-view coverage brings the focused stats suite to4 tests/25 assertions, all passed.
+- Actual exported PCK in the macOS release executable:zero failures; all five tool names resolve and the live HUD reads `1  小石  ×10`. No script/engine error in that native log. Existing headless dummy-renderer/ObjectDB shutdown warnings remain.
+
+Self-review checked snapshot ownership, result-save gating, cumulative detection-pair rounding, v2 persistence, legacy fallback, CSV export translation fallback, static reference lint and source privacy. Numeric enum IDs and diagnostic values are not presented as translated player-facing prose. The CSV header stays `key,ja` because Godot requires a locale name for import; the loader exposes the requested key/text semantics.
+
+While preparing #53, its first-clear-only rule was checked and brought into this delivery before PR publication. A replay regression demonstrated incorrect double/triple accumulation, then the receipt/first-clear guard corrected it. Original red logs are retained; earlier intermediate replay accumulation is not the shipped policy.
+
+The first first-clear-aware full run executed534 tests/4366 assertions, but one stale target-name expectation failed; an initial summary had incorrectly reported the total count as passing. The5 focused narrative tests/28 assertions passed. Replays preserve totals even when the caller incorrectly marks an existing mission as a first clear. No script errors.
+
+CI independently exposed the stale 遠山 assertion after the canonical display-name correction. The assertion was updated to the confirmed 毒山刑部 text, retaining the localized objective check. Final verification below supersedes the earlier mistaken pass summary.
+
+Verified after correcting the stale assertion: exit code0,534 passing tests,4366 assertions, no failing tests or script errors (`narrative51-ci-fix-full.log`).
+
+PR160 review follow-up: all four findings adopted. Training/custom/out-of-range IDs now retain best results without affecting narrative totals or campaign unlocks; practice/tutorial resources use title_key; resource text_key/speaker_key references are linted. Each new regression failed before its fix. Main-agent self-review checked exact m01–m10 membership, first-clear receipt behavior, literal-name fallback and resource references. Verified exit0,536 passing tests/4380 assertions, Python3 tests passed, catalog0 findings. The fourth finding (stale target-name assertion) was already fixed and remains covered. Known headless shutdown warnings remain.

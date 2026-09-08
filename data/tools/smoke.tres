@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"smoke"
-display_name = "煙玉"
+display_name_key = &"tool.smoke"
 default_count = 2
 is_projectile = true
 lethal = false

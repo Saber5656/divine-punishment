@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"dart"
-display_name = "吹き矢"
+display_name_key = &"tool.dart"
 default_count = 5
 is_projectile = true
 lethal = false

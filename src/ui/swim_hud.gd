@@ -199,7 +199,7 @@ func _render_tool_slot(index: int) -> void:
 	var count := tool_slot_remaining(index)
 	var label := str(index + 1)
 	if definition != null:
-		label += "  %s  ×%d" % [definition.display_name, count]
+		label += "  %s  ×%d" % [definition.localized_name(), count]
 	else:
 		label += "  —"
 	index_label.text = label

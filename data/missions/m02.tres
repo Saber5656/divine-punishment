@@ -20,7 +20,7 @@ kind = &"ESCAPE"
 [resource]
 script = ExtResource("1")
 id = &"m02"
-title = "武家屋敷の粛清"
+title_key = &"m02.title"
 level_scene = ExtResource("3")
 objectives = Array[ExtResource("2")]([SubResource("Target"), SubResource("Escape")])
 par_time_minutes = 3.0

@@ -122,12 +122,21 @@ func record_mission_result(mission_id: StringName, result: RefCounted, first_cle
 	if rank not in RANKS:
 		return
 	var results: Dictionary = campaign()["mission_results"]
+	var campaign_mission := String(mission_id) in ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"]
+	if campaign_mission and first_clear and not results.has(String(mission_id)):
+		var counts: Dictionary = result.narrative_counts if result is MissionResult else {}
+		for key in ["nontarget_kills", "civilian_kills", "detections"]:
+			var value: Variant = counts.get(key, 0)
+			if not _integer(value) or value < 0: return
+		for key in ["nontarget_kills", "civilian_kills", "detections"]:
+			campaign()["total_"+key] = int(campaign()["total_"+key]) + int(counts.get(key,0))
+		campaign()["shura"] = NarrativeTotals.shura(campaign().total_nontarget_kills, campaign().total_civilian_kills, campaign().total_detections)
 	var previous: Dictionary = results.get(String(mission_id), {})
 	var score := int(result.get("score"))
 	var previous_rank := RANKS.find(String(previous.get("rank", "")))
 	if previous.is_empty() or RANKS.find(rank) > previous_rank or (RANKS.find(rank) == previous_rank and score > int(previous.get("score", 0))):
 		results[String(mission_id)] = {"score": score, "rank": rank, "flags": result.get("flags").duplicate(true)}
-	if first_clear:
+	if campaign_mission and first_clear:
 		campaign()["unlocked_mission"] = mini(11, maxi(int(campaign()["unlocked_mission"]), _mission_number(mission_id) + 1))
 
 

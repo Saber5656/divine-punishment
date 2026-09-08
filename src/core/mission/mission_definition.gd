@@ -6,7 +6,8 @@ enum KillPolicy { NORMAL = 0, CIVILIAN_HEAVY = 1, FORBIDDEN = 2 }
 enum Weather { CLEAR = 0, RAIN = 1, SNOW = 2, RAIN_THEN_CLEAR = 3 }
 
 @export var id: StringName = &""
-@export var title: String = ""
+@export var title: String = "" # Legacy/custom-resource fallback.
+@export var title_key: StringName = &""
 @export var level_scene: PackedScene
 @export var objectives: Array[ObjectiveData] = []
 @export var side_objective: ObjectiveData
@@ -23,3 +24,6 @@ enum Weather { CLEAR = 0, RAIN = 1, SNOW = 2, RAIN_THEN_CLEAR = 3 }
 	&"civilian_kill": 3,
 	&"detection_pair": 1,
 }
+
+func localized_title() -> String:
+	return GameText.get_text(title_key) if title_key != &"" else title

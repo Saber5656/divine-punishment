@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 id = &"stone"
-display_name = "小石"
+display_name_key = &"tool.stone"
 default_count = 10
 is_projectile = true
 lethal = false

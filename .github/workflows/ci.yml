@@ -35,6 +35,9 @@ jobs:
       - name: Verify production asset contracts
         run: python3 -m unittest discover -s tests/art -v
 
+      - name: Check text catalog
+        run: python3 -m unittest discover -s tests/text -v
+
       - name: Run tests
         run: GODOT_BIN="$PWD/.godot-ci/$GODOT_BINARY" ./scripts/run_tests.sh
 
