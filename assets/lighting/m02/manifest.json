@@ -1,0 +1,19 @@
+{
+  "coverage": {
+    "fusuma": 10,
+    "garden": 26,
+    "roofs": 405,
+    "tatami": 171,
+    "veranda": 50,
+    "walls": 209
+  },
+  "mesh_count": 76,
+  "source": "tools/lighting/prepare_lightmap_scene.gd",
+  "static_light": "Moon",
+  "texel_metres": 0.4,
+  "quality": "LOW with denoising",
+  "texel_scale": 0.5,
+  "bake_seconds": 411,
+  "godot": "4.3-stable",
+  "baked_users": 76
+}

@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/levels/samurai_residence/samurai_residence.gd" id="1_residence"]
 
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://src/levels/samurai_residence/samurai_mission.gd" id="3_mission"]
 
 [ext_resource type="Script" path="res://src/levels/samurai_residence/residence_art.gd" id="4_art"]
+
+[ext_resource type="Script" path="res://src/levels/samurai_residence/residence_lighting.gd" id="5_lighting"]
 
 [node name="SamuraiResidence" type="Node3D"]
 script = ExtResource("1_residence")
@@ -22,5 +24,8 @@ script = ExtResource("3_mission")
 
 [node name="ResidenceArt" type="Node3D" parent="."]
 script = ExtResource("4_art")
+
+[node name="ResidenceLighting" type="Node3D" parent="."]
+script = ExtResource("5_lighting")
 
 [editable path="Player"]
