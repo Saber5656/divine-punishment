@@ -156,3 +156,37 @@ func test_completed_result_records_once_and_selection_shows_best_rank() -> void:
 		if child is Label and expected_rank in child.text:
 			found = true
 	assert_true(found, "selection shows the recorded rank")
+
+
+func test_mission_selection_can_start_tutorial_from_its_button() -> void:
+	_director.show_mission_select()
+	var found: Button
+	for node in _director.find_children("*", "Button", true, false):
+		if node.text == GameText.get_text(&"tutorial.start"): found = node
+	assert_not_null(found)
+	if found == null: return
+	found.pressed.emit()
+	await get_tree().physics_frame
+	assert_eq(_director.screen, &"playing")
+	assert_eq(MissionDirector.active_mission_id(), &"m01")
+	assert_eq(MissionDirector.current_objective().id, &"tutorial_sneak")
+
+
+func test_settings_remap_is_reflected_when_playing_hud_is_shown_again() -> void:
+	assert_true(_director.start_mission())
+	await get_tree().process_frame
+	await get_tree().physics_frame
+	_director.show_pause()
+	var controller: SettingsController = _main.get_node("SettingsController")
+	var previous: Dictionary = controller.values().input_overrides.duplicate(true)
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_J
+	assert_true(controller.set_binding(&"stance_toggle", key))
+	_director.resume_mission()
+	var explanation := ""
+	for node in _director.find_children("*", "Label", true, false):
+		if node.text.contains("しゃがむ"): explanation = node.text
+	assert_true(explanation.contains("J"), "the newly applied crouch key must be shown on return from settings")
+	assert_false(explanation.contains("Physical"))
+	controller.values().input_overrides = previous
+	assert_true(controller.apply_all())

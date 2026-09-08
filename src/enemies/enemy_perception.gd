@@ -697,3 +697,11 @@ func _vigilance_multiplier() -> float:
 
 static func _valid_vector(value: Vector3) -> bool:
 	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+
+
+func restore_checkpoint_meter(value: float) -> bool:
+	if not is_finite(value) or value < 0.0 or value > MAX_METER: return false
+	_meter = value
+	_elapsed = 0.0
+	_target_visible = false
+	return true

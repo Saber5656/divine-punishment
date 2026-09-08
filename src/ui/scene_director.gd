@@ -3,6 +3,7 @@ extends CanvasLayer
 
 
 const PRACTICE: MissionDefinition = preload("res://data/missions/practice.tres")
+const TUTORIAL: MissionDefinition = preload("res://data/missions/tutorial.tres")
 const BACKGROUND := preload("res://assets/samples/issue-77-pv/issue77-01-exterior.png")
 const FLAG_IDS: Array[StringName] = [&"shadow_walker", &"no_traces", &"one_strike", &"swift", &"side_objective"]
 
@@ -16,6 +17,7 @@ var _content: VBoxContainer
 var _hud: Control
 var _objective: Label
 var _hint: Label
+var _controls: Label
 var _settings_return: StringName = &"title"
 var _last_result: MissionResult
 var _result_pending := false
@@ -74,6 +76,14 @@ func show_mission_select() -> bool:
 		_raw_label(GameText.get_text(&"select.best") % rank, 18)
 	_button(&"practice.start", func() -> void: start_mission(PRACTICE))
 	_content.add_child(HSeparator.new())
+	_label(&"mission.tutorial", 28)
+	_label(&"tutorial.summary", 18)
+	var tutorial_best: Dictionary = save_manager.campaign().get("mission_results", {}).get("m01", {})
+	if not tutorial_best.is_empty():
+		var rank := GameText.get_text(StringName("result.rank." + String(tutorial_best.get("rank", "shoden"))))
+		_raw_label(GameText.get_text(&"select.best") % rank, 18)
+	_button(&"tutorial.start", func() -> void: start_mission(TUTORIAL))
+	_content.add_child(HSeparator.new())
 	_label(&"campaign.pending", 22)
 	_label(&"campaign.detail", 15)
 	_button(&"nav.back", show_title)
@@ -97,6 +107,7 @@ func start_mission(next_definition: MissionDefinition = PRACTICE) -> bool:
 	_result_pending = false
 	_menu.hide()
 	_hud.show()
+	_controls.text = GameText.with_bindings(&"hud.controls")
 	_update_objective()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	return true
@@ -120,6 +131,7 @@ func resume_mission() -> void:
 	screen = &"playing"
 	_menu.hide()
 	_hud.show()
+	_controls.text = GameText.with_bindings(&"hud.controls")
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -304,11 +316,11 @@ func _build_shell() -> void:
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.add_theme_color_override("font_color", Color("e6c289"))
 	hud_stack.add_child(_hint)
-	var controls := Label.new()
-	controls.text = GameText.get_text(&"hud.controls")
-	controls.add_theme_font_size_override("font_size", 14)
-	controls.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hud_stack.add_child(controls)
+	_controls = Label.new()
+	_controls.text = GameText.with_bindings(&"hud.controls")
+	_controls.add_theme_font_size_override("font_size", 14)
+	_controls.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hud_stack.add_child(_controls)
 
 
 func _page(next_screen: StringName, title: StringName, eyebrow: StringName) -> void:

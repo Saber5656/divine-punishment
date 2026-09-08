@@ -2,6 +2,7 @@ extends Node
 
 
 var _definition: MissionDefinition
+var _mission_scene_id := 0
 var _stats: MissionStats = MissionStats.new()
 var _current_objective_index: int = 0
 var _failed_reason: StringName = &""
@@ -41,6 +42,7 @@ func _process(delta: float) -> void:
 
 func start_mission(def: MissionDefinition) -> void:
 	_definition = def
+	_mission_scene_id = 0
 	_stats = MissionStats.new()
 	_stats.one_strike = false
 	_current_objective_index = 0
@@ -250,3 +252,86 @@ static func _rank_for_score(score: int, cfg: ScoringConfig) -> StringName:
 	if score >= cfg.rank_chuden_threshold:
 		return &"chuden"
 	return &"shoden"
+
+
+## Mission-local checkpoints use stable authored NPC keys, never saved instance IDs.
+func active_mission_id() -> StringName:
+	return _definition.id if _definition != null else &""
+
+
+## A scene claims the run once. SceneDirector may have started it before the
+## scene is instanced; a later fresh scene must not inherit a completed run.
+func attach_mission_scene(scene: Node, definition: MissionDefinition) -> bool:
+	if not is_instance_valid(scene) or definition == null:
+		return false
+	if _mission_scene_id == scene.get_instance_id():
+		return active_mission_id() == definition.id
+	if _mission_scene_id != 0 or active_mission_id() != definition.id:
+		start_mission(definition)
+	_mission_scene_id = scene.get_instance_id()
+	return true
+
+
+func capture_checkpoint_state(entities: Dictionary) -> Dictionary:
+	var result := {
+		"mission": String(active_mission_id()), "objective": _current_objective_index,
+		"running": _running, "completed": _completed, "failed_reason": String(_failed_reason),
+		"target_kills": _target_kills, "all_assassinated": _all_target_kills_assassinated,
+		"stats": {}, "killed": [], "neutralized": [], "corpses": [],
+	}
+	for key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "elapsed_sec", "one_strike", "side_objective_completed"]:
+		result["stats"][key] = _stats.get(key)
+	for key: String in entities:
+		var entity := entities[key] as Node
+		if not is_instance_valid(entity):
+			continue
+		var identity := entity.get_instance_id()
+		if _killed_entities.has(identity): result["killed"].append(key)
+		if _neutralized_entities.has(identity): result["neutralized"].append(key)
+		if _spotted_corpse_anomalies.has("body:%s" % identity): result["corpses"].append(key)
+	return result
+
+
+func checkpoint_state_is_valid(value: Dictionary, entities: Dictionary) -> bool:
+	if _definition == null or value.get("mission") != String(_definition.id): return false
+	if not CheckpointSnapshot._whole_number(value.get("objective"), 0, _definition.objectives.size()): return false
+	if not CheckpointSnapshot._whole_number(value.get("target_kills"), 0, entities.size()): return false
+	for key in ["running", "completed", "all_assassinated"]:
+		if not value.get(key) is bool: return false
+	if not value.get("failed_reason") is String or not value.get("stats") is Dictionary: return false
+	var stats_value: Dictionary = value["stats"]
+	for key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts"]:
+		if not CheckpointSnapshot._whole_number(stats_value.get(key), 0, 1000000): return false
+	if not CheckpointSnapshot._finite_number(stats_value.get("elapsed_sec")) or float(stats_value["elapsed_sec"]) < 0: return false
+	for key in ["one_strike", "side_objective_completed"]:
+		if not stats_value.get(key) is bool: return false
+	for key in ["killed", "neutralized", "corpses"]:
+		if not value.get(key) is Array or value[key].size() > entities.size(): return false
+		for identity in value[key]:
+			if not identity is String or not entities.has(identity): return false
+	var completed: bool = value["completed"]
+	var running: bool = value["running"]
+	var failed: bool = not String(value["failed_reason"]).is_empty()
+	if completed != (int(value["objective"]) == _definition.objectives.size()): return false
+	return running == (not completed and not failed) and not (completed and failed)
+
+
+func restore_checkpoint_state(value: Dictionary, entities: Dictionary) -> bool:
+	if not checkpoint_state_is_valid(value, entities): return false
+	_current_objective_index = int(value["objective"])
+	_running = value["running"]
+	_completed = value["completed"]
+	_failed_reason = StringName(value["failed_reason"])
+	_target_kills = int(value["target_kills"])
+	_all_target_kills_assassinated = value["all_assassinated"]
+	for key: String in value["stats"]:
+		if key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "elapsed_sec", "one_strike", "side_objective_completed"]:
+			_stats.set(key, value["stats"][key])
+	_killed_entities.clear()
+	_neutralized_entities.clear()
+	_spotted_corpse_anomalies.clear()
+	for key: String in value["killed"]: _killed_entities[entities[key].get_instance_id()] = true
+	for key: String in value["neutralized"]: _neutralized_entities[entities[key].get_instance_id()] = true
+	for key: String in value["corpses"]: _spotted_corpse_anomalies["body:%s" % entities[key].get_instance_id()] = true
+	_emit_current_objective()
+	return true

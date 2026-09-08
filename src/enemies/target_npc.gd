@@ -216,3 +216,10 @@ func _target_event_bus() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.get_node_or_null(NodePath("EventBus"))
+
+
+## Checkpoint restoration is not a fresh kill; never emit score/escort events.
+func restore_checkpoint_defeat(value: bool) -> void:
+	_target_defeat_event_emitted = value
+	_last_seen_stop_index = -1
+	_sync_separation_state()

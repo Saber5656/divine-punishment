@@ -791,8 +791,14 @@ func _advance_state_without_stimulus(delta: float) -> void:
 		Enums.AlertState.UNAWARE:
 			_advance_routine(delta)
 		Enums.AlertState.SUSPICIOUS:
-			_set_navigation_target(investigation_position())
-			if _investigation_arrived or _navigation_has_reached(investigation_position()):
+			var target := _investigation_navigation_target()
+			_set_navigation_target(target)
+			var arrived := _investigation_arrived or _navigation_has_reached(target)
+			var enemy := _enemy_node()
+			if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
+				var result: Variant = enemy.call(&"advance_navigation", minf(delta, MAX_ROUTINE_STEP_DELTA), target, _routine_speed())
+				arrived = result == true
+			if arrived:
 				_investigation_arrived = true
 				_investigation_elapsed += delta
 			if _investigation_arrived and _investigation_elapsed >= INVESTIGATION_DURATION_SEC:
@@ -1774,3 +1780,72 @@ static func _bounded_incapacitation_duration(value: float) -> float:
 	if not is_finite(value) or value <= 0.0:
 		return 0.0
 	return clampf(value, 0.0, MAX_INCAPACITATION_DURATION_SEC)
+
+
+## Restore is a checkpoint operation, separate from ordinary AI transitions:
+## replaying COMBAT entry would duplicate detections and target-death reactions.
+func capture_checkpoint_state() -> Dictionary:
+	return {
+		"state": int(_state), "routine_clock": _routine_clock, "stop_index": _routine_stop_index,
+		"route_stop_count": maxi(_routine_path.ordered_stops().size(),1) if is_instance_valid(_routine_path) else 1,
+		"stop_elapsed": _routine_stop_elapsed, "arrived": _routine_arrived,
+		"vigilance": _return_vigilance_remaining, "search_elapsed": _search_elapsed,
+		"lost_sight": _combat_lost_sight_elapsed, "kind": String(_incapacitated_kind),
+		"incapacitation_remaining": _incapacitation_remaining,
+		"last_known": [_last_known_position.x, _last_known_position.y, _last_known_position.z],
+		"has_last_known": _has_last_known_position,
+	}
+
+
+func checkpoint_state_is_valid(value: Dictionary) -> bool:
+	if not CheckpointSnapshot._whole_number(value.get("state"), 0, 4): return false
+	if not CheckpointSnapshot._whole_number(value.get("route_stop_count"), 1, 64): return false
+	if not CheckpointSnapshot._whole_number(value.get("stop_index"), 0, int(value["route_stop_count"]) - 1): return false
+	for key in ["routine_clock", "stop_elapsed", "vigilance", "search_elapsed", "lost_sight", "incapacitation_remaining"]:
+		if not CheckpointSnapshot._finite_number(value.get(key)) or float(value[key]) < 0.0 or float(value[key]) > 86400.0: return false
+	if not value.get("arrived") is bool or not value.get("has_last_known") is bool: return false
+	if value.get("kind") not in ["", "dead", "knockout", "sleep", "restrained"]: return false
+	var point: Variant = value.get("last_known")
+	if not point is Array or point.size() != 3: return false
+	for coordinate in point:
+		if not CheckpointSnapshot._finite_number(coordinate) or absf(float(coordinate)) > 10000.0: return false
+	return true
+
+
+func restore_checkpoint_state(value: Dictionary) -> bool:
+	if not checkpoint_state_is_valid(value): return false
+	_state = int(value["state"]) as Enums.AlertState
+	_routine_clock = fmod(float(value["routine_clock"]), _routine_cycle_seconds)
+	_routine_stop_index = int(value["stop_index"])
+	_routine_stop_elapsed = float(value["stop_elapsed"])
+	_routine_arrived = value["arrived"]
+	_return_vigilance_remaining = float(value["vigilance"])
+	_search_elapsed = float(value["search_elapsed"])
+	_combat_lost_sight_elapsed = float(value["lost_sight"])
+	_incapacitated_kind = StringName(value["kind"])
+	_incapacitated = not _incapacitated_kind.is_empty()
+	_incapacitation_remaining = float(value["incapacitation_remaining"])
+	var point: Array = value["last_known"]
+	_last_known_position = Vector3(point[0], point[1], point[2])
+	_has_last_known_position = value["has_last_known"]
+	_target_visible = false
+	_target_visible_override = -1
+	_stimulus_buffer.clear()
+	_stimulus_memory = null
+	if _state == Enums.AlertState.SEARCHING:
+		_begin_search_route()
+	return true
+
+
+func _investigation_navigation_target() -> Vector3:
+	var target := investigation_position()
+	var enemy := _enemy_node()
+	if enemy == null: return target
+	var agent := enemy.get_node_or_null("NavigationAgent3D") as NavigationAgent3D
+	if not EnemyBase._navigation_map_ready(agent): return target
+	var closest := NavigationServer3D.map_get_closest_point(agent.get_navigation_map(), target)
+	# A stone lands on the floor; authored routes follow capsule centers.
+	# Only project nearby points, so a distant/unreachable sound stays blocked.
+	if _valid_vector(closest) and closest.distance_to(target) <= SEARCH_NAVIGATION_SNAP_DISTANCE:
+		return closest
+	return target
