@@ -25,7 +25,7 @@ func test_result_statistics_accumulate_and_round_trip_in_v2() -> void:
 	stats.nontarget_kills = 0
 	stats.civilian_kills = 0
 	result = MissionDirector.compute_score(stats, ScoringConfig.new(), definition)
-	save.record_mission_result(&"m02", result, false)
+	save.record_mission_result(&"m03", result, true)
 	assert_eq(save.campaign().shura, 6, "Detection pairs cross mission boundaries")
 	save.commit()
 	assert_eq(save.last_error, OK)
@@ -72,3 +72,24 @@ func test_game_state_reads_the_canonical_saved_totals() -> void:
 	assert_eq(GameState.total_detections, 3)
 	for key in ["shura","total_nontarget_kills","total_civilian_kills","total_detections"]:
 		campaign[key] = original[key]
+
+func test_replay_updates_rank_without_recounting_narrative_even_if_first_clear_is_wrong() -> void:
+	var save = SaveScript.new()
+	save.save_path = PATH
+	save.load_save()
+	var stats := MissionStats.new()
+	stats.nontarget_kills = 3
+	stats.detections = 2
+	var definition := MissionDefinition.new()
+	definition.id = &"m02"
+	var result := MissionDirector.compute_score(stats, ScoringConfig.new(), definition)
+	save.record_mission_result(&"m02", result, true)
+	var before: int = save.campaign().shura
+	result.rank = &"kaiden"
+	result.score = 100
+	save.record_mission_result(&"m02", result, false)
+	assert_eq(save.campaign().shura, before)
+	assert_eq(save.campaign().mission_results.m02.rank, "kaiden")
+	save.record_mission_result(&"m02", result, true)
+	assert_eq(save.campaign().shura, before, "Existing clear receipt overrides a mistaken first_clear flag")
+	save.free()

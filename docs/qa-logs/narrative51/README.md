@@ -2,7 +2,7 @@
 
 Main-agent self-review, Godot4.3, 2026-09-08.
 
-Completed results carry a detached count snapshot. SaveManager accumulates non-target kills, civilian kills and detections, then computes shura from cumulative totals, so two detections in different missions produce one point. Existing result-screen save-once behavior prevents repeated display from accumulating again. Failed attempts/checkpoint retries retain the existing uncommitted-attempt behavior. GameState reads the saved values directly.
+Completed results carry a detached count snapshot. On the first clear of each mission, SaveManager accumulates non-target kills, civilian kills and detections, then computes shura from cumulative totals, so two detections in different first-cleared missions produce one point. Replays update best rank/score without changing narrative totals; the stored clear receipt prevents a mistaken first_clear=true from recounting. Existing result-screen save-once behavior prevents repeated display from accumulating again. Failed attempts/checkpoint retries retain the existing uncommitted-attempt behavior. GameState reads the saved values directly.
 
 The existing v2 migration already contains these counters; it was reused and tested with nonzero v1 counts, original-data preservation and missing-field defaults. Legacy stored shura is preserved during migration, then recalculated from counters on the next completed result. No historical kills are fabricated from an old shura value.
 
@@ -16,3 +16,7 @@ Validation:
 - Actual exported PCK in the macOS release executable:zero failures; all five tool names resolve and the live HUD reads `1  小石  ×10`. No script/engine error in that native log. Existing headless dummy-renderer/ObjectDB shutdown warnings remain.
 
 Self-review checked snapshot ownership, result-save gating, cumulative detection-pair rounding, v2 persistence, legacy fallback, CSV export translation fallback, static reference lint and source privacy. Numeric enum IDs and diagnostic values are not presented as translated player-facing prose. The CSV header stays `key,ja` because Godot requires a locale name for import; the loader exposes the requested key/text semantics.
+
+While preparing #53, its first-clear-only rule was checked and brought into this delivery before PR publication. A replay regression demonstrated incorrect double/triple accumulation, then the receipt/first-clear guard corrected it. Original red logs are retained; earlier intermediate replay accumulation is not the shipped policy.
+
+Final first-clear-aware suite:534 tests/4366 assertions passed, including5 narrative tests/28 assertions. Replays preserve totals even when the caller incorrectly marks an existing mission as a first clear. No script errors.

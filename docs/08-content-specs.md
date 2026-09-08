@@ -755,7 +755,7 @@ Player DetectPoints sample the live capsule at 90% / 65% / 35% of height above i
 ## 2026-09-08 テキスト・修羅値の実装
 
 - `ToolDefinition.display_name_key` と `MissionDefinition.title_key` はCSVキー。`localized_name()` / `localized_title()` で参照する。従来の `display_name` / `title` はカスタムリソース互換のフォールバックとして残す。
-- `MissionResult.narrative_counts` は結果計算時の非負カウンターのコピー。既存の成功リザルト保存時にSaveManagerが累計へ加算し、`nontarget + civilian*3 + floor(detections/2)` を累計に対して再計算する。結果画面の再表示は既存の一度だけ保存する制御で重複加算しない。失敗・チェックポイント再試行では未確定の行動を永続化しない。
+- `MissionResult.narrative_counts` は結果計算時の非負カウンターのコピー。各ミッションの初回成功リザルト保存時にSaveManagerが累計へ加算し、`nontarget + civilian*3 + floor(detections/2)` を累計に対して再計算する。結果画面の再表示は既存の一度だけ保存する制御で重複加算しない。再クリアはランク・点数だけを更新し、保存済みのクリア記録があるミッションの物語値は再加算しない（#53の進行規則）。失敗・チェックポイント再試行では未確定の行動を永続化しない。
 - `GameState.total_nontarget_kills / total_civilian_kills / total_detections / shura` はSaveManagerの値を読む。別のコピーは保持しない。v1→v2の既存migrationは原データと未知フィールドを保持し、欠落カウンターを0で補う。過去の保存済みshuraも移行時に保持し、次の成功結果で累計カウンターから再計算する。
 - CSVは概念上key/textの2列で、Godot import/exportのため見出しを `key,ja` とする。`GameText` はraw CSVとexport済みTranslationの両方を読む。
 - `python3 tools/text/lint_catalog.py` はsrc/dataの日本語リテラル混入、重複・空CSV項目、静的GameText参照とリソース表示キーを検査する。移行専用の旧日本語ランク対応表だけ明示除外。英語の内部識別子・デバッグ数値表現は翻訳対象の表示文言とは区別する。CIは `tests/text` を実行する。
