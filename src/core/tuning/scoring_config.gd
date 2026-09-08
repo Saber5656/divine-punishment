@@ -16,3 +16,13 @@ extends Resource
 @export var m9_knockout_success_ratio: float = 0.8
 @export var m10_shadow_walker_bonus_shift: int = 15
 @export var epilogue_a_condition: int = 12
+
+## Measured developer-route limits; unknown missions retain their authored limit.
+@export var measured_par_seconds: Dictionary = {}
+
+func par_seconds(mission_id: StringName, authored_minutes: float) -> float:
+	if not is_finite(authored_minutes) or authored_minutes <= 0.0: return 0.0
+	var measured: Variant = measured_par_seconds.get(String(mission_id), authored_minutes * 60.0)
+	if (measured is float or measured is int) and is_finite(float(measured)) and float(measured) > 0.0:
+		return float(measured)
+	return authored_minutes * 60.0

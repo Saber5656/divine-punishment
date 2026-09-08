@@ -224,11 +224,12 @@ static func compute_score(stats: MissionStats, cfg: ScoringConfig, def: MissionD
 	if stats == null or cfg == null or def == null:
 		return MissionResult.create(0, &"shoden", {})
 	var score := 0
+	var par_seconds := cfg.par_seconds(def.id, def.par_time_minutes)
 	var flags := {
 		&"shadow_walker": stats.detections == 0,
 		&"no_traces": stats.bodies_found == 0,
 		&"one_strike": stats.one_strike,
-		&"swift": def.par_time_minutes > 0.0 and stats.elapsed_sec <= def.par_time_minutes * 60.0,
+		&"swift": par_seconds > 0.0 and stats.elapsed_sec <= par_seconds,
 		&"side_objective": def.side_objective != null and stats.side_objective_completed,
 	}
 	if flags[&"shadow_walker"]:

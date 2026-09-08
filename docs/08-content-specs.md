@@ -98,7 +98,7 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 | forbidden_actions | Array[StringName] | M9: ["sword","assassinate_lethal","dart"] |
 | kill_policy | enum { NORMAL, CIVILIAN_HEAVY, FORBIDDEN } | M3/M5: CIVILIAN_HEAVY, M9: FORBIDDEN |
 | weather | enum { CLEAR, RAIN, SNOW, RAIN_THEN_CLEAR } | |
-| par_time_minutes | float | 07-campaign §0.1 の表 |
+| par_time_minutes | float | 未計測ミッションの疾風基準（分）。VSのM1/M2はscoring.tresのmeasured_par_secondsを優先し、本値も2/3分に整合 |
 | pre_cutscene / post_cutscene | CutsceneData | |
 | inner_monologue_id | StringName | 暗殺直後の内語 |
 | shura_rules | Dictionary | {nontarget_kill:+1, civilian_kill:+3, detection_pair:+1}。`total_detections` は別途保存し、修羅値は `floor(total_detections / 2)` を加算する |

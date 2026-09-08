@@ -60,4 +60,4 @@ title = "mission.tutorial"
 level_scene = ExtResource("3")
 objectives = Array[ExtResource("2")]([SubResource("sneak"), SubResource("hide"), SubResource("lure"), SubResource("lights"), SubResource("assassinate"), SubResource("body"), SubResource("document"), SubResource("escape")])
 tool_loadout = {&"stone": 10}
-par_time_minutes = 10.0
+par_time_minutes = 2.0
