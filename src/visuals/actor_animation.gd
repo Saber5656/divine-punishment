@@ -28,6 +28,7 @@ var _action: StringName = &""
 var _action_remaining := 0.0
 var _rig: Node3D
 var _weapon: BoneAttachment3D
+var _last_actor_position := Vector3.ZERO
 
 static func player_clip(state: StringName, moving: bool) -> StringName:
 	match state:
@@ -62,9 +63,10 @@ func _ready() -> void:
 func _setup() -> void:
 	_actor = get_parent().get_parent() as CharacterBody3D
 	if _actor == null: return
+	_last_actor_position = _actor.global_position
 	for child in get_children():
 		if child is MeshInstance3D: child.free()
-	var role := "shinobi" if _actor is PlayerController else ("magistrate" if _actor is TargetNpc else "ashigaru")
+	var role := "shinobi" if _actor is PlayerController or _actor.is_in_group(&"enemy_ninjas") else ("magistrate" if _actor is TargetNpc else "ashigaru")
 	if not _models.has(role): _models[role] = load("res://assets/characters/%s.glb" % role)
 	_rig = _models[role].instantiate() as Node3D
 	_rig.name = "Rig"
@@ -238,7 +240,10 @@ func update_actor_presentation(delta: float) -> void:
 	if _tree == null or not is_instance_valid(_actor): return
 	_action_remaining = maxf(0.0, _action_remaining - delta)
 	var next: StringName
+	var displacement := _actor.global_position-_last_actor_position
+	_last_actor_position = _actor.global_position
 	var moving := _actor.velocity.length_squared() > 0.01
+	if not _actor is PlayerController: moving = moving or displacement.length_squared() > 0.000001
 	if _actor is PlayerController:
 		var state: StringName = _actor.state_machine.current_state()
 		next = player_clip(state, moving)
@@ -251,6 +256,8 @@ func update_actor_presentation(delta: float) -> void:
 		var brain: EnemyBrain = _actor.brain()
 		var dead: bool = _actor.is_assassinated() or (brain != null and brain.incapacitated_kind() == &"dead")
 		next = &"knockout" if not dead and brain != null and brain.is_incapacitated() else enemy_clip(_actor.alert_state(), moving, dead)
+		if _actor.is_in_group(&"enemy_ninjas") and not dead and brain != null and not brain.is_incapacitated() and absf(displacement.y) > 0.001 and absf(displacement.y) > Vector2(displacement.x,displacement.z).length():
+			next = &"climb"
 	if _action_remaining > 0.0 and next not in [&"death", &"knockout"]: next = _action
 	show_clip(next)
 	advance_visual(delta)

@@ -22,6 +22,8 @@ const INVESTIGATION_DURATION := INVESTIGATION_DURATION_SEC
 const SEARCH_DURATION := SEARCH_DURATION_SEC
 const COMBAT_LOST_SIGHT_DURATION := COMBAT_LOST_SIGHT_DURATION_SEC
 const RELIGHT_DELAY := RELIGHT_DELAY_SEC
+@export_range(0.0,60.0,0.1) var relight_delay_seconds := RELIGHT_DELAY_SEC
+@export var knockout_immune := false
 const RETURN_ARRIVAL_DURATION := 1.0
 const DEFAULT_RETURN_VIGILANCE_MULTIPLIER := 1.5
 const DEFAULT_RETURN_VIGILANCE_DURATION := 120.0
@@ -253,7 +255,7 @@ func vigilance_multiplier() -> float:
 func relight_remaining() -> float:
 	if not _relight_pending:
 		return 0.0
-	return maxf(RELIGHT_DELAY_SEC - _relight_elapsed, 0.0)
+	return maxf(relight_delay_seconds - _relight_elapsed, 0.0)
 
 
 func is_relight_pending() -> bool:
@@ -693,6 +695,7 @@ func set_incapacitated(kind: StringName, duration_seconds: float = 0.0) -> bool:
 		)
 		_transition_to(Enums.AlertState.SEARCHING, wake_stimulus, &"incapacitated_wake")
 		return true
+	if knockout_immune and kind in [&"sleep", &"knockout"]: return false
 	if kind not in [&"sleep", &"knockout", &"restrained", &"dead"]:
 		return false
 	if kind in [&"dead", &"restrained"] and duration_seconds > 0.0:
@@ -1268,7 +1271,7 @@ func _try_request_relight() -> void:
 	if _relight_light.is_on():
 		_relight_pending = false
 		return
-	if _relight_elapsed < RELIGHT_DELAY_SEC:
+	if _relight_elapsed < relight_delay_seconds:
 		return
 	var enemy := _enemy_node()
 	if enemy == null or not enemy.is_inside_tree():
@@ -1736,7 +1739,8 @@ func _set_navigation_target(target: Vector3) -> void:
 			var neutral_target: Vector3 = enemy.global_position if _valid_vector(enemy.global_position) else Vector3.ZERO
 			agent.target_position = neutral_target
 		return
-	agent.target_position = target
+	if agent.get_current_navigation_path().is_empty() or not agent.target_position.is_equal_approx(target):
+		agent.target_position = target
 
 
 func _navigation_has_reached(target: Vector3) -> bool:

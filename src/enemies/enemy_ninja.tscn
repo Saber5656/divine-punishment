@@ -1,0 +1,24 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://src/enemies/enemy_base.tscn" id="1"]
+[ext_resource type="Script" path="res://src/enemies/enemy_ninja.gd" id="2"]
+[ext_resource type="Resource" path="res://data/tuning/perception_shinobi.tres" id="3"]
+[ext_resource type="Resource" path="res://data/tuning/enemy_shinobi.tres" id="4"]
+
+[node name="EnemyNinja" groups=["enemy_ninjas"] instance=ExtResource("1")]
+script = ExtResource("2")
+routine_speed = 2.4
+
+[node name="Brain" parent="." index="2"]
+relight_delay_seconds = 0.0
+knockout_immune = true
+
+[node name="Perception" parent="." index="3"]
+perception_config = ExtResource("3")
+
+[node name="NavigationAgent3D" parent="." index="4"]
+navigation_layers = 3
+path_desired_distance = 0.001
+
+[node name="Combat" parent="." index="5"]
+enemy_stats = ExtResource("4")
