@@ -4,6 +4,6 @@
 script = ExtResource("1")
 id = &"m08"
 title_key = &"m08.title"
-weather = 0
+weather = 3
 kill_policy = 0
 par_time_minutes = 25.0

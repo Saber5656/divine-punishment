@@ -160,14 +160,14 @@ func on_anomaly(anomaly: Anomaly) -> void:
 	if eye == null:
 		return
 	var distance := eye.global_position.distance_to(anomaly.position)
-	if not is_finite(distance) or distance > perception_config.view_distance_m:
+	if not is_finite(distance) or distance > effective_view_distance():
 		return
 	var priority := 1
 	if anomaly.severity >= 3:
 		priority = 3
 	elif anomaly.severity >= 2:
 		priority = 2
-	var confidence := clampf(1.0 - distance / perception_config.view_distance_m, 0.0, 1.0)
+	var confidence := clampf(1.0 - distance / effective_view_distance(), 0.0, 1.0)
 	_emit_stimulus(
 		Enums.StimulusKind.ANOMALY,
 		priority,
@@ -289,7 +289,7 @@ func can_see_position(position: Vector3) -> bool:
 		return false
 	var to_target := position - eye.global_position
 	var distance := to_target.length()
-	if not is_finite(distance) or distance <= 0.0 or distance > perception_config.view_distance_m:
+	if not is_finite(distance) or distance <= 0.0 or distance > effective_view_distance():
 		return false
 	var forward: Vector3 = -owner.global_transform.basis.z
 	if not _valid_vector(forward) or forward.length_squared() <= 0.000001:
@@ -375,7 +375,7 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 		return
 	var to_center := center - eye.global_position
 	var distance := to_center.length()
-	if not is_finite(distance) or distance <= 0.0 or distance > perception_config.view_distance_m:
+	if not is_finite(distance) or distance <= 0.0 or distance > effective_view_distance():
 		_advance_meter(delta, 0.0, false, center)
 		return
 
@@ -423,7 +423,7 @@ func _evaluate_visual(delta: float, target: Node3D) -> void:
 	var gain := vision_gain(
 		visibility_value * visible_fraction,
 		distance,
-		perception_config.view_distance_m,
+		effective_view_distance(),
 		central,
 		perception_config.meter_gain_base,
 	)
@@ -484,8 +484,8 @@ func _valid_config() -> bool:
 		is_finite(perception_config.fov_degrees)
 		and perception_config.fov_degrees > 0.0
 		and perception_config.fov_degrees <= 360.0
-		and is_finite(perception_config.view_distance_m)
-		and perception_config.view_distance_m > 0.0
+		and is_finite(effective_view_distance())
+		and effective_view_distance() > 0.0
 		and is_finite(perception_config.meter_gain_base)
 		and perception_config.meter_gain_base >= 0.0
 		and is_finite(perception_config.meter_decay)
@@ -665,7 +665,7 @@ func _anomaly_visible(position: Vector3, anomaly_node: Node3D) -> bool:
 		return false
 	var to_target := position - eye.global_position
 	var distance := to_target.length()
-	if not is_finite(distance) or distance <= 0.0 or distance > perception_config.view_distance_m:
+	if not is_finite(distance) or distance <= 0.0 or distance > effective_view_distance():
 		return false
 	var forward: Vector3 = -owner.global_transform.basis.z
 	if not _valid_vector(forward) or forward.length_squared() <= 0.000001:
@@ -735,3 +735,6 @@ func restore_checkpoint_meter(value: float) -> bool:
 	_elapsed = 0.0
 	_target_visible = false
 	return true
+
+func effective_view_distance() -> float:
+	return perception_config.view_distance_m*WeatherSystem.view_multiplier() if perception_config != null else 0.0

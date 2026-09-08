@@ -26,6 +26,7 @@ const INTERACTION_SHAPE_NODE_NAME := &"_InteractionShape"
 @export var render_light: Light3D
 @export var starts_extinguished: bool = false
 @export var extinguishable: bool = true
+@export var rain_fragile: bool = false
 
 var _interaction_shape: CollisionShape3D
 var _expected_interaction_shape: SphereShape3D
@@ -50,6 +51,9 @@ func _ready() -> void:
 	if starts_extinguished:
 		_is_on = false
 	_sync_render_light()
+	if not Engine.is_editor_hint():
+		EventBus.mission_event.connect(_on_weather_event)
+		_apply_rain()
 
 
 func is_on() -> bool:
@@ -278,3 +282,9 @@ func _update_editor_state() -> void:
 	if Engine.is_editor_hint() and is_inside_tree():
 		update_configuration_warnings()
 		update_gizmos()
+
+func _on_weather_event(event: StringName, _payload: Dictionary) -> void:
+	if event == EventBus.EV_WEATHER_CHANGED: _apply_rain()
+
+func _apply_rain() -> void:
+	if rain_fragile and WeatherSystem.extinguishes_fragile(): set_extinguished(true)

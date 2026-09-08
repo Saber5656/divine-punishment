@@ -44,6 +44,7 @@ func _process(delta: float) -> void:
 
 
 func start_mission(def: MissionDefinition) -> void:
+	WeatherSystem.start(def.weather if def != null else MissionDefinition.Weather.CLEAR)
 	AudioDirector.play_bgm_set(&"normal")
 	AudioDirector.set_ambience(&"night")
 	_definition = def

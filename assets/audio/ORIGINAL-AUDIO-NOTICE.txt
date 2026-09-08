@@ -6,3 +6,5 @@ Asset metadata: assets/audio/sources.json
 These sounds were synthesized for this project. No external recordings,
 instrument samples or pre-existing melodies were used. There are no third-party
 sample attribution requirements for this library.
+
+Rain generator: tools/audio/build_rain.py (12 second mono 22050 Hz loop).

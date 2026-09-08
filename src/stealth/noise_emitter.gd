@@ -10,6 +10,7 @@ func emit_footstep(stance: Enums.Stance, material: StringName = floor_material) 
 	var radius := 0.0
 	if config != null:
 		radius = footstep_radius(stance, material, config)
+	if get_parent() is PlayerController: radius *= WeatherSystem.noise_multiplier()
 	return emit_noise(radius, Enums.NoiseKind.FOOTSTEP, StringName("footstep_" + str(material)))
 
 
