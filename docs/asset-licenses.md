@@ -65,3 +65,9 @@ seven floor materials, five ninja tool cues, doors, water, landings, combat,
 assassination, detection, results and bell cues. It is not a set of recorded
 traditional instruments or human voices. The original generator and provenance
 are retained with the assets. `ORIGINAL-AUDIO-NOTICE.txt` travels with exports.
+
+## Original campaign UI studies (2026-09-08)
+
+`assets/narrative/hideout_wash.tres`, `assets/ui/posters/m01.svg`–`m10.svg` and `assets/ui/spring_teahouse.svg` are project-authored gradient/vector illustrations. No external image, franchise art or extracted game asset is incorporated. These are separate from the narrative illustration production tracked by #78.
+
+#54 uses the already-provenanced Quaternius Standard `Punch_Jab` and `Death01` clips for visual-only non-lethal strike/prone poses. Their existing CC0 notice remains bundled; animation state does not determine lethal gameplay state.
