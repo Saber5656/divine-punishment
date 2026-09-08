@@ -52,3 +52,16 @@ Delivered files:
 The upstream base distribution references two normal images with an extra `_png` suffix. The importer resolves those two filenames to their existing sibling files in a temporary glTF, preserving the original downloaded archive. No unrelated replacements are downloaded. The supplied Standard body uses the author's humanoid skeleton; #43 remains responsible for retargeting the animation source and validating game stances and assassination contexts.
 
 Rights review: both obtained distributions explicitly dedicate their content under CC0 1.0. Acquisition was from the author's own free downloads, without importing franchise assets, logos, extracted game files or franchise reference art. Original additions use project-authored shapes. This records the actual sources and review performed; it is not a claim about undisclosed upstream provenance.
+
+## Original synthesized game audio (#46)
+
+| Files | Source | Third-party license |
+|---|---|---|
+| `assets/audio/*.wav` | `tools/audio/build_audio.py`, deterministic original synthesis | None; no external recordings, samples or melodies used |
+| `assets/audio/sources.json` | Per-cue duration, peak level, loop flag and generator provenance | Project metadata |
+
+The library contains synthesized wind/insects, flute-like and drum-like layers,
+seven floor materials, five ninja tool cues, doors, water, landings, combat,
+assassination, detection, results and bell cues. It is not a set of recorded
+traditional instruments or human voices. The original generator and provenance
+are retained with the assets. `ORIGINAL-AUDIO-NOTICE.txt` travels with exports.

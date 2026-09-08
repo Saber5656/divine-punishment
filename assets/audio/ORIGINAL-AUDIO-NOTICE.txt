@@ -1,0 +1,8 @@
+Divine Punishment — original synthesized audio
+
+Source generator: tools/audio/build_audio.py
+Asset metadata: assets/audio/sources.json
+
+These sounds were synthesized for this project. No external recordings,
+instrument samples or pre-existing melodies were used. There are no third-party
+sample attribution requirements for this library.

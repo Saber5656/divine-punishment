@@ -242,6 +242,8 @@ func _update_objective() -> void:
 
 
 func _clear_mission() -> void:
+	AudioDirector.play_bgm_set(&"silence")
+	AudioDirector.set_ambience(&"")
 	if is_instance_valid(mission):
 		MissionDirector.fail_mission(&"abandoned")
 		mission.get_parent().remove_child(mission)

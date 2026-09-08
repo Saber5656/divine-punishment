@@ -41,6 +41,8 @@ func _process(delta: float) -> void:
 
 
 func start_mission(def: MissionDefinition) -> void:
+	AudioDirector.play_bgm_set(&"normal")
+	AudioDirector.set_ambience(&"night")
 	_definition = def
 	_mission_scene_id = 0
 	_stats = MissionStats.new()

@@ -1,6 +1,7 @@
 extends Node
 
 
+signal audio_cue_requested(cue: StringName, position: Vector3)
 signal noise_emitted(event: NoiseEvent)
 signal anomaly_registered(anomaly: Anomaly)
 signal anomaly_spotted(anomaly: Anomaly, by: Node)

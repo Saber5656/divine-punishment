@@ -28,6 +28,7 @@ func use(user: Node3D, aim: Dictionary) -> bool:
 		&"dir": aim[&"dir"],
 		&"target": aim.get(&"target"),
 	})
+	EventBus.audio_cue_requested.emit(StringName("tool_" + str(tool_definition.id)), user.global_position)
 	used.emit(user, aim)
 	return true
 

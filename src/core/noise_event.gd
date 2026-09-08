@@ -6,6 +6,7 @@ var position: Vector3
 var radius: float
 var kind: Enums.NoiseKind
 var source: Node
+var audio_cue: StringName = &""
 
 
 static func create(event_position: Vector3, event_radius: float, event_kind: Enums.NoiseKind, event_source: Node) -> NoiseEvent:
