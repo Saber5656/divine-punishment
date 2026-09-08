@@ -1,0 +1,9 @@
+{
+  "generator": "tools/art/build_residence_decor.py",
+  "blender_version": "5.2.1 LTS",
+  "units": "metres",
+  "source": "Project-authored original geometry and geometric ink motif",
+  "license": "Project license",
+  "modules": ["tatami_1x2", "fusuma_2m", "garden_pine", "moss_stone"],
+  "placement": "src/levels/samurai_residence/residence_art.gd"
+}
