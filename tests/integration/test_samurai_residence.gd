@@ -287,3 +287,30 @@ func _box_contains(body: StaticBody3D, point: Vector3) -> bool:
 		and absf(local_point.y) <= half_size.y
 		and absf(local_point.z) <= half_size.z
 	)
+
+
+func test_observation_contract_preserves_distinct_house_and_crawl_heights() -> void:
+	var residence := _add_residence()
+	await get_tree().physics_frame
+	for point: Vector3 in residence.observation_points(&"main_house_first_floor"):
+		assert_almost_eq(point.y,SamuraiResidence.HOUSE_CENTER_Y,0.001)
+	for point: Vector3 in residence.re_stealth_route(&"main_house_first_floor"):
+		assert_almost_eq(point.y,SamuraiResidence.HOUSE_CENTER_Y,0.001)
+	var crawl := residence.get_node("Markers/Observation/Crawlspace/Observation01") as Marker3D
+	assert_almost_eq(crawl.position.y,SamuraiResidence.PLAYER_CENTER_Y,0.001,"A crawl observation point must remain below the raised house")
+
+
+func test_crawl_camera_stays_under_floor_and_cannot_see_through_solid_boards() -> void:
+	var residence := _add_residence()
+	for frame in 5: await get_tree().physics_frame
+	var player := residence.get_node("Player") as PlayerController
+	player.set_physics_process(false)
+	var entrance := residence.get_node("Markers/CrawlEntrances/U1_WestWaterEntry") as CrawlEntrance
+	player.global_position = entrance.outside_world_position()
+	assert_true(player.try_enter_crawlspace(entrance))
+	player.global_position = Vector3(58,0.02,21)
+	for frame in 5: await get_tree().physics_frame
+	var camera := player.get_node("CameraRig/SpringArm3D/Camera3D") as Camera3D
+	assert_lt(camera.global_position.y,0.1,"Crawl camera must stay below the low roof, like the player capsule")
+	var ray := PhysicsRayQueryParameters3D.create(camera.global_position,Vector3(60,0.47,21),1)
+	assert_false(residence.get_world_3d().direct_space_state.intersect_ray(ray).is_empty(),"A solid floor must block the camera's view of feet upstairs")

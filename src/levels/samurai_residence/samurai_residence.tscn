@@ -12,5 +12,10 @@ script = ExtResource("1_residence")
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector3(8, 0, 8)
 
+[node name="CameraRig" parent="Player"]
+position = Vector3(0, 0.7, 0)
+
 [node name="Mission" type="Node3D" parent="."]
 script = ExtResource("3_mission")
+
+[editable path="Player"]

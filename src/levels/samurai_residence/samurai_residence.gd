@@ -130,11 +130,19 @@ func route_waypoints(route_id: StringName) -> Array[Vector3]:
 
 
 func observation_points(area_id: StringName) -> Array[Vector3]:
-	return _vector_array_for(OBSERVATION_POINTS.get(area_id, []))
+	return _area_points(OBSERVATION_POINTS.get(area_id, []), area_id)
 
 
 func re_stealth_route(area_id: StringName) -> Array[Vector3]:
-	return _vector_array_for(RE_STEALTH_ROUTES.get(area_id, []))
+	return _area_points(RE_STEALTH_ROUTES.get(area_id, []), area_id)
+
+
+func _area_points(values: Array, area_id: StringName) -> Array[Vector3]:
+	var points := _vector_array_for(values)
+	if area_id == &"main_house_first_floor":
+		for index in points.size():
+			points[index] = _actor_position(points[index])
+	return points
 
 
 func route_is_traversable(route_id: StringName) -> bool:
@@ -818,7 +826,7 @@ func _add_marker(parent: Node3D, marker_name: StringName, position: Vector3, are
 		# not register a persistent DOOR_OPEN anomaly at scene startup.
 		(marker as AnomalyMarker).set_active(false)
 	marker.name = marker_name
-	marker.position = _actor_position(position)
+	marker.position = position if area_id == &"crawlspace" else _actor_position(position)
 	marker.set_meta(&"area_id", area_id)
 	marker.set_meta(&"role", role)
 	return _attach_marker(parent, marker)
