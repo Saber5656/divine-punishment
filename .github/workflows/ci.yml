@@ -32,6 +32,9 @@ jobs:
         run: |
           ".godot-ci/$GODOT_BINARY" --headless --import --path .
 
+      - name: Verify production asset contracts
+        run: python3 -m unittest discover -s tests/art -v
+
       - name: Run tests
         run: GODOT_BIN="$PWD/.godot-ci/$GODOT_BINARY" ./scripts/run_tests.sh
 
@@ -66,10 +69,13 @@ jobs:
       - name: Prepare build directories
         run: mkdir -p build/windows build/macos build/linux
 
-      - name: Include font license in platform packages
+      - name: Include asset licenses in platform packages
         run: |
+          set -euo pipefail
           for platform in windows macos linux; do
             cp assets/fonts/OFL.txt "build/$platform/NotoSerifJP-OFL.txt"
+            cp assets/characters/QUATERNIUS-LICENSE.txt "build/$platform/Quaternius-Characters-LICENSE.txt"
+            cp assets/animations/QUATERNIUS-LICENSE.txt "build/$platform/Quaternius-Animations-LICENSE.txt"
           done
 
       - name: Export Windows

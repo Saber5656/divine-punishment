@@ -1,0 +1,35 @@
+{
+  "generator": "tools/art/build_production_assets.py",
+  "blender_version": "5.2.1 LTS",
+  "units": "metres",
+  "character_origin": "feet; model adapter applies capsule-centre offset",
+  "character_forward": "+Z in glTF; rotate visual model by PI around Y to match gameplay -Z",
+  "modules": [
+    "floor_2m",
+    "post_2p8m",
+    "beam_2m",
+    "shoji_2m",
+    "plaster_2m",
+    "engawa_2m",
+    "roof_2m",
+    "ridge_2m",
+    "gate_4m",
+    "fence_2m",
+    "lantern",
+    "stone_step"
+  ],
+  "upstream": [
+    {
+      "name": "Quaternius Universal Base Characters Standard",
+      "license": "CC0-1.0",
+      "source": "https://quaternius.itch.io/universal-base-characters",
+      "archive_sha256": "fdbf1804c90dfc1ea03e992bff7da2dfd1a79318e13270a660180f9308455f40"
+    },
+    {
+      "name": "Quaternius Universal Animation Library Standard",
+      "license": "CC0-1.0",
+      "source": "https://quaternius.itch.io/universal-animation-library",
+      "archive_sha256": "cc73fc4e495b82958207316596317a3f40b9fa38065bde1027937452da537724"
+    }
+  ]
+}
