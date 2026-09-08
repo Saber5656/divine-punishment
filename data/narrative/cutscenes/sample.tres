@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="CutsceneData" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://src/core/narrative/cutscene_data.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/narrative/slide_data.gd" id="2"]
+[ext_resource type="Script" path="res://src/core/narrative/line_data.gd" id="3"]
+[ext_resource type="Texture2D" path="res://assets/samples/issue-77-pv/issue77-01-exterior.png" id="4"]
+
+[sub_resource type="Resource" id="Narration"]
+script = ExtResource("3")
+text_key = &"cutscene.sample.narration"
+style = 0
+
+[sub_resource type="Resource" id="Dialogue"]
+script = ExtResource("3")
+speaker_key = &"cutscene.sample.speaker"
+text_key = &"cutscene.sample.dialogue"
+style = 1
+
+[sub_resource type="Resource" id="Inner"]
+script = ExtResource("3")
+text_key = &"cutscene.sample.inner"
+style = 2
+
+[sub_resource type="Resource" id="Slide"]
+script = ExtResource("2")
+image = ExtResource("4")
+lines = Array[ExtResource("3")]([SubResource("Narration"), SubResource("Dialogue"), SubResource("Inner")])
+duration_auto = 12.0
+
+[resource]
+script = ExtResource("1")
+id = &"sample"
+slides = Array[ExtResource("2")]([SubResource("Slide")])
+skippable = true

@@ -114,3 +114,19 @@ settings.back_without_save,保存せず戻る
 settings.recovery_notice,セーブデータを復旧しました。以前のファイルはバックアップとして残しています。
 settings.corrupt_notice,セーブを読み取れませんでした。元のファイルを退避し、新しいデータで開始します。
 select.best,最高評価　%s
+cutscene.next,次の行 · 決定長押しで早送り
+cutscene.auto_off,オート：切
+cutscene.auto_on,オート：入
+cutscene.skip,省略 · Esc
+cutscene.skip_title,紙芝居を省略
+cutscene.skip_confirm,この紙芝居を省略して先へ進みますか？
+cutscene.skip_yes,省略する
+cutscene.skip_no,読み続ける
+cutscene.sample.narration,雪の夜。遠い灯りだけが、城下の眠りを守っていた。
+cutscene.sample.speaker,使いの者
+cutscene.sample.dialogue,「門が閉じる。行くのなら、今だ。」
+cutscene.sample.inner,……静けさの向こうに、まだ見ぬ夜が待っている。
+cutscene.sample.title,紙芝居・表示見本
+cutscene.sample.note,仮の絵と文章による操作見本です。
+cutscene.replay,もう一度読む
+cutscene.home,タイトルへ

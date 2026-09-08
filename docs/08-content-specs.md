@@ -112,6 +112,17 @@ signal inner_monologue_requested(text_id: StringName)  # 暗殺直後の内語�
 | LineData | {speaker_key: StringName("" =ナレーション), text_key: StringName, style: enum NARRATION/DIALOGUE/INNER} | 表示文字列は `data/text/ja.csv` を唯一の正本にする。06-narrative.md の確定台詞も key 化して CSV に転記 |
 | skippable | bool | 全て true（初回視聴も可） |
 
+`src/ui/cutscene_player.gd` の `CutscenePlayer` を full-rect Control として
+scene に追加後、`play(data: CutsceneData, reduced_mode := false) -> bool` で再生する。
+`finished(id: StringName, skipped: bool)` は手動・auto 完了または省略確定時に一度発火する。
+`stop()` / scene からの削除は完了を通知せず停止する。開始前の pause / mouse 状態を復元する。
+不正な resource と再生中の再開始は false。縮退モードは背景１枚の resource のみ受理する。
+`advance()` / `set_auto(bool)` / `request_skip()` / `confirm_skip(bool)` を host から利用できる。
+キャンペーン変数・セーブは更新せず、接続元が finished を処理する。
+
+表示見本は `src/ui/cutscene_demo.tscn`（既存の登録済み仮絵・見本文章）。
+操作・描画検証は `tests/smoke/cutscene_smoke.tscn` で実行できる。
+
 ### 2.6 HideoutScene（data/narrative/hideout/h1.tres … h8.tres）
 
 | フィールド | 型 | 備考 |
