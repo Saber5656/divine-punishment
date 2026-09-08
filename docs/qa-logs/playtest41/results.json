@@ -1,0 +1,125 @@
+{
+  "a": {
+    "detections": 0,
+    "failures": [],
+    "method": "Production Main/SceneDirector mission button, Input events/actions, no actor placement or AI state/time writes",
+    "screen": "results",
+    "time_scale": 1,
+    "wall_seconds": 166.795
+  },
+  "b": {
+    "detections": 0,
+    "failures": [],
+    "method": "Production Main/SceneDirector mission button, Input events/actions, no actor placement or AI state/time writes",
+    "screen": "results",
+    "time_scale": 1,
+    "wall_seconds": 70.687
+  },
+  "c": {
+    "detections": 0,
+    "failures": [],
+    "forced_surface": false,
+    "method": "Production Main/SceneDirector mission button, Input events/actions, no actor placement or AI state/time writes",
+    "min_breath": 12.8500000000001,
+    "screen": "results",
+    "time_scale": 1,
+    "wall_seconds": 126.071
+  },
+  "tutorial": {
+    "debug_checkpoint": false,
+    "elapsed_sec": 105.326408,
+    "gravel": true,
+    "hidden": [
+      10.0666666666667,
+      9.10016236826777
+    ],
+    "learned": [
+      {
+        "elapsed_sec": 11.497322,
+        "evidence": {
+          "distance": 16.0500418059528,
+          "shade_occluder": "PineCanopy",
+          "visibility_max": 0.356076930119441,
+          "visibility_min": 0.0531752659724309
+        },
+        "objective": "tutorial_sneak"
+      },
+      {
+        "elapsed_sec": 38.153177,
+        "evidence": {
+          "hidden_sec": 10.0666666666667,
+          "patrol_distance": 9.10016236826777,
+          "peeked": true
+        },
+        "objective": "tutorial_hide"
+      },
+      {
+        "elapsed_sec": 53.040155,
+        "evidence": {
+          "gravel_footstep": true,
+          "sentry_displaced_by_stone": true
+        },
+        "objective": "tutorial_lure"
+      },
+      {
+        "elapsed_sec": 69.578169,
+        "evidence": {
+          "lights_off": [
+            "HutLanternA",
+            "HutLanternB"
+          ]
+        },
+        "objective": "tutorial_lights"
+      },
+      {
+        "elapsed_sec": 74.769711,
+        "evidence": {
+          "context": "back",
+          "method": "assassination"
+        },
+        "objective": "tutorial_assassinate"
+      },
+      {
+        "elapsed_sec": 80.680688,
+        "evidence": {
+          "body": "HutPatrol",
+          "stored_in": "BodyHide"
+        },
+        "objective": "tutorial_body"
+      },
+      {
+        "elapsed_sec": 82.376019,
+        "evidence": {
+          "interacted_document": true
+        },
+        "objective": "tutorial_document"
+      },
+      {
+        "elapsed_sec": 104.000391,
+        "evidence": {
+          "route": "ground"
+        },
+        "objective": "tutorial_escape"
+      }
+    ],
+    "objective": "",
+    "passed": true,
+    "player_position": [
+      8.0008430480957,
+      0.90028190612793,
+      -80.7396240234375
+    ],
+    "player_state": "Crouch",
+    "reason": "all lessons and ground escape",
+    "screen": "results",
+    "sentry_focus": "(3.940137, 0, -58.88808)",
+    "sentry_position": "(3.630673, 0.9, -58.52067)",
+    "sentry_state": 0,
+    "time_scale": 1,
+    "visibility": [
+      0.0531752659724309,
+      0.356076930119441
+    ],
+    "waypoint": "ground_exit"
+  }
+}
