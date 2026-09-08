@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/levels/tutorial/tutorial.tscn" id="3"]
+
+[sub_resource type="Resource" id="sneak"]
+script = ExtResource("2")
+id = &"tutorial_sneak"
+text_key = &"tutorial.objective.sneak"
+kind = &"LEARN"
+
+[sub_resource type="Resource" id="hide"]
+script = ExtResource("2")
+id = &"tutorial_hide"
+text_key = &"tutorial.objective.hide"
+kind = &"LEARN"
+
+[sub_resource type="Resource" id="lure"]
+script = ExtResource("2")
+id = &"tutorial_lure"
+text_key = &"tutorial.objective.lure"
+kind = &"LEARN"
+
+[sub_resource type="Resource" id="lights"]
+script = ExtResource("2")
+id = &"tutorial_lights"
+text_key = &"tutorial.objective.lights"
+kind = &"LEARN"
+
+[sub_resource type="Resource" id="assassinate"]
+script = ExtResource("2")
+id = &"tutorial_assassinate"
+text_key = &"tutorial.objective.assassinate"
+kind = &"KILL_TARGET"
+target_group = &"tutorial_target"
+
+[sub_resource type="Resource" id="body"]
+script = ExtResource("2")
+id = &"tutorial_body"
+text_key = &"tutorial.objective.body"
+kind = &"LEARN"
+
+[sub_resource type="Resource" id="document"]
+script = ExtResource("2")
+id = &"tutorial_document"
+text_key = &"tutorial.objective.document"
+kind = &"COLLECT"
+
+[sub_resource type="Resource" id="escape"]
+script = ExtResource("2")
+id = &"tutorial_escape"
+text_key = &"tutorial.objective.escape"
+kind = &"ESCAPE"
+
+[resource]
+script = ExtResource("1")
+id = &"m01"
+title_key = &"mission.tutorial"
+level_scene = ExtResource("3")
+objectives = Array[ExtResource("2")]([SubResource("sneak"), SubResource("hide"), SubResource("lure"), SubResource("lights"), SubResource("assassinate"), SubResource("body"), SubResource("document"), SubResource("escape")])
+tool_loadout = {&"stone": 10}
+par_time_minutes = 2.0

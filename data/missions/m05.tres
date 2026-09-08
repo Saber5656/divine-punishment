@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = &"m05"
+title_key = &"m05.title"
+weather = 0
+kill_policy = 1
+par_time_minutes = 20.0
