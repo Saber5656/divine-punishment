@@ -1,0 +1,326 @@
+[gd_scene load_steps=78 format=3 uid="uid://nhj4hxwub4va"]
+
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_000.res" id="1_ls3np"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_001.res" id="2_dwuf7"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_002.res" id="3_cjms0"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_003.res" id="4_vqswh"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_004.res" id="5_ebyby"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_005.res" id="6_a0ups"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_006.res" id="7_nmiml"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_007.res" id="8_grqj1"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_008.res" id="9_0pac8"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_009.res" id="10_cct46"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_010.res" id="11_3cv6u"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_011.res" id="12_j5ww8"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_012.res" id="13_djtep"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_013.res" id="14_i6qba"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_014.res" id="15_sqdbr"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_015.res" id="16_ddjco"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_016.res" id="17_4sc52"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_017.res" id="18_swe3i"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_018.res" id="19_xi1f4"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_019.res" id="20_oerk1"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_020.res" id="21_vpn2n"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_021.res" id="22_uirb4"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_022.res" id="23_p12gx"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_023.res" id="24_ugjnu"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_024.res" id="25_oi7q8"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_025.res" id="26_b5fw2"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_026.res" id="27_vh7l1"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_027.res" id="28_7i6gl"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_028.res" id="29_i67dv"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_029.res" id="30_gjgh6"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_030.res" id="31_u8hky"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_031.res" id="32_wb6oe"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_032.res" id="33_bsdyi"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_033.res" id="34_nrswn"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_034.res" id="35_benfd"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_035.res" id="36_ak2nv"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_036.res" id="37_2q2ul"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_037.res" id="38_sgtif"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_038.res" id="39_a3kex"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_039.res" id="40_6cftd"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_040.res" id="41_n838d"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_041.res" id="42_k3l8q"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_042.res" id="43_y5hcp"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_043.res" id="44_prp6t"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_044.res" id="45_clfyh"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_045.res" id="46_yoif2"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_046.res" id="47_sbwx1"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_047.res" id="48_6xebx"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_048.res" id="49_11q6t"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_049.res" id="50_qpk0i"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_050.res" id="51_lg1ph"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_051.res" id="52_05wgk"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_052.res" id="53_vf1h8"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_053.res" id="54_f6pjd"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_054.res" id="55_llitd"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_055.res" id="56_nm6gl"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_056.res" id="57_2s8fl"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_057.res" id="58_68t0r"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_058.res" id="59_kyghh"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_059.res" id="60_y503m"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_060.res" id="61_tgshq"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_061.res" id="62_xxyiv"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_062.res" id="63_siftn"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_063.res" id="64_6ph1c"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_064.res" id="65_vvax0"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_065.res" id="66_5npgt"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_066.res" id="67_iatgw"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_067.res" id="68_hbgun"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_068.res" id="69_43ty4"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_069.res" id="70_kc67d"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_070.res" id="71_3tm17"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_071.res" id="72_2rw7a"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_072.res" id="73_21ftn"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_073.res" id="74_7iheh"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_074.res" id="75_yoetd"]
+[ext_resource type="ArrayMesh" path="res://assets/lighting/m02/mesh_075.res" id="76_t3hwf"]
+[ext_resource type="LightmapGIData" uid="uid://dyksxlevl27hp" path="res://assets/lighting/m02/residence.lmbake" id="77_tsiht"]
+
+[node name="BakedVisuals" type="Node3D"]
+
+[node name="Static_000" type="MeshInstance3D" parent="."]
+mesh = ExtResource("1_ls3np")
+
+[node name="Static_001" type="MeshInstance3D" parent="."]
+mesh = ExtResource("2_dwuf7")
+
+[node name="Static_002" type="MeshInstance3D" parent="."]
+mesh = ExtResource("3_cjms0")
+
+[node name="Static_003" type="MeshInstance3D" parent="."]
+mesh = ExtResource("4_vqswh")
+
+[node name="Static_004" type="MeshInstance3D" parent="."]
+mesh = ExtResource("5_ebyby")
+
+[node name="Static_005" type="MeshInstance3D" parent="."]
+mesh = ExtResource("6_a0ups")
+
+[node name="Static_006" type="MeshInstance3D" parent="."]
+mesh = ExtResource("7_nmiml")
+
+[node name="Static_007" type="MeshInstance3D" parent="."]
+mesh = ExtResource("8_grqj1")
+
+[node name="Static_008" type="MeshInstance3D" parent="."]
+mesh = ExtResource("9_0pac8")
+
+[node name="Static_009" type="MeshInstance3D" parent="."]
+mesh = ExtResource("10_cct46")
+
+[node name="Static_010" type="MeshInstance3D" parent="."]
+mesh = ExtResource("11_3cv6u")
+
+[node name="Static_011" type="MeshInstance3D" parent="."]
+mesh = ExtResource("12_j5ww8")
+
+[node name="Static_012" type="MeshInstance3D" parent="."]
+mesh = ExtResource("13_djtep")
+
+[node name="Static_013" type="MeshInstance3D" parent="."]
+mesh = ExtResource("14_i6qba")
+
+[node name="Static_014" type="MeshInstance3D" parent="."]
+mesh = ExtResource("15_sqdbr")
+
+[node name="Static_015" type="MeshInstance3D" parent="."]
+mesh = ExtResource("16_ddjco")
+
+[node name="Static_016" type="MeshInstance3D" parent="."]
+mesh = ExtResource("17_4sc52")
+
+[node name="Static_017" type="MeshInstance3D" parent="."]
+mesh = ExtResource("18_swe3i")
+
+[node name="Static_018" type="MeshInstance3D" parent="."]
+mesh = ExtResource("19_xi1f4")
+
+[node name="Static_019" type="MeshInstance3D" parent="."]
+mesh = ExtResource("20_oerk1")
+
+[node name="Static_020" type="MeshInstance3D" parent="."]
+mesh = ExtResource("21_vpn2n")
+
+[node name="Static_021" type="MeshInstance3D" parent="."]
+mesh = ExtResource("22_uirb4")
+
+[node name="Static_022" type="MeshInstance3D" parent="."]
+mesh = ExtResource("23_p12gx")
+
+[node name="Static_023" type="MeshInstance3D" parent="."]
+mesh = ExtResource("24_ugjnu")
+
+[node name="Static_024" type="MeshInstance3D" parent="."]
+mesh = ExtResource("25_oi7q8")
+
+[node name="Static_025" type="MeshInstance3D" parent="."]
+mesh = ExtResource("26_b5fw2")
+
+[node name="Static_026" type="MeshInstance3D" parent="."]
+mesh = ExtResource("27_vh7l1")
+
+[node name="Static_027" type="MeshInstance3D" parent="."]
+mesh = ExtResource("28_7i6gl")
+
+[node name="Static_028" type="MeshInstance3D" parent="."]
+mesh = ExtResource("29_i67dv")
+
+[node name="Static_029" type="MeshInstance3D" parent="."]
+mesh = ExtResource("30_gjgh6")
+
+[node name="Static_030" type="MeshInstance3D" parent="."]
+mesh = ExtResource("31_u8hky")
+
+[node name="Static_031" type="MeshInstance3D" parent="."]
+mesh = ExtResource("32_wb6oe")
+
+[node name="Static_032" type="MeshInstance3D" parent="."]
+mesh = ExtResource("33_bsdyi")
+
+[node name="Static_033" type="MeshInstance3D" parent="."]
+mesh = ExtResource("34_nrswn")
+
+[node name="Static_034" type="MeshInstance3D" parent="."]
+mesh = ExtResource("35_benfd")
+
+[node name="Static_035" type="MeshInstance3D" parent="."]
+mesh = ExtResource("36_ak2nv")
+
+[node name="Static_036" type="MeshInstance3D" parent="."]
+mesh = ExtResource("37_2q2ul")
+
+[node name="Static_037" type="MeshInstance3D" parent="."]
+mesh = ExtResource("38_sgtif")
+
+[node name="Static_038" type="MeshInstance3D" parent="."]
+mesh = ExtResource("39_a3kex")
+
+[node name="Static_039" type="MeshInstance3D" parent="."]
+mesh = ExtResource("40_6cftd")
+
+[node name="Static_040" type="MeshInstance3D" parent="."]
+mesh = ExtResource("41_n838d")
+
+[node name="Static_041" type="MeshInstance3D" parent="."]
+mesh = ExtResource("42_k3l8q")
+
+[node name="Static_042" type="MeshInstance3D" parent="."]
+mesh = ExtResource("43_y5hcp")
+
+[node name="Static_043" type="MeshInstance3D" parent="."]
+mesh = ExtResource("44_prp6t")
+
+[node name="Static_044" type="MeshInstance3D" parent="."]
+mesh = ExtResource("45_clfyh")
+
+[node name="Static_045" type="MeshInstance3D" parent="."]
+mesh = ExtResource("46_yoif2")
+
+[node name="Static_046" type="MeshInstance3D" parent="."]
+mesh = ExtResource("47_sbwx1")
+
+[node name="Static_047" type="MeshInstance3D" parent="."]
+mesh = ExtResource("48_6xebx")
+
+[node name="Static_048" type="MeshInstance3D" parent="."]
+mesh = ExtResource("49_11q6t")
+
+[node name="Static_049" type="MeshInstance3D" parent="."]
+mesh = ExtResource("50_qpk0i")
+
+[node name="Static_050" type="MeshInstance3D" parent="."]
+mesh = ExtResource("51_lg1ph")
+
+[node name="Static_051" type="MeshInstance3D" parent="."]
+mesh = ExtResource("52_05wgk")
+
+[node name="Static_052" type="MeshInstance3D" parent="."]
+mesh = ExtResource("53_vf1h8")
+
+[node name="Static_053" type="MeshInstance3D" parent="."]
+mesh = ExtResource("54_f6pjd")
+
+[node name="Static_054" type="MeshInstance3D" parent="."]
+mesh = ExtResource("55_llitd")
+
+[node name="Static_055" type="MeshInstance3D" parent="."]
+mesh = ExtResource("56_nm6gl")
+
+[node name="Static_056" type="MeshInstance3D" parent="."]
+mesh = ExtResource("57_2s8fl")
+
+[node name="Static_057" type="MeshInstance3D" parent="."]
+mesh = ExtResource("58_68t0r")
+
+[node name="Static_058" type="MeshInstance3D" parent="."]
+mesh = ExtResource("59_kyghh")
+
+[node name="Static_059" type="MeshInstance3D" parent="."]
+mesh = ExtResource("60_y503m")
+
+[node name="Static_060" type="MeshInstance3D" parent="."]
+mesh = ExtResource("61_tgshq")
+
+[node name="Static_061" type="MeshInstance3D" parent="."]
+mesh = ExtResource("62_xxyiv")
+
+[node name="Static_062" type="MeshInstance3D" parent="."]
+mesh = ExtResource("63_siftn")
+
+[node name="Static_063" type="MeshInstance3D" parent="."]
+mesh = ExtResource("64_6ph1c")
+
+[node name="Static_064" type="MeshInstance3D" parent="."]
+mesh = ExtResource("65_vvax0")
+
+[node name="Static_065" type="MeshInstance3D" parent="."]
+mesh = ExtResource("66_5npgt")
+
+[node name="Static_066" type="MeshInstance3D" parent="."]
+mesh = ExtResource("67_iatgw")
+
+[node name="Static_067" type="MeshInstance3D" parent="."]
+mesh = ExtResource("68_hbgun")
+
+[node name="Static_068" type="MeshInstance3D" parent="."]
+mesh = ExtResource("69_43ty4")
+
+[node name="Static_069" type="MeshInstance3D" parent="."]
+mesh = ExtResource("70_kc67d")
+
+[node name="Static_070" type="MeshInstance3D" parent="."]
+mesh = ExtResource("71_3tm17")
+
+[node name="Static_071" type="MeshInstance3D" parent="."]
+mesh = ExtResource("72_2rw7a")
+
+[node name="Static_072" type="MeshInstance3D" parent="."]
+mesh = ExtResource("73_21ftn")
+
+[node name="Static_073" type="MeshInstance3D" parent="."]
+mesh = ExtResource("74_7iheh")
+
+[node name="Static_074" type="MeshInstance3D" parent="."]
+mesh = ExtResource("75_yoetd")
+
+[node name="Static_075" type="MeshInstance3D" parent="."]
+mesh = ExtResource("76_t3hwf")
+
+[node name="Moon" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.819152, 0.42625, -0.383798, 0, 0.669131, 0.743145, 0.573576, -0.608749, 0.54812, 0, 0, 0)
+light_color = Color(0.45, 0.57, 0.78, 1)
+light_energy = 0.28
+light_bake_mode = 1
+
+[node name="LightmapGI" type="LightmapGI" parent="."]
+quality = 0
+bounces = 2
+texel_scale = 0.5
+max_texture_size = 2048
+environment_mode = 3
+environment_custom_color = Color(0.18, 0.23, 0.32, 1)
+environment_custom_energy = 0.08
+generate_probes_subdiv = 1
+light_data = ExtResource("77_tsiht")

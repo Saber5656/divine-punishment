@@ -2,8 +2,10 @@ class_name ResidenceArt
 extends Node3D
 
 ## Visual replacement only. The level remains the authority for solid surfaces.
+const BAKED := "res://assets/lighting/m02/baked_visuals.tscn"
 const KIT := "res://assets/environment/residence_modules.glb"
 const DECOR := "res://assets/environment/residence_decor.glb"
+@export var use_baked := true
 var coverage: Dictionary = {}
 var before_contract: Dictionary = {}
 var _meshes: Dictionary = {}
@@ -46,6 +48,13 @@ func _navigation_data(mesh: NavigationMesh) -> Array:
 func _build() -> void:
 	var level := get_parent() as SamuraiResidence
 	before_contract = capture_contract(level)
+	if use_baked and ResourceLoader.exists(BAKED):
+		for node in level.get_node("Geometry").find_children("*","MeshInstance3D",true,false):
+			if node.get_parent().name != &"WaterSurfaces": node.visible = false
+		var data = JSON.parse_string(FileAccess.get_file_as_string("res://assets/lighting/m02/manifest.json"))
+		for area in data.coverage: coverage[StringName(area)] = data.coverage[area]
+		add_child(load(BAKED).instantiate())
+		return
 	for path in [KIT, DECOR]:
 		var kit = load(path).instantiate()
 		for part in kit.find_children("*", "MeshInstance3D", true, false):
