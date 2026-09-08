@@ -244,7 +244,9 @@ static func compute_score(stats: MissionStats, cfg: ScoringConfig, def: MissionD
 		score += cfg.side_objective_bonus
 	score += maxi(maxi(stats.nontarget_kills, 0) * cfg.nontarget_kill_penalty, cfg.nontarget_kill_penalty_cap)
 	score += maxi(stats.civilian_kills, 0) * cfg.civilian_kill_penalty
-	return MissionResult.create(score, _rank_for_score(score, cfg), flags)
+	var result := MissionResult.create(score, _rank_for_score(score, cfg), flags)
+	result.narrative_counts = NarrativeTotals.snapshot(stats)
+	return result
 
 
 static func _rank_for_score(score: int, cfg: ScoringConfig) -> StringName:

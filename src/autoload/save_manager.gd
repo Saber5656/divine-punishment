@@ -121,6 +121,13 @@ func record_mission_result(mission_id: StringName, result: RefCounted, first_cle
 	var rank := String(result.get("rank"))
 	if rank not in RANKS:
 		return
+	var counts: Dictionary = result.narrative_counts if result is MissionResult else {}
+	for key in ["nontarget_kills", "civilian_kills", "detections"]:
+		var value: Variant = counts.get(key, 0)
+		if not _integer(value) or value < 0: return
+	for key in ["nontarget_kills", "civilian_kills", "detections"]:
+		campaign()["total_"+key] = int(campaign()["total_"+key]) + int(counts.get(key,0))
+	campaign()["shura"] = NarrativeTotals.shura(campaign().total_nontarget_kills, campaign().total_civilian_kills, campaign().total_detections)
 	var results: Dictionary = campaign()["mission_results"]
 	var previous: Dictionary = results.get(String(mission_id), {})
 	var score := int(result.get("score"))

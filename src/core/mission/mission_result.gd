@@ -5,6 +5,7 @@ extends RefCounted
 var score: int = 0
 var rank: StringName = &"shoden"
 var flags: Dictionary = {}
+var narrative_counts: Dictionary = {}
 
 
 static func create(result_score: int, result_rank: StringName, result_flags: Dictionary) -> MissionResult:
