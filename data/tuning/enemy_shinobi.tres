@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/tuning/enemy_stats.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+max_health = 4
+attack_power = 1

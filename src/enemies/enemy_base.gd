@@ -24,6 +24,7 @@ const MAX_NAVIGATION_STEP_DELTA := 0.25
 const NAVIGATION_ARRIVAL_TOLERANCE := 0.5
 const NAVIGATION_POINT_TOLERANCE := 0.5
 const NAVIGATION_MIN_PROGRESS := 0.0001
+const NAVIGATION_COLLISION_MARGIN := 0.001
 const CORPSE_LAYER := 1 << 8
 const CARRY_LOCAL_OFFSET := Vector3(0.0, 0.85, 0.35)
 
@@ -134,7 +135,8 @@ func advance_navigation(delta: float, target: Vector3, speed: float = DEFAULT_RO
 		return false
 	if distance <= tolerance:
 		return true
-	agent.target_position = target
+	if agent.get_current_navigation_path().is_empty() or not agent.target_position.is_equal_approx(target):
+		agent.target_position = target
 	var candidate := agent.get_next_path_position()
 	if not _navigation_point_is_valid(agent, candidate) or not _navigation_candidate_is_progress(global_position, target, candidate):
 		return false
@@ -153,10 +155,12 @@ func advance_navigation(delta: float, target: Vector3, speed: float = DEFAULT_RO
 	# oscillating across it when a deterministic/LOD tick has a larger delta.
 	var motion := direction * minf(bounded_speed * bounded_delta, waypoint_distance)
 	velocity = motion / bounded_delta
-	move_and_collide(motion, false, 0.001, false, 1)
+	move_and_collide(motion, false, NAVIGATION_COLLISION_MARGIN, false, 1)
 	velocity = Vector3.ZERO
 	var displacement := global_position.distance_to(previous_position)
-	var max_displacement := bounded_speed * bounded_delta + NAVIGATION_MIN_PROGRESS
+	# Floor recovery adds a small separation to upward link movement.
+	# Include the collision margin without allowing unbounded displacement.
+	var max_displacement := bounded_speed * bounded_delta + NAVIGATION_MIN_PROGRESS + NAVIGATION_COLLISION_MARGIN * 2.0
 	if (
 		not is_finite(displacement)
 		or displacement <= NAVIGATION_MIN_PROGRESS

@@ -79,3 +79,7 @@ are retained with the assets. `ORIGINAL-AUDIO-NOTICE.txt` travels with exports.
 ## Civilian 56
 
 `assets/audio/civilian_scream.wav` is original stylized vocal-alarm synthesis from `tools/audio/build_civilian_scream.py`, without recordings, external samples or voice cloning, under the project license. Civilian/crowd capsule meshes are procedural development stand-ins authored in `src/npcs/`; final M3/M5 art remains in the corresponding level-art issues.
+
+## Enemy ninja57
+
+Enemy ninja reuses the existing shinobi character and Quaternius CC0 skeletal animation sources listed above. Climb posing uses the project's existing retargeted traversal clip. Caltrop meshes are original procedural geometry in `src/enemies/caltrop_trap.gd`; no external asset dependency is added.

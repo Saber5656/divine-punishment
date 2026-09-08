@@ -48,7 +48,7 @@ func _near_visible(enemy: EnemyBase, distance: float) -> bool:
 	return player.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func can_knockout(enemy: EnemyBase) -> bool:
-	if not _near_visible(enemy,STRIKE_RANGE) or enemy.brain() == null or enemy.brain().is_incapacitated(): return false
+	if not _near_visible(enemy,STRIKE_RANGE) or enemy.brain() == null or enemy.brain().is_incapacitated() or enemy.brain().knockout_immune: return false
 	var player := get_parent() as Node3D
 	var from_enemy := (player.global_position-enemy.global_position).normalized()
 	return (-enemy.global_basis.z).normalized().dot(from_enemy) <= -0.5 and (-player.global_basis.z).normalized().dot(-from_enemy) >= 0.5
