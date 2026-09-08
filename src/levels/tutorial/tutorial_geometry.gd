@@ -212,6 +212,7 @@ func _enemy(label: String, center: Vector3, stops: Array, facing: Vector3) -> En
 
 
 func _add_actor_visual(actor: Node3D, color: Color) -> void:
+	if actor.get_node("Visual/Model") is ActorAnimation: return
 	var mesh := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.radius = 0.3
