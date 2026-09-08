@@ -6,6 +6,7 @@ const RESIDENCE: MissionDefinition = preload("res://data/missions/m02.tres")
 const PRACTICE: MissionDefinition = preload("res://data/missions/practice.tres")
 const TUTORIAL: MissionDefinition = preload("res://data/missions/tutorial.tres")
 const BACKGROUND := preload("res://assets/samples/issue-77-pv/issue77-01-exterior.png")
+const HIDEOUTS := {&"m02": preload("res://data/narrative/hideout/h1.tres"), &"m03": preload("res://data/narrative/hideout/h2.tres"), &"m04": preload("res://data/narrative/hideout/h3.tres"), &"m05": preload("res://data/narrative/hideout/h4.tres"), &"m06": preload("res://data/narrative/hideout/h5.tres"), &"m07": preload("res://data/narrative/hideout/h6.tres"), &"m08": preload("res://data/narrative/hideout/h7.tres"), &"m09": preload("res://data/narrative/hideout/h8.tres")}
 const FLAG_IDS: Array[StringName] = [&"shadow_walker", &"no_traces", &"one_strike", &"swift", &"side_objective"]
 
 var save_manager: Node
@@ -22,6 +23,8 @@ var _controls: Label
 var _settings_return: StringName = &"title"
 var _last_result: MissionResult
 var _result_pending := false
+var _first_clear_result := false
+var _hideout_player: CutscenePlayer
 
 
 func _ready() -> void:
@@ -103,6 +106,7 @@ func start_mission(next_definition: MissionDefinition = PRACTICE) -> bool:
 		return false
 	_clear_mission()
 	_result_recorded = false
+	_first_clear_result = false
 	definition = next_definition
 	MissionDirector.start_mission(definition)
 	mission = definition.level_scene.instantiate()
@@ -196,6 +200,7 @@ func show_result() -> void:
 	_last_result = MissionDirector.build_result()
 	if not _result_recorded and _last_result.flags.get("completed", false):
 		var first_clear: bool = not save_manager.campaign().get("mission_results", {}).has(String(definition.id))
+		_first_clear_result = first_clear
 		save_manager.record_mission_result(definition.id, _last_result, first_clear)
 		save_manager.commit()
 		_result_recorded = true
@@ -226,7 +231,7 @@ func show_result() -> void:
 	_label(&"result.next", 16)
 	_label(next_goal, 18)
 	_button(&"nav.restart", func() -> void: start_mission(definition))
-	_button(&"nav.to_select", show_mission_select)
+	_button(&"hideout.continue" if _first_clear_result and HIDEOUTS.has(definition.id) else &"nav.to_select", continue_from_result)
 	rank_label.focus_mode = Control.FOCUS_ALL
 	_focus_if_visible.call_deferred(rank_label)
 
@@ -247,6 +252,7 @@ func _update_objective() -> void:
 
 
 func _clear_mission() -> void:
+	_clear_hideout()
 	AudioDirector.play_bgm_set(&"silence")
 	AudioDirector.set_ambience(&"")
 	if is_instance_valid(mission):
@@ -387,3 +393,37 @@ func set_mission_hint(text: String) -> void:
 	if _hint != null:
 		_hint.text = text
 		_hint.visible = not text.is_empty()
+
+func continue_from_result() -> bool:
+	if screen != &"results": return false
+	if _first_clear_result and _last_result.flags.get("completed",false) and HIDEOUTS.has(definition.id):
+		var scene: HideoutScene = HIDEOUTS[definition.id]
+		var data := scene.to_cutscene(int(save_manager.campaign().get("shura",0)))
+		_hideout_player = CutscenePlayer.new()
+		_hideout_player.name = "HideoutPlayer"
+		add_child(_hideout_player)
+		_hideout_player.finished.connect(_on_hideout_finished)
+		if not _hideout_player.play(data, true):
+			_clear_hideout()
+			return false
+		screen = &"hideout"
+		_menu.hide()
+		_hud.hide()
+		return true
+	return show_mission_select()
+
+func _on_hideout_finished(id: StringName, _skipped: bool) -> void:
+	var campaign: Dictionary = save_manager.campaign()
+	var seen: Array = campaign.get("seen_cutscenes",[])
+	if not seen.has(String(id)):
+		seen.append(String(id))
+		campaign["seen_cutscenes"] = seen
+		save_manager.commit()
+	show_mission_select()
+
+func _clear_hideout() -> void:
+	if is_instance_valid(_hideout_player):
+		_hideout_player.stop()
+		remove_child(_hideout_player)
+		_hideout_player.queue_free()
+	_hideout_player = null
