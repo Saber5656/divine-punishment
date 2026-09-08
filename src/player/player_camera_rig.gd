@@ -14,12 +14,18 @@ var _peek_offset := Vector3.ZERO
 var _posture_drop := 0.0
 var _assassination_context: StringName = &""
 var _assassination_progress := 0.0
+var _presentation: GameplayPresentation
+var _presentation_camera: Camera3D
+var _presentation_base_fov := 75.0
 
 
 func _ready() -> void:
 	_base_position = position
 	_pitch = rotation.x
 	_refresh_camera_config()
+	_presentation = GameplayPresentation.new()
+	_presentation.name = "GameplayPresentation"
+	add_child(_presentation)
 	if not Tuning.reloaded.is_connected(_refresh_camera_config):
 		Tuning.reloaded.connect(_refresh_camera_config)
 
@@ -74,6 +80,9 @@ func posture_drop() -> float:
 func begin_assassination_blend(context: StringName, _duration_sec: float) -> bool:
 	if context not in [&"back", &"above", &"below", &"corner"]:
 		return false
+	if _assassination_context == &"":
+		_presentation_camera = get_node_or_null("SpringArm3D/Camera3D") as Camera3D
+		if _presentation_camera != null: _presentation_base_fov = _presentation_camera.fov
 	_assassination_context = context
 	_assassination_progress = 0.0
 	_sync_position()
@@ -123,6 +132,11 @@ func _refresh_camera_config() -> void:
 
 func _sync_position() -> void:
 	position = _base_position + _peek_offset - Vector3.UP * _posture_drop + _assassination_offset()
+	var envelope := sin(_assassination_progress * PI) if _assassination_context != &"" else 0.0
+	if is_instance_valid(_presentation_camera):
+		var zoom := 5.0 if _assassination_context in [&"above", &"below"] else 3.0
+		_presentation_camera.fov = _presentation_base_fov - zoom * envelope
+	if is_instance_valid(_presentation): _presentation.set_focus(envelope)
 
 
 func _assassination_offset() -> Vector3:
