@@ -1207,6 +1207,16 @@ func _on_combat_enter(previous: Enums.AlertState) -> void:
 	_raise_area_alert()
 
 
+func is_combat_contact_pending() -> bool:
+	return _state == Enums.AlertState.COMBAT and _combat_detection_pending
+
+
+func confirm_combat_contact() -> void:
+	if _state == Enums.AlertState.COMBAT:
+		_target_visible = true
+		_report_pending_combat_contact()
+
+
 func _report_pending_combat_contact() -> void:
 	if not _combat_detection_pending:
 		return

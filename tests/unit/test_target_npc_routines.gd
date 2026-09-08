@@ -256,3 +256,26 @@ func test_escort_checkpoint_keeps_consumed_death_reaction_and_pending_contact() 
 		restored._physics_process(0.25)
 	assert_eq(restored.brain().alert_state(),Enums.AlertState.SEARCHING)
 	assert_signal_not_emitted(EventBus,&"player_detected")
+
+
+func test_escort_alarm_cannot_auto_target_or_attack_an_unseen_player() -> void:
+	var target := TargetScene.instantiate() as TargetNpc
+	add_child_autofree(target)
+	var escort := EscortScene.instantiate() as EscortGuard
+	add_child_autofree(escort)
+	var player := load("res://src/player/player.tscn").instantiate() as PlayerController
+	add_child_autofree(player)
+	player.position = Vector3(0,0,1)
+	player.set_physics_process(false)
+	escort.brain().set_target_visible(false)
+	escort.set_escort_target(target)
+	var defense := player.get_node("AssassinationResolver/Combat") as PlayerCombat
+	var health := defense.health()
+	target.notify_target_defeated(&"assassination")
+	var combat := escort.get_node("Combat") as EnemyCombat
+	combat.tick(0.1)
+	assert_null(combat.target(),"A death alarm provides no omniscient player target")
+	assert_eq(defense.health(),health,"An unseen player behind the escort must not be hit")
+	combat.receive_damage(1,player)
+	combat.tick(0.1)
+	assert_lt(defense.health(),health,"Direct contact must restore normal defense and attacks")
