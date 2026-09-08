@@ -276,3 +276,23 @@ func _update_editor_state() -> void:
 	if Engine.is_editor_hint() and is_inside_tree():
 		update_configuration_warnings()
 		update_gizmos()
+
+
+## Restore a validated mission checkpoint relation without a player interaction
+## or a new death event. Ordinary storage still requires a nearby carrier.
+func restore_stored_body(body: EnemyBase) -> bool:
+	if not is_instance_valid(body) or not is_geometry_valid() or not body.is_inside_tree() or body.get_tree() != get_tree():
+		return false
+	if has_stored_body():
+		return stored_body() == body
+	if not body.is_body_carryable() or body.is_ancestor_of(self):
+		return false
+	var original_position := body.global_position
+	# Reuse the production ownership/context transitions with this container
+	# as a temporary carrier; this preserves extraction and anomaly cleanup.
+	if not body.begin_carry(self): return false
+	if not body.begin_storage(self):
+		body.end_carry(original_position)
+		return false
+	_stored_body = body
+	return true

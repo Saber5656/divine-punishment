@@ -102,3 +102,23 @@ func _add_hide_spot() -> HideSpot:
 	var hide_spot := HideSpot.new()
 	add_child_autofree(hide_spot)
 	return hide_spot
+
+
+func test_checkpoint_storage_restores_owner_and_rejects_live_or_occupied_body() -> void:
+	var spot := _add_hide_spot()
+	var enemy: EnemyBase = preload("res://src/enemies/enemy_base.tscn").instantiate()
+	add_child_autofree(enemy)
+	assert_true(spot.has_method("restore_stored_body"))
+	if not spot.has_method("restore_stored_body"): return
+	assert_false(spot.call("restore_stored_body", enemy))
+	assert_true(enemy.begin_assassination(&"back"))
+	assert_true(spot.call("restore_stored_body", enemy))
+	assert_eq(spot.stored_body(), enemy)
+	assert_eq(enemy.stored_by(), spot)
+	assert_eq(enemy.collision_layer, 0)
+	assert_true(spot.call("restore_stored_body", enemy), "restoring the same relation is idempotent")
+	var other: EnemyBase = preload("res://src/enemies/enemy_base.tscn").instantiate()
+	add_child_autofree(other)
+	assert_true(other.begin_assassination(&"back"))
+	assert_false(spot.call("restore_stored_body", other))
+	assert_eq(other.get_parent(), self)
