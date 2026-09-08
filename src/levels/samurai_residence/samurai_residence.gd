@@ -11,10 +11,11 @@ extends Node3D
 ## scene does not depend on a model, texture, or external level asset.
 
 const MAP_BOUNDS := Rect2(0.0, 0.0, 100.0, 64.0)
-const GROUND_SURFACE_Y := -1.0
-const PLAYER_CENTER_Y := 0.0
+const GROUND_SURFACE_Y := -0.9
+const PLAYER_CENTER_Y := 0.02
+const HOUSE_CENTER_Y := 1.32
 const OVERHEAD_Y := 5.0
-const CRAWL_ROOF_Y := 0.5
+const CRAWL_ROOF_Y := 0.2
 const WORLD_COLLISION_LAYER := 1
 const VISION_BLOCKER_LAYER := 1 << 4
 const SOUND_BLOCKER_LAYER := 1 << 5
@@ -57,21 +58,22 @@ const REQUIRED_ANOMALY_MARKER_COUNT := 4
 const ROUTE_WAYPOINTS: Dictionary = {
 	&"A_ground": [
 		Vector3(8.0, PLAYER_CENTER_Y, 8.0),
-		Vector3(20.0, PLAYER_CENTER_Y, 8.0),
-		Vector3(32.0, PLAYER_CENTER_Y, 17.0),
-		Vector3(46.0, PLAYER_CENTER_Y, 17.0),
-		Vector3(58.0, PLAYER_CENTER_Y, 19.0),
+		Vector3(12.0, PLAYER_CENTER_Y, 20.0),
+		Vector3(28.0, PLAYER_CENTER_Y, 17.0),
+		Vector3(34.0, HOUSE_CENTER_Y, 17.0),
+		Vector3(46.0, HOUSE_CENTER_Y, 17.0),
+		Vector3(58.0, HOUSE_CENTER_Y, 19.0),
 	],
 	&"B_overhead": [
 		Vector3(12.0, OVERHEAD_Y, 2.0),
 		Vector3(40.0, OVERHEAD_Y, 8.0),
-		Vector3(58.0, OVERHEAD_Y, 19.0),
+		Vector3(58.0, OVERHEAD_Y, 20.3),
 	],
 	&"C_crawlspace": [
 		Vector3(84.0, PLAYER_CENTER_Y, 52.0),
 		Vector3(78.0, PLAYER_CENTER_Y, 44.0),
 		Vector3(70.0, PLAYER_CENTER_Y, 37.0),
-		Vector3(58.0, PLAYER_CENTER_Y, 20.0),
+		Vector3(58.0, PLAYER_CENTER_Y, 19.5),
 	],
 }
 
@@ -128,11 +130,19 @@ func route_waypoints(route_id: StringName) -> Array[Vector3]:
 
 
 func observation_points(area_id: StringName) -> Array[Vector3]:
-	return _vector_array_for(OBSERVATION_POINTS.get(area_id, []))
+	return _area_points(OBSERVATION_POINTS.get(area_id, []), area_id)
 
 
 func re_stealth_route(area_id: StringName) -> Array[Vector3]:
-	return _vector_array_for(RE_STEALTH_ROUTES.get(area_id, []))
+	return _area_points(RE_STEALTH_ROUTES.get(area_id, []), area_id)
+
+
+func _area_points(values: Array, area_id: StringName) -> Array[Vector3]:
+	var points := _vector_array_for(values)
+	if area_id == &"main_house_first_floor":
+		for index in points.size():
+			points[index] = _actor_position(points[index])
+	return points
 
 
 func route_is_traversable(route_id: StringName) -> bool:
@@ -193,7 +203,7 @@ func light_counts() -> Dictionary:
 	var outdoor := 0
 	var outdoor_extinguishable := 0
 	var indoor := 0
-	for node: Node in find_children("*", "Area3D", true, false):
+	for node: Node in get_node("Markers/Lights").get_children():
 		if not node is LightSource:
 			continue
 		var light := node as LightSource
@@ -335,7 +345,7 @@ func _build_geometry() -> void:
 	var crawlspace := _new_layer(geometry, &"Crawlspace")
 	var water_surfaces := _new_layer(geometry, &"WaterSurfaces")
 
-	_add_box(outer, &"GroundSupport", Vector3(50.0, -1.1, 32.0), Vector3(100.0, 0.2, 64.0), &"world", &"world")
+	_add_box(outer, &"GroundSupport", Vector3(50.0, -1.0, 32.0), Vector3(100.0, 0.2, 64.0), &"world", &"world")
 	_add_box(outer, &"NorthPerimeterWall", Vector3(50.0, 0.5, 0.0), Vector3(100.0, 3.0, 0.4), &"", &"wall")
 	_add_box(outer, &"SouthPerimeterWall", Vector3(50.0, 0.5, 64.0), Vector3(100.0, 3.0, 0.4), &"", &"wall")
 	_add_box(outer, &"EastPerimeterWall", Vector3(100.0, 0.5, 32.0), Vector3(0.4, 3.0, 64.0), &"", &"wall")
@@ -345,98 +355,80 @@ func _build_geometry() -> void:
 	_add_box(outer, &"C1ClimbWall", Vector3(12.0, 1.5, 2.0), Vector3(12.0, 3.0, 0.4), &"", &"wall")
 	_add_box(outer, &"C1ClimbTop", Vector3(12.0, 3.9, 2.0), Vector3(12.0, 0.2, 1.2), &"wood", &"roof")
 
-	_add_box(garden, &"GardenGravel", Vector3(50.0, -0.9, 28.0), Vector3(86.0, 0.2, 42.0), &"gravel", &"gravel")
-	_add_box(garden, &"GardenSoil", Vector3(18.0, -0.78, 40.0), Vector3(20.0, 0.2, 12.0), &"soil", &"soil")
-	_add_box(garden, &"GardenSteppingStones", Vector3(37.0, -0.72, 20.0), Vector3(26.0, 0.2, 1.4), &"wood", &"wood")
-	_add_box(garden, &"PoolBed", Vector3(22.0, -0.70, 13.0), Vector3(16.0, 0.2, 9.0), &"shallow_water", &"shallow_water")
-	_add_water_surface(water_surfaces, &"W1Surface", Vector3(22.0, 2.0, 13.0), Vector3(16.0, 0.1, 9.0))
+	_add_box(garden, &"GardenGravel", Vector3(50.0, -1.0, 28.0), Vector3(86.0, 0.2, 42.0), &"gravel", &"gravel")
+	_add_box(garden, &"GardenSoil", Vector3(18.0, -1.0, 40.0), Vector3(20.0, 0.2, 12.0), &"soil", &"soil")
+	_add_box(garden, &"GardenSteppingStones", Vector3(37.0, -1.0, 20.0), Vector3(26.0, 0.2, 1.4), &"wood", &"wood")
+	_add_box(garden, &"PoolBed", Vector3(22.0, -1.0, 12.0), Vector3(16.0, 0.2, 7.0), &"shallow_water", &"shallow_water")
+	_add_water_surface(water_surfaces, &"W1Surface", Vector3(22.0, 2.0, 12.0), Vector3(16.0, 0.1, 7.0))
 	_add_water_surface(water_surfaces, &"W2Surface", Vector3(84.0, 2.0, 52.0), Vector3(12.0, 0.1, 12.0))
 
-	_add_box(house, &"MainHouseFloor", Vector3(58.0, -0.9, 19.0), Vector3(30.0, 0.2, 20.0), &"tatami", &"tatami")
-	_add_box(house, &"SouthVeranda", Vector3(40.0, -0.78, 17.0), Vector3(26.0, 0.2, 3.0), &"wood", &"wood")
-	_add_box(house, &"WoodCorridor", Vector3(51.0, -0.78, 17.0), Vector3(12.0, 0.2, 2.0), &"wood", &"wood")
-	_add_box(house, &"CreakyCorridorPlanks", Vector3(48.0, -0.68, 17.0), Vector3(4.0, 0.2, 2.0), &"creaky_wood", &"creaky_wood")
-	_add_box(house, &"CreakyShoinPlank", Vector3(56.0, -0.68, 18.0), Vector3(1.0, 0.2, 1.0), &"creaky_wood", &"creaky_wood")
-	_add_box(house, &"NorthHouseWall", Vector3(58.0, 0.5, 9.0), Vector3(30.0, 3.0, 0.4), &"", &"wall")
-	_add_box(house, &"EastHouseWall", Vector3(73.0, 0.5, 19.0), Vector3(0.4, 3.0, 20.0), &"", &"wall")
+	_add_open_floor(house, &"MainHouseFloor", Rect2(43, 9, 30, 20), Rect2(57.6, 19.2, 0.8, 0.7), 0.3, &"tatami")
+	_add_veranda_ramp(house)
+	_add_box(house, &"SouthVeranda", Vector3(43.5, 0.3, 17.0), Vector3(19.0, 0.2, 3.0), &"wood", &"wood")
+	_add_box(house, &"WoodCorridor", Vector3(51.0, 0.3, 17.0), Vector3(12.0, 0.2, 2.0), &"wood", &"wood")
+	_add_box(house, &"CreakyCorridorPlanks", Vector3(48.0, 0.3, 17.0), Vector3(4.0, 0.2, 2.0), &"creaky_wood", &"creaky_wood")
+	_add_box(house, &"CreakyShoinPlank", Vector3(56.0, 0.3, 18.0), Vector3(1.0, 0.2, 1.0), &"creaky_wood", &"creaky_wood")
+	_add_box(house, &"NorthHouseWall", Vector3(58.0, 1.9, 9.0), Vector3(30.0, 3.0, 0.4), &"", &"wall")
+	_add_box(house, &"EastHouseWall", Vector3(73.0, 1.9, 19.0), Vector3(0.4, 3.0, 20.0), &"", &"wall")
 	# Leave the south-veranda opening clear so Route A can enter the house.
-	_add_box(house, &"WestHouseWallNorth", Vector3(43.0, 0.5, 12.0), Vector3(0.4, 3.0, 6.0), &"", &"wall")
-	_add_box(house, &"WestHouseWallSouth", Vector3(43.0, 0.5, 24.0), Vector3(0.4, 3.0, 10.0), &"", &"wall")
+	_add_box(house, &"WestHouseWallNorth", Vector3(43.0, 1.9, 12.0), Vector3(0.4, 3.0, 6.0), &"", &"wall")
+	_add_box(house, &"WestHouseWallSouth", Vector3(43.0, 1.9, 24.0), Vector3(0.4, 3.0, 10.0), &"", &"wall")
 	# Leave a crawl-only opening under the shoin wall so Route C can pass beneath the house.
-	_add_box(house, &"ShoinNorthWallWest", Vector3(50.0, 0.5, 29.0), Vector3(14.0, 3.0, 0.4), &"", &"wall")
-	_add_box(house, &"ShoinNorthWallEast", Vector3(70.5, 0.5, 29.0), Vector3(5.0, 3.0, 0.4), &"", &"wall")
-	_add_box(house, &"ShoinGapFloor", Vector3(58.0, -0.58, 19.8), Vector3(5.0, 0.15, 0.8), &"creaky_wood", &"creaky_wood")
+	_add_box(house, &"ShoinNorthWallWest", Vector3(50.0, 1.9, 29.0), Vector3(14.0, 3.0, 0.4), &"", &"wall")
+	_add_box(house, &"ShoinNorthWallEast", Vector3(70.5, 1.9, 29.0), Vector3(5.0, 3.0, 0.4), &"", &"wall")
+	_add_box(house, &"ShoinGapFloor", Vector3(60.0, 0.3, 19.8), Vector3(1.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 
 	_add_box(overhead, &"OuterRoofPlatform", Vector3(26.0, 3.9, 5.0), Vector3(32.0, 0.2, 3.0), &"wood", &"roof")
 	# Route B lands on the veranda roof before crossing to the house roof.
 	# Keep the platform top at y=4.0; OVERHEAD_Y=5.0 leaves the 1.8 m
 	# standing capsule bottom at y=4.1 with a finite clearance margin.
 	_add_box(overhead, &"VerandaRoofPlatform", Vector3(40.0, 3.9, 8.0), Vector3(8.0, 0.2, 4.0), &"wood", &"roof")
-	_add_box(overhead, &"HouseRoofPlatform", Vector3(58.0, 3.9, 19.0), Vector3(30.0, 0.2, 20.0), &"wood", &"roof")
-	_add_box(overhead, &"ShoinBeamSupport", Vector3(58.0, 3.7, 19.0), Vector3(4.0, 0.2, 16.0), &"creaky_wood", &"roof")
+	_add_open_floor(overhead, &"HouseRoofPlatform", Rect2(43, 9, 30, 20), Rect2(57, 18, 2, 2), 3.9, &"wood")
+	_add_box(overhead, &"ShoinBeamSupport", Vector3(59.4, 3.9, 19.0), Vector3(0.4, 0.2, 16.0), &"creaky_wood", &"roof")
 
-	_add_box(crawlspace, &"CrawlSoilFloor", Vector3(70.0, -0.92, 38.0), Vector3(24.0, 0.2, 8.0), &"soil", &"soil")
-	_add_box(crawlspace, &"CrawlRoof", Vector3(70.0, CRAWL_ROOF_Y, 38.0), Vector3(24.0, 0.4, 8.0), &"", &"wall")
+	_add_box(crawlspace, &"CrawlSoilFloor", Vector3(70.0, -1.0, 38.0), Vector3(24.0, 0.2, 8.0), &"soil", &"soil")
+	_add_box(crawlspace, &"CrawlRoof", Vector3(70.0, CRAWL_ROOF_Y, 38.0), Vector3(24.0, 0.2, 8.0), &"", &"wall")
 	# Extend the crawl layer beneath the house to the shoin gap at (58, 20).
-	_add_box(crawlspace, &"CrawlUnderHouseFloor", Vector3(69.0, -0.92, 26.0), Vector3(26.0, 0.2, 20.0), &"soil", &"soil")
-	_add_box(crawlspace, &"CrawlUnderHouseRoof", Vector3(69.0, CRAWL_ROOF_Y, 26.0), Vector3(26.0, 0.4, 20.0), &"", &"wall")
+	_add_box(crawlspace, &"CrawlUnderHouseFloor", Vector3(69.0, -1.0, 26.0), Vector3(26.0, 0.2, 20.0), &"soil", &"soil")
+	_add_open_floor(crawlspace, &"CrawlUnderHouseRoof", Rect2(56, 16, 26, 20), Rect2(57.6, 19.2, 0.8, 0.7), CRAWL_ROOF_Y, &"wall")
 	# Bridge the C route's W2 waterway start into the crawl layer with bounded
 	# collision and crawl clearance rather than a marker-only transition.
-	_add_box(crawlspace, &"CrawlWaterEntryFloor", Vector3(80.0, -0.92, 48.0), Vector3(10.0, 0.2, 12.0), &"soil", &"soil")
-	_add_box(crawlspace, &"CrawlWaterEntryRoof", Vector3(80.0, CRAWL_ROOF_Y, 48.0), Vector3(10.0, 0.4, 12.0), &"", &"wall")
-	_add_box(crawlspace, &"CreakySupportOne", Vector3(66.0, -0.70, 36.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
-	_add_box(crawlspace, &"CreakySupportTwo", Vector3(70.0, -0.70, 38.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
-	_add_box(crawlspace, &"CreakySupportThree", Vector3(74.0, -0.70, 40.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
+	_add_box(crawlspace, &"CrawlWaterEntryFloor", Vector3(80.0, -1.0, 48.0), Vector3(10.0, 0.2, 12.0), &"soil", &"soil")
+	_add_box(crawlspace, &"CrawlWaterEntryRoof", Vector3(78.0, CRAWL_ROOF_Y, 38.0), Vector3(6.0, 0.2, 8.0), &"", &"wall")
+	_add_box(crawlspace, &"CreakySupportOne", Vector3(66.0, -1.0, 36.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
+	_add_box(crawlspace, &"CreakySupportTwo", Vector3(70.0, -1.0, 38.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
+	_add_box(crawlspace, &"CreakySupportThree", Vector3(74.0, -1.0, 40.0), Vector3(2.0, 0.2, 0.8), &"creaky_wood", &"creaky_wood")
 
 
 func _build_navigation() -> void:
 	var navigation := Node3D.new()
 	navigation.name = &"Navigation"
 	add_child(navigation)
-	# Keep the enemy ground mesh out of the solid house and perimeter walls. The
-	# narrow west-wall bridge is the authored south-veranda opening used by A.
-	var ground_vertices := PackedVector3Array([
-		Vector3(1.0, GROUND_SURFACE_Y, 1.0), Vector3(99.0, GROUND_SURFACE_Y, 1.0),
-		Vector3(99.0, GROUND_SURFACE_Y, 9.0), Vector3(1.0, GROUND_SURFACE_Y, 9.0),
-		Vector3(1.0, GROUND_SURFACE_Y, 29.0), Vector3(99.0, GROUND_SURFACE_Y, 29.0),
-		Vector3(99.0, GROUND_SURFACE_Y, 63.0), Vector3(1.0, GROUND_SURFACE_Y, 63.0),
-		Vector3(1.0, GROUND_SURFACE_Y, 9.0), Vector3(42.8, GROUND_SURFACE_Y, 9.0),
-		Vector3(42.8, GROUND_SURFACE_Y, 15.5), Vector3(1.0, GROUND_SURFACE_Y, 15.5),
-		Vector3(1.0, GROUND_SURFACE_Y, 15.5), Vector3(42.8, GROUND_SURFACE_Y, 15.5),
-		Vector3(42.8, GROUND_SURFACE_Y, 18.5), Vector3(1.0, GROUND_SURFACE_Y, 18.5),
-		Vector3(1.0, GROUND_SURFACE_Y, 18.5), Vector3(42.8, GROUND_SURFACE_Y, 18.5),
-		Vector3(42.8, GROUND_SURFACE_Y, 29.0), Vector3(1.0, GROUND_SURFACE_Y, 29.0),
-		Vector3(42.8, GROUND_SURFACE_Y, 15.5), Vector3(43.2, GROUND_SURFACE_Y, 15.5),
-		Vector3(43.2, GROUND_SURFACE_Y, 18.5), Vector3(42.8, GROUND_SURFACE_Y, 18.5),
-		Vector3(43.2, GROUND_SURFACE_Y, 9.2), Vector3(72.8, GROUND_SURFACE_Y, 9.2),
-		Vector3(72.8, GROUND_SURFACE_Y, 15.5), Vector3(43.2, GROUND_SURFACE_Y, 15.5),
-		Vector3(43.2, GROUND_SURFACE_Y, 15.5), Vector3(72.8, GROUND_SURFACE_Y, 15.5),
-		Vector3(72.8, GROUND_SURFACE_Y, 18.5), Vector3(43.2, GROUND_SURFACE_Y, 18.5),
-		Vector3(43.2, GROUND_SURFACE_Y, 18.5), Vector3(72.8, GROUND_SURFACE_Y, 18.5),
-		Vector3(72.8, GROUND_SURFACE_Y, 28.8), Vector3(43.2, GROUND_SURFACE_Y, 28.8),
-		Vector3(73.2, GROUND_SURFACE_Y, 9.0), Vector3(99.0, GROUND_SURFACE_Y, 9.0),
-		Vector3(99.0, GROUND_SURFACE_Y, 29.0), Vector3(73.2, GROUND_SURFACE_Y, 29.0),
-	])
-	var ground_polygons: Array[PackedInt32Array] = [
-		PackedInt32Array([0, 1, 2, 3]),
-		PackedInt32Array([4, 5, 6, 7]),
-		PackedInt32Array([8, 9, 10, 11]),
-		PackedInt32Array([12, 13, 14, 15]),
-		PackedInt32Array([16, 17, 18, 19]),
-		PackedInt32Array([20, 21, 22, 23]),
-		PackedInt32Array([24, 25, 26, 27]),
-		PackedInt32Array([28, 29, 30, 31]),
-		PackedInt32Array([32, 33, 34, 35]),
-		PackedInt32Array([36, 37, 38, 39]),
-	]
-	_add_navigation_region_with_polygons(navigation, &"GroundNavigation", ground_vertices, ground_polygons)
+	var vertices := PackedVector3Array()
+	var polygons: Array[PackedInt32Array] = []
+	var indices := {}
+	for z in range(1, 63):
+		for x in range(1, 99):
+			var center := Vector2(x + 0.5, z + 0.5)
+			if not _ground_nav_cell_allowed(center):
+				continue
+			var polygon := PackedInt32Array()
+			for corner: Vector2 in [Vector2(x,z), Vector2(x+1,z), Vector2(x+1,z+1), Vector2(x,z+1)]:
+				var vertex := Vector3(corner.x, _ground_actor_y(corner), corner.y)
+				if not indices.has(vertex):
+					indices[vertex] = vertices.size()
+					vertices.append(vertex)
+				polygon.append(indices[vertex])
+			polygons.append(polygon)
+	_add_navigation_region_with_polygons(navigation, &"GroundNavigation", vertices, polygons)
+
 	_add_navigation_region(navigation, &"OverheadNavigation", PackedVector3Array([
 		Vector3(10.0, OVERHEAD_Y, 1.0), Vector3(76.0, OVERHEAD_Y, 1.0),
 		Vector3(76.0, OVERHEAD_Y, 22.0), Vector3(10.0, OVERHEAD_Y, 22.0),
 	]))
 	_add_navigation_region(navigation, &"CrawlspaceNavigation", PackedVector3Array([
-		Vector3(56.0, GROUND_SURFACE_Y, 16.0), Vector3(84.0, GROUND_SURFACE_Y, 16.0),
-		Vector3(84.0, GROUND_SURFACE_Y, 54.0), Vector3(56.0, GROUND_SURFACE_Y, 54.0),
+		Vector3(56.0, PLAYER_CENTER_Y, 16.0), Vector3(84.0, PLAYER_CENTER_Y, 16.0),
+		Vector3(84.0, PLAYER_CENTER_Y, 54.0), Vector3(56.0, PLAYER_CENTER_Y, 54.0),
 	]))
 
 
@@ -479,9 +471,10 @@ func _build_routes() -> void:
 		&"C2_VerandaRoofEntry",
 		&"C2_ShoinBeamExit",
 		&"B_Overhead_Shoin",
-		Vector3(40.0, PLAYER_CENTER_Y, 8.0),
-		Vector3(58.0, OVERHEAD_Y, 19.0),
-		Vector3(18.0, 0.0, 11.0),
+		Vector3(41.0, 4.92, 8.0),
+		Vector3(58.0, OVERHEAD_Y, 20.3),
+		Vector3(17.0, -0.42, 12.3),
+		0.5,
 	)
 
 	var crawl_entrances := _new_marker_root(&"CrawlEntrances")
@@ -491,7 +484,7 @@ func _build_routes() -> void:
 	_add_crawl_entrance(crawl_entrances, &"U3_LatrineEntry", Vector3(68.0, PLAYER_CENTER_Y, 25.0), Vector3(-2.5, 0.1, 0.0))
 
 	var water := _new_marker_root(&"Water")
-	_add_water_volume(water, &"W1_Pond", Vector3(22.0, 0.0, 13.0), Vector3(16.0, 4.0, 9.0))
+	_add_water_volume(water, &"W1_Pond", Vector3(22.0, 0.0, 12.0), Vector3(16.0, 4.0, 7.0))
 	_add_water_volume(water, &"W2_WestWaterway", Vector3(84.0, 0.0, 52.0), Vector3(12.0, 4.0, 12.0))
 
 
@@ -533,7 +526,7 @@ func _build_area_markers() -> void:
 	for index: int in hide_positions.size():
 		var hide := HideSpot.new()
 		hide.name = "HideSpot%02d" % (index + 1)
-		hide.position = hide_positions[index]
+		hide.position = _actor_position(hide_positions[index]) if index < 7 else hide_positions[index]
 		hide.entry_radius = 0.75
 		hide.set_meta(&"area_id", _area_for_position(hide_positions[index]))
 		hide.add_to_group(&"hide_spots")
@@ -556,10 +549,10 @@ func _build_area_markers() -> void:
 	var checkpoints := _new_marker_root(&"Checkpoints")
 	_add_checkpoint(checkpoints, &"CheckpointInsidePerimeter", Vector3(16.0, PLAYER_CENTER_Y, 24.0), &"perimeter_reached")
 	_add_checkpoint(checkpoints, &"CheckpointMainHouse", Vector3(40.0, PLAYER_CENTER_Y, 17.0), &"house_reached")
-	_add_checkpoint(checkpoints, &"CheckpointTarget", Vector3(58.0, PLAYER_CENTER_Y, 19.0), &"assassination_complete")
+	_add_checkpoint(checkpoints, &"CheckpointTarget", Vector3(58.0, HOUSE_CENTER_Y, 19.0), &"assassination_complete")
 
 	var anomaly_markers := _new_marker_root(&"AnomalyMarkers")
-	_add_marker(anomaly_markers, &"AnomalyShutter01", Vector3(46.0, PLAYER_CENTER_Y, 17.0), &"main_house_first_floor", &"door")
+	_add_marker(anomaly_markers, &"AnomalyShutter01", Vector3(46.0, HOUSE_CENTER_Y, 17.0), &"main_house_first_floor", &"door")
 	_add_marker(anomaly_markers, &"AnomalyShutter02", Vector3(50.0, PLAYER_CENTER_Y, 17.0), &"main_house_first_floor", &"door")
 	_add_marker(anomaly_markers, &"AnomalyFusuma01", Vector3(52.0, PLAYER_CENTER_Y, 13.0), &"main_house_first_floor", &"door")
 	_add_marker(anomaly_markers, &"AnomalyFusuma02", Vector3(64.0, PLAYER_CENTER_Y, 13.0), &"main_house_first_floor", &"door")
@@ -573,7 +566,7 @@ func _build_spawn_and_enemy_markers() -> void:
 	_add_marker(spawns, &"RouteAStart", Vector3(8.0, PLAYER_CENTER_Y, 8.0), &"outer_perimeter", &"route_a")
 	_add_marker(spawns, &"RouteBStart", Vector3(12.0, OVERHEAD_Y, 2.0), &"overhead", &"route_b")
 	_add_marker(spawns, &"RouteCStart", Vector3(84.0, PLAYER_CENTER_Y, 52.0), &"crawlspace", &"route_c")
-	_add_marker(spawns, &"TargetSpawn", Vector3(58.0, PLAYER_CENTER_Y, 19.0), &"main_house_first_floor", &"target")
+	_add_marker(spawns, &"TargetSpawn", Vector3(58.0, HOUSE_CENTER_Y, 19.0), &"main_house_first_floor", &"target")
 	for marker: Node in spawns.get_children():
 		marker.add_to_group(&"spawn_points")
 
@@ -582,14 +575,14 @@ func _build_spawn_and_enemy_markers() -> void:
 		[&"E1_GateGuard", Vector3(32.0, PLAYER_CENTER_Y, 50.0), &"sentry"],
 		[&"E2_GateGuard", Vector3(36.0, PLAYER_CENTER_Y, 50.0), &"sentry"],
 		[&"E3_GardenPatrol", Vector3(20.0, PLAYER_CENTER_Y, 8.0), &"patrol"],
-		[&"E4_GardenPatrol", Vector3(56.0, PLAYER_CENTER_Y, 22.0), &"patrol"],
-		[&"E5_LanternBearer", Vector3(48.0, PLAYER_CENTER_Y, 16.0), &"lantern_bearer"],
+		[&"E4_GardenPatrol", Vector3(54.0, PLAYER_CENTER_Y, 32.0), &"patrol"],
+		[&"E5_LanternBearer", Vector3(40.0, PLAYER_CENTER_Y, 26.0), &"lantern_bearer"],
 		[&"E6_VerandaSentry", Vector3(34.0, PLAYER_CENTER_Y, 17.0), &"sentry"],
 		[&"E7_CorridorPatrol", Vector3(66.0, PLAYER_CENTER_Y, 17.0), &"patrol"],
 		[&"E8_RoomRest", Vector3(52.0, PLAYER_CENTER_Y, 13.0), &"routine_stop"],
 		[&"G1_TargetGuard", Vector3(56.0, PLAYER_CENTER_Y, 19.0), &"escort"],
 		[&"G2_TargetGuard", Vector3(60.0, PLAYER_CENTER_Y, 19.0), &"escort"],
-		[&"TGT_Toyama", Vector3(58.0, PLAYER_CENTER_Y, 19.0), &"target"],
+		[&"TGT_Toyama", Vector3(58.0, HOUSE_CENTER_Y, 19.0), &"target"],
 	]
 	for entry: Array in enemy_data:
 		var marker := _add_marker(enemies, entry[0], entry[1], _area_for_position(entry[1]), entry[2])
@@ -627,11 +620,12 @@ func _add_overhead_segment(
 	entry_bottom: Vector3,
 	exit_position: Vector3,
 	local_end: Vector3,
+	entry_rise: float = OVERHEAD_Y,
 ) -> void:
 	var entry := ClimbEdge.new()
 	entry.name = entry_name
 	entry.position = entry_bottom
-	entry.top_offset = Vector3(0.0, OVERHEAD_Y, 0.0)
+	entry.top_offset = Vector3(0.0, entry_rise, 0.0)
 	entry.entry_radius = 1.0
 	entry.connected_beam_path = NodePath("../../BeamPaths/%s" % beam_name)
 	entry.connected_beam_endpoint = 0
@@ -648,7 +642,7 @@ func _add_overhead_segment(
 
 	var beam := BeamPath.new()
 	beam.name = beam_name
-	beam.position = entry_bottom + Vector3.UP * OVERHEAD_Y
+	beam.position = entry_bottom + Vector3.UP * entry_rise
 	var curve := Curve3D.new()
 	curve.bake_interval = 0.25
 	curve.add_point(Vector3.ZERO)
@@ -682,7 +676,7 @@ func _add_water_volume(parent: Node3D, marker_name: StringName, position: Vector
 func _add_light(parent: Node3D, marker_name: StringName, position: Vector3, indoor: bool, extinguishable: bool, radius: float) -> void:
 	var light := LightSource.new()
 	light.name = marker_name
-	light.position = position
+	light.position = _actor_position(position) if indoor else position
 	light.gameplay_radius = radius
 	light.gameplay_intensity = 1.0
 	light.interaction_radius = 1.0
@@ -718,6 +712,7 @@ func _add_navigation_region_with_polygons(
 	var region := NavigationRegion3D.new()
 	region.name = region_name
 	region.enabled = true
+	region.navigation_layers = 2 if region_name == &"OverheadNavigation" else (4 if region_name == &"CrawlspaceNavigation" else 1)
 	region.set_meta(&"layer", region_name)
 	var navigation_mesh := NavigationMesh.new()
 	navigation_mesh.vertices = vertices
@@ -748,27 +743,23 @@ func _route_segments_are_clear(points: Array[Vector3], route_id: StringName) -> 
 	var world := get_world_3d()
 	if world == null:
 		return false
-	# Probe above the support plane. Overhead paths use a slightly higher probe
-	# so the platform below is not mistaken for a blocker.
-	var ray_offset := ROUTE_CLEARANCE_HEIGHT
-	match route_layer(route_id):
-		&"overhead":
-			ray_offset = 0.3
-		&"crawlspace":
-			# Keep the horizontal probe below the crawl roof underside.  The
-			# authored crawl capsule is supported by the floor, while a 0.2 m
-			# offset is already inside the 0.3 m roof clearance boundary.
-			ray_offset = 0.0
-	for index: int in range(1, points.size()):
-		var query := PhysicsRayQueryParameters3D.create(
-			points[index - 1] + Vector3.UP * ray_offset,
-			points[index] + Vector3.UP * ray_offset,
-			WORLD_COLLISION_LAYER,
-		)
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.35
+	capsule.height = 0.7 if route_id == &"C_crawlspace" else 1.8
+	# PlayerController preserves the standing foot plane when it shrinks.
+	var center_offset := Vector3.DOWN * (1.8 - capsule.height) * 0.5
+	for index in points.size():
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = capsule
+		query.transform = Transform3D(Basis.IDENTITY, points[index] + center_offset)
+		query.collision_mask = WORLD_COLLISION_LAYER
 		query.collide_with_areas = false
-		query.collide_with_bodies = true
-		if not world.direct_space_state.intersect_ray(query).is_empty():
-			return false
+		query.margin = 0.001
+		if not world.direct_space_state.intersect_shape(query).is_empty(): return false
+		if index + 1 < points.size():
+			query.motion = points[index + 1] - points[index]
+			var travel := world.direct_space_state.cast_motion(query)
+			if travel.size() != 2 or travel[0] < 0.999: return false
 	return true
 
 
@@ -811,10 +802,10 @@ func _add_checkpoint(parent: Node3D, marker_name: StringName, position: Vector3,
 	var checkpoint := CheckpointArea.new()
 	checkpoint.checkpoint_id = checkpoint_id
 	checkpoint.name = marker_name
-	checkpoint.position = position
+	checkpoint.position = _actor_position(position)
 	checkpoint.collision_layer = MISSION_TRIGGER_LAYER
 	checkpoint.collision_mask = 1 << 1
-	checkpoint.monitoring = true
+	checkpoint.monitoring = checkpoint_id != &"assassination_complete"
 	checkpoint.monitorable = true
 	checkpoint.set_meta(&"checkpoint_id", checkpoint_id)
 	checkpoint.set_meta(&"area_id", _area_for_position(position))
@@ -828,14 +819,14 @@ func _add_checkpoint(parent: Node3D, marker_name: StringName, position: Vector3,
 
 
 func _add_marker(parent: Node3D, marker_name: StringName, position: Vector3, area_id: StringName, role: StringName) -> Marker3D:
-	var marker: Marker3D = AnomalyMarker.new() if role == &"door" else Marker3D.new()
+	var marker: Marker3D = AnomalyMarker.new() if role == &"door" else (SearchPoint.new() if role == &"search" else Marker3D.new())
 	if marker is AnomalyMarker:
 		# Door state is owned by the eventual door interaction.  Until that
 		# integration toggles the marker explicitly, a closed authored door must
 		# not register a persistent DOOR_OPEN anomaly at scene startup.
 		(marker as AnomalyMarker).set_active(false)
 	marker.name = marker_name
-	marker.position = position
+	marker.position = position if area_id == &"crawlspace" else _actor_position(position)
 	marker.set_meta(&"area_id", area_id)
 	marker.set_meta(&"role", role)
 	return _attach_marker(parent, marker)
@@ -972,3 +963,49 @@ func _get_configuration_warnings() -> PackedStringArray:
 func _update_editor_state() -> void:
 	if Engine.is_editor_hint() and is_inside_tree():
 		update_configuration_warnings()
+
+
+func _actor_position(value: Vector3) -> Vector3:
+	if value.y < 2.0 and value.x >= 34.0 and value.x <= 73.0 and value.z >= 9.0 and value.z <= 29.0:
+		if value.x >= 43.0 or (value.z >= 15.5 and value.z <= 18.5):
+			return Vector3(value.x, HOUSE_CENTER_Y, value.z)
+	return value
+
+
+func _ground_actor_y(point: Vector2) -> float:
+	if point.x >= 28.0 and point.x <= 34.0 and point.y >= 16.0 and point.y <= 18.0:
+		return lerpf(PLAYER_CENTER_Y, HOUSE_CENTER_Y, (point.x - 28.0) / 6.0)
+	return _actor_position(Vector3(point.x, PLAYER_CENTER_Y, point.y)).y
+
+
+func _ground_nav_cell_allowed(point: Vector2) -> bool:
+	# Inset cells around physical walls; doorway is the only ground connection.
+	if point.x >= 42.0 and point.x <= 44.0 and point.y >= 9.0 and point.y <= 29.0:
+		return point.y >= 16.0 and point.y <= 18.0
+	if point.x >= 43.0 and point.x <= 74.0 and (point.y < 10.0 and point.y > 8.0 or point.y > 28.0 and point.y < 30.0):
+		return false
+	if point.x >= 55.0 and point.x <= 83.0 and point.y >= 29.0 and point.y <= 43.0:
+		return false
+	if point.x >= 72.0 and point.x <= 74.0 and point.y >= 9.0 and point.y <= 29.0:
+		return false
+	# Veranda/ramp connect to ground only at their west end, not over tall sides.
+	if point.x >= 28.0 and point.x < 43.0 and point.y >= 15.0 and point.y <= 19.0:
+		return point.y >= 16.0 and point.y <= 18.0
+	return true
+
+
+func _add_open_floor(parent: Node3D, body_name: StringName, bounds: Rect2, gap: Rect2, y: float, material: StringName) -> void:
+	var pieces := [
+		Rect2(bounds.position, Vector2(gap.position.x - bounds.position.x, bounds.size.y)),
+		Rect2(gap.end.x, bounds.position.y, bounds.end.x - gap.end.x, bounds.size.y),
+		Rect2(gap.position.x, bounds.position.y, gap.size.x, gap.position.y - bounds.position.y),
+		Rect2(gap.position.x, gap.end.y, gap.size.x, bounds.end.y - gap.end.y),
+	]
+	for index in pieces.size():
+		var rect: Rect2 = pieces[index]
+		_add_box(parent, body_name if index == 0 else StringName(String(body_name) + str(index)), Vector3(rect.get_center().x, y, rect.get_center().y), Vector3(rect.size.x, 0.2, rect.size.y), material if material != &"wall" else &"", material)
+
+
+func _add_veranda_ramp(parent: Node3D) -> void:
+	var ramp := _add_box(parent, &"VerandaAccessRamp", Vector3(31.0, -0.35, 17.0), Vector3(sqrt(36.0 + 1.69), 0.2, 2.0), &"wood", &"wood")
+	ramp.rotation.z = atan2(1.3, 6.0)

@@ -7,6 +7,8 @@ const MAX_POSITION := 100000.0
 
 
 static func capture(player: PlayerController, scene_path: String, checkpoint_id: StringName) -> Dictionary:
+	var posture := player.checkpoint_posture()
+	if posture.is_empty(): return {}
 	var inventory := (player.get_node("ToolRig") as ToolRig).inventory
 	var tools: Array[Dictionary] = []
 	for index in inventory.slot_count():
@@ -16,6 +18,7 @@ static func capture(player: PlayerController, scene_path: String, checkpoint_id:
 	return {
 		"version": VERSION, "scene": scene_path, "id": String(checkpoint_id),
 		"position": [position.x, position.y, position.z], "yaw": player.global_rotation.y,
+		"posture": String(posture),
 		"tools": tools, "selected_slot": inventory.selected_slot(),
 		"area_alert": GameState.area_alert_level,
 	}
@@ -23,6 +26,8 @@ static func capture(player: PlayerController, scene_path: String, checkpoint_id:
 
 static func is_valid(snapshot: Dictionary, scene_path: String) -> bool:
 	if snapshot.get("version") != VERSION or snapshot.get("scene") != scene_path or scene_path.is_empty():
+		return false
+	if snapshot.get("posture", "Ground") not in ["Ground","Crouch","Crawlspace"]:
 		return false
 	var position: Variant = snapshot.get("position")
 	if not position is Array or position.size() != 3:
@@ -65,7 +70,10 @@ static func restore(snapshot: Dictionary, player: PlayerController, scene_path: 
 	if not matches_inventory(snapshot, inventory):
 		return false
 	var position: Array = snapshot["position"]
-	player.global_position = Vector3(float(position[0]), float(position[1]), float(position[2]))
+	var destination := Vector3(float(position[0]), float(position[1]), float(position[2]))
+	if not player.restore_checkpoint_posture(StringName(snapshot.get("posture","Ground")),destination):
+		return false
+	player.global_position = destination
 	player.global_rotation.y = float(snapshot["yaw"])
 	player.velocity = Vector3.ZERO
 	for index in inventory.slot_count():

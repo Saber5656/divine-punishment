@@ -53,6 +53,9 @@ func tick(delta: float) -> void:
 		return
 	if not _reinforcements_called:
 		call_for_help()
+	if _brain() != null and _brain().is_combat_contact_pending():
+		_target = null
+		return
 	if _target == null or not is_instance_valid(_target):
 		_target = _find_player()
 	if _target != null:
@@ -78,6 +81,7 @@ func set_target(target: Node) -> bool:
 	if brain != null:
 		if brain.alert_state() != Enums.AlertState.COMBAT:
 			brain.force_state(Enums.AlertState.COMBAT, &"combat_target")
+		brain.confirm_combat_contact()
 	return true
 
 
@@ -132,6 +136,8 @@ func receive_damage(amount: int, source: Node = null) -> int:
 	if brain != null:
 		if brain.alert_state() != Enums.AlertState.COMBAT:
 			brain.force_state(Enums.AlertState.COMBAT, &"combat_damage")
+		if source is PlayerController:
+			brain.confirm_combat_contact()
 	if _health <= 0:
 		_defeated = true
 		if _enemy != null and _enemy.has_method(&"set_incapacitated"):

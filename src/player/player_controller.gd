@@ -2328,3 +2328,37 @@ func _cast_wall_probe(origin: Vector3, direction: Vector3) -> Dictionary:
 
 func _is_finite_vector(value: Vector3) -> bool:
 	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+
+
+## Stable checkpoint postures. Traversal transitions and combat presentation
+## keep the previous checkpoint until the player reaches a stable posture.
+func checkpoint_posture() -> StringName:
+	var state := state_machine.current_state()
+	return state if state in [&"Ground",&"Crouch",&"Crawlspace"] else &""
+
+
+func can_restore_checkpoint_posture(posture: StringName, point: Vector3) -> bool:
+	if posture not in [&"Ground",&"Crouch",&"Crawlspace"] or not state_machine.can_enter(posture):
+		return false
+	var height := _standing_capsule_height
+	if posture == &"Crouch": height = crouch_capsule_height
+	if posture == &"Crawlspace":
+		if not _is_crawl_configuration_valid(): return false
+		height = crawl_capsule_height
+	return _has_capsule_clearance_at(height,point)
+
+
+func restore_checkpoint_posture(posture: StringName, point: Vector3) -> bool:
+	if not can_restore_checkpoint_posture(posture,point): return false
+	if not state_machine.change_state(posture): return false
+	if posture == &"Crawlspace":
+		# Away from an entrance, ordinary crawling already drops its marker
+		# dependency. Rebuild that same configuration-bound free crawl contract.
+		_clear_crawl_contract()
+		_crawl_contract_inside_position = point
+		_crawl_contract_outside_position = point
+		_crawl_contract_capsule_height = crawl_capsule_height
+		_crawl_contract_camera_drop = crawl_camera_drop
+		_crawl_contract_valid = true
+		_crawl_contract_invalidated = false
+	return true

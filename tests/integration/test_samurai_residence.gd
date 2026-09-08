@@ -15,7 +15,7 @@ func test_residence_builds_bounded_four_layer_graybox_contract() -> void:
 	)
 	assert_eq(
 		residence.route_waypoints(&"A_ground").size(),
-		5,
+		6,
 		"Ground route must include the source-of-truth approach, veranda, corridor, and shoin points",
 	)
 	for route_id: StringName in RESIDENCE_SCRIPT.REQUIRED_ROUTE_IDS:
@@ -83,11 +83,11 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 	var crawl_floor := residence.get_node(^"Geometry/Crawlspace/CrawlUnderHouseFloor") as StaticBody3D
 	var crawl_roof := residence.get_node(^"Geometry/Crawlspace/CrawlUnderHouseRoof") as StaticBody3D
 	assert_true(
-		_box_contains(crawl_floor, Vector3(58.0, -0.92, 20.0)),
+		_box_contains(crawl_floor, Vector3(58.0, -1.0, 20.0)),
 		"Route C must reach the shoin crawl gap",
 	)
 	assert_true(
-		_box_contains(crawl_roof, Vector3(58.0, 0.5, 20.0)),
+		_box_contains(crawl_roof, Vector3(57.0, 0.2, 20.0)),
 		"Route C must retain crawl clearance at the shoin crawl gap",
 	)
 	var c1_wall := residence.get_node(^"Geometry/OuterPerimeter/C1ClimbWall") as StaticBody3D
@@ -150,7 +150,7 @@ func test_residence_route_geometry_keeps_veranda_and_crawlspace_open() -> void:
 
 	var water_entry_floor := residence.get_node(^"Geometry/Crawlspace/CrawlWaterEntryFloor") as StaticBody3D
 	assert_true(
-		_box_contains(water_entry_floor, Vector3(84.0, -0.92, 52.0)),
+		_box_contains(water_entry_floor, Vector3(84.0, -1.0, 52.0)),
 		"Route C must have physical support at the W2 waterway entry",
 	)
 	assert_almost_eq(
@@ -182,7 +182,7 @@ func test_route_validation_rejects_a_new_blocking_world_body() -> void:
 	var blocker := StaticBody3D.new()
 	blocker.collision_layer = PlayerController.WORLD_COLLISION_MASK
 	blocker.collision_mask = 0
-	blocker.position = Vector3(14.0, 0.0, 8.0)
+	blocker.position = residence.route_waypoints(&"A_ground")[0].lerp(residence.route_waypoints(&"A_ground")[1], 0.5)
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(0.4, 2.0, 2.0)
@@ -287,3 +287,30 @@ func _box_contains(body: StaticBody3D, point: Vector3) -> bool:
 		and absf(local_point.y) <= half_size.y
 		and absf(local_point.z) <= half_size.z
 	)
+
+
+func test_observation_contract_preserves_distinct_house_and_crawl_heights() -> void:
+	var residence := _add_residence()
+	await get_tree().physics_frame
+	for point: Vector3 in residence.observation_points(&"main_house_first_floor"):
+		assert_almost_eq(point.y,SamuraiResidence.HOUSE_CENTER_Y,0.001)
+	for point: Vector3 in residence.re_stealth_route(&"main_house_first_floor"):
+		assert_almost_eq(point.y,SamuraiResidence.HOUSE_CENTER_Y,0.001)
+	var crawl := residence.get_node("Markers/Observation/Crawlspace/Observation01") as Marker3D
+	assert_almost_eq(crawl.position.y,SamuraiResidence.PLAYER_CENTER_Y,0.001,"A crawl observation point must remain below the raised house")
+
+
+func test_crawl_camera_stays_under_floor_and_cannot_see_through_solid_boards() -> void:
+	var residence := _add_residence()
+	for frame in 5: await get_tree().physics_frame
+	var player := residence.get_node("Player") as PlayerController
+	player.set_physics_process(false)
+	var entrance := residence.get_node("Markers/CrawlEntrances/U1_WestWaterEntry") as CrawlEntrance
+	player.global_position = entrance.outside_world_position()
+	assert_true(player.try_enter_crawlspace(entrance))
+	player.global_position = Vector3(58,0.02,21)
+	for frame in 5: await get_tree().physics_frame
+	var camera := player.get_node("CameraRig/SpringArm3D/Camera3D") as Camera3D
+	assert_lt(camera.global_position.y,0.1,"Crawl camera must stay below the low roof, like the player capsule")
+	var ray := PhysicsRayQueryParameters3D.create(camera.global_position,Vector3(60,0.47,21),1)
+	assert_false(residence.get_world_3d().direct_space_state.intersect_ray(ray).is_empty(),"A solid floor must block the camera's view of feet upstairs")

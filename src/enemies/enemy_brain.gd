@@ -86,6 +86,7 @@ var _incapacitated_kind: StringName = &""
 var _incapacitation_remaining := 0.0
 var _wake_by_noise := true
 var _started := false
+var _combat_detection_pending := false
 var _target_visible := false
 var _target_visible_override := -1
 var _routine_arrived := false
@@ -811,6 +812,7 @@ func _advance_state_without_stimulus(delta: float) -> void:
 			if perception != null and _target_visible_override < 0:
 				visible = perception.target_visible()
 			if visible:
+				_report_pending_combat_contact()
 				_target_visible = true
 				_combat_lost_sight_elapsed = 0.0
 				return
@@ -858,6 +860,7 @@ func _process_stimulus(stim: PerceptionStimulus) -> void:
 			_target_visible = true
 	if _state == Enums.AlertState.COMBAT:
 		if priority >= 4:
+			_report_pending_combat_contact()
 			_combat_lost_sight_elapsed = 0.0
 			_target_visible = true
 		return
@@ -1196,10 +1199,31 @@ func _start_return_vigilance() -> void:
 func _on_combat_enter(previous: Enums.AlertState) -> void:
 	if previous == Enums.AlertState.COMBAT:
 		return
+	# An escort reacting to its principal's death knows there is danger, but
+	# has not necessarily seen the player. Keep alarm escalation separate.
+	_combat_detection_pending = true
+	if _last_transition_reason != &"target_defeated" or _target_visible:
+		_report_pending_combat_contact()
+	_raise_area_alert()
+
+
+func is_combat_contact_pending() -> bool:
+	return _state == Enums.AlertState.COMBAT and _combat_detection_pending
+
+
+func confirm_combat_contact() -> void:
+	if _state == Enums.AlertState.COMBAT:
+		_target_visible = true
+		_report_pending_combat_contact()
+
+
+func _report_pending_combat_contact() -> void:
+	if not _combat_detection_pending:
+		return
+	_combat_detection_pending = false
 	var event_bus := _event_bus()
 	if event_bus != null:
 		event_bus.emit_signal(&"player_detected")
-	_raise_area_alert()
 
 
 func _raise_area_alert() -> void:
@@ -1794,6 +1818,7 @@ func capture_checkpoint_state() -> Dictionary:
 		"incapacitation_remaining": _incapacitation_remaining,
 		"last_known": [_last_known_position.x, _last_known_position.y, _last_known_position.z],
 		"has_last_known": _has_last_known_position,
+		"combat_detection_pending": _combat_detection_pending,
 	}
 
 
@@ -1803,6 +1828,7 @@ func checkpoint_state_is_valid(value: Dictionary) -> bool:
 	if not CheckpointSnapshot._whole_number(value.get("stop_index"), 0, int(value["route_stop_count"]) - 1): return false
 	for key in ["routine_clock", "stop_elapsed", "vigilance", "search_elapsed", "lost_sight", "incapacitation_remaining"]:
 		if not CheckpointSnapshot._finite_number(value.get(key)) or float(value[key]) < 0.0 or float(value[key]) > 86400.0: return false
+	if not value.get("combat_detection_pending", false) is bool: return false
 	if not value.get("arrived") is bool or not value.get("has_last_known") is bool: return false
 	if value.get("kind") not in ["", "dead", "knockout", "sleep", "restrained"]: return false
 	var point: Variant = value.get("last_known")
@@ -1828,6 +1854,7 @@ func restore_checkpoint_state(value: Dictionary) -> bool:
 	var point: Array = value["last_known"]
 	_last_known_position = Vector3(point[0], point[1], point[2])
 	_has_last_known_position = value["has_last_known"]
+	_combat_detection_pending = value.get("combat_detection_pending", false)
 	_target_visible = false
 	_target_visible_override = -1
 	_stimulus_buffer.clear()
