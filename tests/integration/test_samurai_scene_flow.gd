@@ -14,7 +14,10 @@ func after_each() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func test_mission_selection_offers_residence_with_localized_objectives() -> void:
+	var previous_unlock: int = SaveManager.campaign().unlocked_mission
+	SaveManager.campaign().unlocked_mission = 2
 	director.show_mission_select()
+	SaveManager.campaign().unlocked_mission = previous_unlock
 	var found := false
 	for node in director._content.find_children("*","Button",true,false):
 		if node.text == "屋敷へ潜入": found = true

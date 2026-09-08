@@ -14,6 +14,7 @@ var _result_recorded := false
 var screen: StringName = &"title"
 var mission: Node
 var definition: MissionDefinition
+var _background: TextureRect
 var _menu: Control
 var _content: VBoxContainer
 var _hud: Control
@@ -35,6 +36,7 @@ func _ready() -> void:
 	add_to_group(&"scene_director")
 	EventBus.mission_event.connect(_on_mission_event)
 	_build_shell()
+	get_viewport().size_changed.connect(_update_menu_width)
 	show_title()
 
 
@@ -80,20 +82,13 @@ func show_mission_select() -> bool:
 		_raw_label(GameText.get_text(&"select.best") % rank, 18)
 	_button(&"practice.start", func() -> void: start_mission(PRACTICE))
 	_content.add_child(HSeparator.new())
-	_label(&"mission.tutorial", 28)
-	_label(&"tutorial.summary", 18)
-	var tutorial_best: Dictionary = save_manager.campaign().get("mission_results", {}).get("m01", {})
-	if not tutorial_best.is_empty():
-		var rank := GameText.get_text(StringName("result.rank." + String(tutorial_best.get("rank", "shoden"))))
-		_raw_label(GameText.get_text(&"select.best") % rank, 18)
-	_button(&"tutorial.start", func() -> void: start_mission(TUTORIAL))
-	_content.add_child(HSeparator.new())
-	_label(&"m02.title", 28)
-	_label(&"m02.summary", 18)
-	_button(&"m02.start", func() -> void: start_mission(RESIDENCE))
-	_content.add_child(HSeparator.new())
-	_label(&"campaign.pending", 22)
-	_label(&"campaign.detail", 15)
+	var board := CampaignSelection.new()
+	board.name = "CampaignSelection"
+	_content.add_child(board)
+	board.configure(save_manager.campaign())
+	board.mission_requested.connect(func(next: MissionDefinition) -> void:
+		if CampaignCatalog.is_unlocked(next.id, save_manager.campaign()): start_mission(next))
+	_update_menu_width()
 	_button(&"nav.back", show_title)
 	_focus_first()
 	return true
@@ -274,6 +269,7 @@ func _build_shell() -> void:
 	_menu.theme = GameUi.theme()
 	add_child(_menu)
 	var art := TextureRect.new()
+	_background = art
 	art.texture = BACKGROUND
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -343,6 +339,8 @@ func _build_shell() -> void:
 
 func _page(next_screen: StringName, title: StringName, eyebrow: StringName) -> void:
 	screen = next_screen
+	_content.custom_minimum_size.x = 400
+	_background.texture = title_background() if next_screen == &"title" else BACKGROUND
 	for child in _content.get_children():
 		_content.remove_child(child)
 		child.queue_free()
@@ -427,3 +425,10 @@ func _clear_hideout() -> void:
 		remove_child(_hideout_player)
 		_hideout_player.queue_free()
 	_hideout_player = null
+
+func title_background() -> Texture2D:
+	return preload("res://assets/ui/spring_teahouse.svg") if CampaignCatalog.is_complete(save_manager.campaign()) else BACKGROUND
+
+func _update_menu_width() -> void:
+	if is_instance_valid(_content):
+		_content.custom_minimum_size.x = minf(1000 if screen == &"select" else 400, maxf(280, get_viewport().get_visible_rect().size.x-104))
