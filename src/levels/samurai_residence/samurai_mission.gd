@@ -41,6 +41,12 @@ func _initialize() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if not _initialized or _restoring: return
+	# Entry signals happen at the capsule's edge. Recheck the bounded set of
+	# exits while moving inside, using live position rather than cached overlap.
+	if target.is_target_defeated() and MissionDirector.current_objective() != null:
+		var player := _level.get_node("Player") as PlayerController
+		for identity in [&"EscapeEntry",&"EscapeWaterway",&"EscapeGate"]:
+			_on_escape_entered(player,get_node(NodePath(String(identity))) as Area3D)
 	if not _shift_changed and MissionDirector.stats().elapsed_sec >= 300.0:
 		_shift_changed = true
 		_assign_path(npcs["E7_CorridorPatrol"], [
@@ -182,6 +188,7 @@ func _build_exits() -> void:
 		area.collision_layer = 1 << 14
 		area.collision_mask = 1 << 1
 		var shape := CollisionShape3D.new()
+		shape.name = "Bounds"
 		var box := BoxShape3D.new()
 		box.size = Vector3(4,3,4)
 		shape.shape = box
@@ -198,6 +205,11 @@ func _on_area_alert_changed(level: int) -> void:
 
 func _on_escape_entered(body: Node3D, area: Area3D) -> void:
 	if not body is PlayerController: return
+	# A queued physics entry can describe the spawn position from before a
+	# deferred checkpoint restore. Only escape from the player's live position.
+	var bounds := area.get_node("Bounds") as CollisionShape3D
+	var size := (bounds.shape as BoxShape3D).size
+	if not AABB(-size * 0.5,size).has_point(bounds.to_local(body.global_position)): return
 	try_escape(area.name)
 
 
@@ -220,7 +232,13 @@ func _on_mission_event(event: StringName, payload: Dictionary) -> void:
 
 func _capture_target_checkpoint() -> void:
 	if not is_inside_tree() or not target.is_target_defeated(): return
-	var flow := _level.get_node("Player/RetryFlow") as PlayerRetryFlow
+	var player := _level.get_node("Player") as PlayerController
+	var deadline := Time.get_ticks_msec() + 3000
+	while player.checkpoint_posture().is_empty() and not player.state_machine.is_dead():
+		if Time.get_ticks_msec() >= deadline: return
+		await get_tree().physics_frame
+		if not is_instance_valid(player) or not is_inside_tree(): return
+	var flow := player.get_node("RetryFlow") as PlayerRetryFlow
 	flow.capture_checkpoint(&"assassination_complete")
 
 

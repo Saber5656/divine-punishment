@@ -2,6 +2,7 @@ class_name SceneDirector
 extends CanvasLayer
 
 
+const RESIDENCE: MissionDefinition = preload("res://data/missions/m02.tres")
 const PRACTICE: MissionDefinition = preload("res://data/missions/practice.tres")
 const TUTORIAL: MissionDefinition = preload("res://data/missions/tutorial.tres")
 const BACKGROUND := preload("res://assets/samples/issue-77-pv/issue77-01-exterior.png")
@@ -83,6 +84,10 @@ func show_mission_select() -> bool:
 		var rank := GameText.get_text(StringName("result.rank." + String(tutorial_best.get("rank", "shoden"))))
 		_raw_label(GameText.get_text(&"select.best") % rank, 18)
 	_button(&"tutorial.start", func() -> void: start_mission(TUTORIAL))
+	_content.add_child(HSeparator.new())
+	_label(&"m02.title", 28)
+	_label(&"m02.summary", 18)
+	_button(&"m02.start", func() -> void: start_mission(RESIDENCE))
 	_content.add_child(HSeparator.new())
 	_label(&"campaign.pending", 22)
 	_label(&"campaign.detail", 15)

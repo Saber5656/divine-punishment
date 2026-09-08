@@ -10,6 +10,8 @@ func before_each() -> void:
 	add_child_autofree(level)
 	mission = level.get_node("Mission") as SamuraiMission
 	for frame in 5: await get_tree().physics_frame
+	# Direct kill API fixtures start outside the entry escape area.
+	(level.get_node("Player") as PlayerController).global_position = Vector3(8,0.02,12)
 
 func after_each() -> void:
 	PlayerRetryFlow.pending_scene = ""
@@ -147,3 +149,25 @@ func test_authored_routine_points_do_not_move_or_turn_with_their_actor() -> void
 	npc.rotation.y += 0.5
 	assert_eq(stop.target_position(),point,"World route points must stay fixed when their NPC walks")
 	assert_eq(stop.world_facing_direction(),facing,"Sentry must face an authored world direction without spinning")
+
+
+func test_escape_completes_when_body_center_crosses_after_first_capsule_overlap() -> void:
+	var player := level.get_node("Player") as PlayerController
+	player.set_physics_process(false)
+	player.global_position = Vector3(10.2,0,8)
+	assert_true(mission.target.begin_assassination(&"back"))
+	mission._on_escape_entered(player,mission.get_node("EscapeEntry"))
+	assert_not_null(MissionDirector.current_objective())
+	player.global_position = Vector3(9.8,0,8)
+	mission._physics_process(0.016)
+	assert_null(MissionDirector.current_objective(),"Moving fully inside must complete escape even if initial shape overlap was outside its center")
+
+
+func test_waterway_escape_covers_the_real_surface_swim_height() -> void:
+	var player := level.get_node("Player") as PlayerController
+	player.set_physics_process(false)
+	player.global_position = Vector3(84,0,56)
+	assert_true(player.try_enter_water(level.get_node("Markers/Water/W2_WestWaterway")))
+	assert_true(mission.target.begin_assassination(&"below"))
+	mission._physics_process(0.016)
+	assert_null(MissionDirector.current_objective(),"A living swimmer at the water exit must complete the mission")
