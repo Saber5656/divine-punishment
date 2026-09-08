@@ -9,13 +9,14 @@ const SOURCES := {
 	&"crouch_idle": &"Crouch_Idle", &"crouch_walk": &"Crouch_Fwd",
 	&"swim_idle": &"Swim_Idle", &"swim": &"Swim_Fwd",
 	&"combat": &"Sword_Idle", &"attack": &"Sword_Attack", &"dodge": &"Roll",
+	&"knockout": &"Death01", &"nonlethal_strike": &"Punch_Jab",
 	&"investigate": &"Idle_Talking", &"search": &"Walk_Formal", &"death": &"Death01",
 	&"wall_cling": &"Idle", &"climb": &"Walk", &"beam": &"Walk_Formal",
 	&"crawl": &"Swim_Fwd", &"hidden": &"Crouch_Idle",
 	&"assassination_back": &"Sword_Attack", &"assassination_above": &"Sword_Attack",
 	&"assassination_below": &"Swim_Fwd", &"assassination_corner": &"Sword_Attack",
 }
-const ONESHOTS: Array[StringName] = [&"death", &"attack", &"dodge", &"assassination_back", &"assassination_above", &"assassination_below", &"assassination_corner"]
+const ONESHOTS: Array[StringName] = [&"knockout", &"nonlethal_strike", &"death", &"attack", &"dodge", &"assassination_back", &"assassination_above", &"assassination_below", &"assassination_corner"]
 static var _libraries: Dictionary = {}
 static var _models: Dictionary = {}
 var _actor: CharacterBody3D
@@ -249,8 +250,8 @@ func update_actor_presentation(delta: float) -> void:
 	else:
 		var brain: EnemyBrain = _actor.brain()
 		var dead: bool = _actor.is_assassinated() or (brain != null and brain.incapacitated_kind() == &"dead")
-		next = enemy_clip(_actor.alert_state(), moving, dead)
-	if _action_remaining > 0.0 and next != &"death": next = _action
+		next = &"knockout" if not dead and brain != null and brain.is_incapacitated() else enemy_clip(_actor.alert_state(), moving, dead)
+	if _action_remaining > 0.0 and next not in [&"death", &"knockout"]: next = _action
 	show_clip(next)
 	advance_visual(delta)
 
@@ -279,3 +280,6 @@ func _play_action(clip: StringName, duration: float) -> void:
 	_action = clip
 	_action_remaining = duration
 	show_clip(clip)
+
+func play_nonlethal_strike() -> void:
+	_play_action(&"nonlethal_strike",0.45)

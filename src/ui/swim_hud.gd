@@ -198,7 +198,7 @@ func _render_tool_slot(index: int) -> void:
 	var definition := tool_slot_definition(index)
 	var count := tool_slot_remaining(index)
 	var label := str(index + 1)
-	if definition != null:
+	if definition != null and MissionDirector.allows_action(definition.id):
 		label += "  %s  ×%d" % [definition.localized_name(), count]
 	else:
 		label += "  —"

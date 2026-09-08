@@ -445,6 +445,7 @@ static func _valid_vector(value: Vector3) -> bool:
 
 
 func _context_for_enemy(enemy: EnemyBase) -> StringName:
+	if not MissionDirector.allows_action(&"assassinate"): return &""
 	if enemy == null or not is_instance_valid(enemy):
 		return &""
 	var player := get_parent() as Node3D

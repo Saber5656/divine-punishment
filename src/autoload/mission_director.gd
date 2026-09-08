@@ -12,6 +12,7 @@ var _target_kills := 0
 var _all_target_kills_assassinated := true
 var _killed_entities: Dictionary = {}
 var _neutralized_entities: Dictionary = {}
+var _contact_entities: Dictionary = {}
 var _spotted_corpse_anomalies: Dictionary = {}
 
 const MAX_AREA_ALERT_LEVEL := 5
@@ -22,6 +23,7 @@ func _ready() -> void:
 	EventBus.player_detected.connect(_on_player_detected)
 	EventBus.enemy_killed.connect(_on_enemy_killed)
 	EventBus.civilian_killed.connect(_on_civilian_killed)
+	EventBus.alert_changed.connect(_on_contact_alert)
 	EventBus.enemy_neutralized.connect(_on_enemy_neutralized)
 	EventBus.mission_event.connect(_on_mission_event)
 
@@ -31,6 +33,7 @@ func _exit_tree() -> void:
 	EventBus.player_detected.disconnect(_on_player_detected)
 	EventBus.enemy_killed.disconnect(_on_enemy_killed)
 	EventBus.civilian_killed.disconnect(_on_civilian_killed)
+	EventBus.alert_changed.disconnect(_on_contact_alert)
 	EventBus.enemy_neutralized.disconnect(_on_enemy_neutralized)
 	EventBus.mission_event.disconnect(_on_mission_event)
 
@@ -55,6 +58,7 @@ func start_mission(def: MissionDefinition) -> void:
 	_all_target_kills_assassinated = true
 	_killed_entities.clear()
 	_neutralized_entities.clear()
+	_contact_entities.clear()
 	_spotted_corpse_anomalies.clear()
 	if def != null:
 		GameState.reset_for_mission(def.id)
@@ -118,6 +122,9 @@ func _on_enemy_killed(enemy: Node, method: String) -> void:
 	if _killed_entities.has(identity):
 		return
 	_killed_entities[identity] = true
+	if _definition.kill_policy == MissionDefinition.KillPolicy.FORBIDDEN:
+		fail_mission(&"killing_forbidden")
+		return
 	if enemy.is_in_group(&"civilians"):
 		_stats.civilian_kills += 1
 	elif _is_mission_target(enemy):
@@ -138,6 +145,9 @@ func _on_civilian_killed(civilian: Node) -> void:
 	if _killed_entities.has(identity):
 		return
 	_killed_entities[identity] = true
+	if _definition.kill_policy == MissionDefinition.KillPolicy.FORBIDDEN:
+		fail_mission(&"killing_forbidden")
+		return
 	_stats.civilian_kills += 1
 
 
@@ -149,6 +159,7 @@ func _on_enemy_neutralized(enemy: Node, method: String) -> void:
 		return
 	_neutralized_entities[identity] = true
 	_stats.knockouts += 1
+	_register_contact(enemy)
 
 
 func _on_mission_event(event_name: StringName, payload: Dictionary) -> void:
@@ -182,7 +193,7 @@ func _target_matches(objective: ObjectiveData, enemy: Node) -> bool:
 func _on_anomaly_spotted(anomaly: Anomaly, _by: Node) -> void:
 	if (
 		anomaly == null
-		or anomaly.kind != Enums.AnomalyKind.CORPSE
+		or anomaly.kind not in [Enums.AnomalyKind.CORPSE, Enums.AnomalyKind.RESTRAINED]
 		or anomaly.severity < 1
 		or anomaly.severity > 3
 		or not is_finite(anomaly.expires_at)
@@ -228,7 +239,7 @@ static func compute_score(stats: MissionStats, cfg: ScoringConfig, def: MissionD
 	var flags := {
 		&"shadow_walker": stats.detections == 0,
 		&"no_traces": stats.bodies_found == 0,
-		&"one_strike": stats.one_strike,
+		&"one_strike": maxi(stats.knockouts,0)*5 >= maxi(stats.enemy_contacts,0)*4 if def.id == &"m09" else stats.one_strike,
 		&"swift": par_seconds > 0.0 and stats.elapsed_sec <= par_seconds,
 		&"side_objective": def.side_objective != null and stats.side_objective_completed,
 	}
@@ -282,15 +293,16 @@ func capture_checkpoint_state(entities: Dictionary) -> Dictionary:
 		"mission": String(active_mission_id()), "objective": _current_objective_index,
 		"running": _running, "completed": _completed, "failed_reason": String(_failed_reason),
 		"target_kills": _target_kills, "all_assassinated": _all_target_kills_assassinated,
-		"stats": {}, "killed": [], "neutralized": [], "corpses": [],
+		"stats": {}, "contacts": [], "killed": [], "neutralized": [], "corpses": [],
 	}
-	for key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "elapsed_sec", "one_strike", "side_objective_completed"]:
+	for key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "enemy_contacts", "elapsed_sec", "one_strike", "side_objective_completed"]:
 		result["stats"][key] = _stats.get(key)
 	for key: String in entities:
 		var entity := entities[key] as Node
 		if not is_instance_valid(entity):
 			continue
 		var identity := entity.get_instance_id()
+		if _contact_entities.has(identity): result["contacts"].append(key)
 		if _killed_entities.has(identity): result["killed"].append(key)
 		if _neutralized_entities.has(identity): result["neutralized"].append(key)
 		if _spotted_corpse_anomalies.has("body:%s" % identity): result["corpses"].append(key)
@@ -305,8 +317,8 @@ func checkpoint_state_is_valid(value: Dictionary, entities: Dictionary) -> bool:
 		if not value.get(key) is bool: return false
 	if not value.get("failed_reason") is String or not value.get("stats") is Dictionary: return false
 	var stats_value: Dictionary = value["stats"]
-	for key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts"]:
-		if not CheckpointSnapshot._whole_number(stats_value.get(key), 0, 1000000): return false
+	for key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "enemy_contacts"]:
+		if not CheckpointSnapshot._whole_number(stats_value.get(key, 0 if key == "enemy_contacts" else null), 0, 1000000): return false
 	if not CheckpointSnapshot._finite_number(stats_value.get("elapsed_sec")) or float(stats_value["elapsed_sec"]) < 0: return false
 	for key in ["one_strike", "side_objective_completed"]:
 		if not stats_value.get(key) is bool: return false
@@ -314,6 +326,9 @@ func checkpoint_state_is_valid(value: Dictionary, entities: Dictionary) -> bool:
 		if not value.get(key) is Array or value[key].size() > entities.size(): return false
 		for identity in value[key]:
 			if not identity is String or not entities.has(identity): return false
+	if not value.get("contacts",[]) is Array or value.get("contacts",[]).size() > entities.size(): return false
+	for identity in value.get("contacts",[]):
+		if not identity is String or not entities.has(identity): return false
 	var completed: bool = value["completed"]
 	var running: bool = value["running"]
 	var failed: bool = not String(value["failed_reason"]).is_empty()
@@ -330,13 +345,31 @@ func restore_checkpoint_state(value: Dictionary, entities: Dictionary) -> bool:
 	_target_kills = int(value["target_kills"])
 	_all_target_kills_assassinated = value["all_assassinated"]
 	for key: String in value["stats"]:
-		if key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "elapsed_sec", "one_strike", "side_objective_completed"]:
+		if key in ["detections", "nontarget_kills", "civilian_kills", "bodies_found", "knockouts", "enemy_contacts", "elapsed_sec", "one_strike", "side_objective_completed"]:
 			_stats.set(key, value["stats"][key])
 	_killed_entities.clear()
 	_neutralized_entities.clear()
+	_contact_entities.clear()
 	_spotted_corpse_anomalies.clear()
+	_stats.enemy_contacts = int(value["stats"].get("enemy_contacts",0))
+	for key: String in value.get("contacts",[]): _contact_entities[entities[key].get_instance_id()] = true
 	for key: String in value["killed"]: _killed_entities[entities[key].get_instance_id()] = true
 	for key: String in value["neutralized"]: _neutralized_entities[entities[key].get_instance_id()] = true
 	for key: String in value["corpses"]: _spotted_corpse_anomalies["body:%s" % entities[key].get_instance_id()] = true
 	_emit_current_objective()
 	return true
+
+func allows_action(action: StringName) -> bool:
+	if _definition == null: return true
+	var canonical: StringName = &"sword" if action in [&"attack", &"parry"] else &"assassinate_lethal" if action == &"assassinate" else action
+	return canonical not in _definition.forbidden_actions
+
+func _on_contact_alert(enemy: Node, _from_state: int, to_state: int) -> void:
+	if to_state == Enums.AlertState.COMBAT: _register_contact(enemy)
+
+func _register_contact(enemy: Node) -> void:
+	if not _running or not is_instance_valid(enemy): return
+	var identity := enemy.get_instance_id()
+	if not _contact_entities.has(identity):
+		_contact_entities[identity] = true
+		_stats.enemy_contacts += 1

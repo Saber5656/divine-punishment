@@ -82,6 +82,7 @@ func tick(delta: float) -> void:
 
 
 func start_attack() -> bool:
+	if not MissionDirector.allows_action(&"sword"): return false
 	if _defeated or _attack_elapsed >= 0.0 or _attack_recovery_remaining > 0.0:
 		return false
 	if not _ensure_combat_state():
@@ -176,6 +177,7 @@ func combo_step() -> int:
 
 
 func start_parry() -> bool:
+	if not MissionDirector.allows_action(&"sword"): return false
 	if _defeated or _parry_remaining > 0.0 or _parry_cooldown_remaining > 0.0:
 		return false
 	if not _ensure_combat_state():
@@ -358,6 +360,8 @@ func _resolve_config() -> CombatConfig:
 
 func _ensure_combat_state() -> bool:
 	var state_machine := _state_machine()
+	if not MissionDirector.allows_action(&"sword"):
+		return state_machine != null and state_machine.current_state() in [&"Ground", &"Crouch"]
 	if state_machine == null:
 		return true
 	if state_machine.has_method(&"is_dead") and state_machine.call(&"is_dead"):
@@ -374,7 +378,7 @@ func _combat_input_allowed() -> bool:
 	var state_machine := _state_machine()
 	if state_machine == null or not state_machine.has_method(&"current_state"):
 		return true
-	return state_machine.call(&"current_state") == &"Combat"
+	return state_machine.call(&"current_state") == &"Combat" or (not MissionDirector.allows_action(&"sword") and state_machine.current_state() in [&"Ground", &"Crouch"])
 
 
 func _state_machine() -> Node:
