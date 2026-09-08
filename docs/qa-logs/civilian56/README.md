@@ -1,0 +1,13 @@
+# Civilian and crowd verification — Issue 56
+
+Godot 4.3 / macOS Apple M4, 2026-09-08. Main-agent implementation/self-review; no added subagent calls.
+
+TDD evidence: three initial tests failed for missing civilian/crowd implementation. Player visibility and sword targeting contracts then failed before integration. Missing scream audio failed before synthesis/registration. A partition-wall concealment regression failed before a world/door occlusion ray was added. Finally, real mouse input showed that the old Combat-only input gate screamed without drawing a sword; a focused regression reproduced Ground remaining hidden before the input fix.
+
+The initial full run passed568 tests/4634 assertions. A first proposed draw fix then passed570/4637 after changing an old input contract, but visual QA revealed left-click also spent a stone: attack shares its button with tool_use. That approach was discarded. Regression tests now preserve Ground tool input, and the previously unbound sword action uses R for explicit draw/sheathe. The original Combat-only attack/parry contract and its test are restored. A temporary misspelled attack-state helper caused import errors and was corrected before final verification. Final verification follows below.
+
+Exported PCK native smoke: R-key input changes Ground → Combat, removes crowd concealment and emits screams. Five GPU instances render. Zero smoke failures. No script errors; a shutdown ObjectDB warning remains. Screenshots use procedural capsule stand-ins, not final M3/M5 character art. No human playtest or release publication is claimed.
+
+Self-review covered2Hz scheduling, scream cooldown, FOV/range/wall occlusion, death event deduplication, existing-10 score/+3 shura configuration, group route movement, corpse detachment from moving groups, walls blocking concealment, combat input scope and no-kill policy. Gameplay uses dedicated civilians rather than full guard AI. A crowd contains exactly five simple civilian colliders plus one MultiMesh; fewer than three living members no longer provide cover. Walking concealment is automatic and does not freeze movement or accept corpse storage. Scenes are ready for the M3/M5 level issues; original procedural meshes and synthetic alarm vocal are replaceable in their art/audio issues.
+
+Final verification:571 tests/4638 assertions pass, exit0, no script/parse errors. The revised exported PCK handles physical R input, changes Ground → Combat, emits one scream, renders five crowd instances and consumes no stone; zero failures and no native engine/script errors. The old LMB diagnostic/logs remain evidence of the discarded approach. R is shown as the remappable sword action in Settings and the normal gameplay controls line.

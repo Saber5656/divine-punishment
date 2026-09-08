@@ -29,7 +29,7 @@ settings.sensitivity,視点の感度
 settings.session,この画面の変更は現在のプレイに反映されます。
 objective.practice_target,背後から修練の標的を討て
 objective.practice_escape,朱の門へ向かい、離脱せよ
-hud.controls,{move_forward}{move_left}{move_backward}{move_right} 移動　{stance_toggle} しゃがむ　{assassinate} 必殺　{pause} 一服
+hud.controls,{move_forward}{move_left}{move_backward}{move_right} 移動　{stance_toggle} しゃがむ　{sword} 刀　{assassinate} 必殺　{pause} 一服
 hud.escape,離脱の門が開いた
 hud.mission,修練 ─ 夜の庭
 result.title,任務結果
@@ -107,7 +107,7 @@ input.parry,受け流し
 input.dodge,回避
 input.debug_overlay_toggle,検証表示切替
 input.pause,一時停止
-input.sword,刀
+input.sword,抜刀・納刀
 input.assassinate_lethal,致死必殺
 input.dart,吹き矢
 settings.back_without_save,保存せず戻る

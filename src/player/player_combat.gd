@@ -48,6 +48,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"sword"):
+		toggle_sword()
+		return
 	if not _combat_input_allowed():
 		return
 	if event.is_action_pressed(&"attack"):
@@ -391,7 +394,7 @@ func _nearest_enemy() -> Node:
 	var nearest: Node = null
 	var nearest_distance := _config.attack_range_m
 	var examined := 0
-	for candidate in get_tree().get_nodes_in_group(&"enemies"):
+	for candidate in get_tree().get_nodes_in_group(&"enemies") + get_tree().get_nodes_in_group(&"civilians"):
 		if examined >= MAX_TARGETS_TO_SCAN:
 			break
 		examined += 1
@@ -466,3 +469,14 @@ func _emit_event(signal_name: StringName, args: Array) -> void:
 	var event_bus := tree.root.get_node_or_null(NodePath("EventBus"))
 	if event_bus != null and event_bus.has_signal(signal_name):
 		event_bus.callv(&"emit_signal", [signal_name] + args)
+
+
+func toggle_sword() -> bool:
+	if not MissionDirector.allows_action(&"sword") or _defeated: return false
+	var machine := _state_machine() as PlayerStateMachine
+	if machine == null: return false
+	if machine.current_state() in [&"Ground",&"Crouch"]:
+		return machine.change_state(&"Combat")
+	if machine.current_state() == &"Combat" and _attack_elapsed < 0.0 and _attack_recovery_remaining <= 0.0 and not is_parrying() and not is_dodging():
+		return machine.change_state(&"Ground")
+	return false

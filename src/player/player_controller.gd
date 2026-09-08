@@ -252,7 +252,7 @@ func active_hide_spot() -> HideSpot:
 
 
 func is_visibility_excluded() -> bool:
-	return state_machine.is_visibility_excluded()
+	return state_machine.is_visibility_excluded() or CrowdHideSpot.conceals_player(self)
 
 
 func set_close_range_seen(seen: bool) -> void:
