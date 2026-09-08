@@ -11,3 +11,8 @@ func test_tool_names_and_mission_title_resolve_through_catalog() -> void:
 	assert_true(mission.has_method(&"localized_title"))
 	if mission.has_method(&"localized_title"):
 		assert_eq(mission.localized_title(), GameText.get_text(&"m02.title"))
+
+func test_all_production_mission_titles_are_localized() -> void:
+	for item in [["practice", &"practice.title"], ["tutorial", &"mission.tutorial"]]:
+		var mission = load("res://data/missions/%s.tres" % item[0])
+		assert_eq(mission.localized_title(), GameText.get_text(item[1]))
