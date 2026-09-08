@@ -2,6 +2,7 @@ class_name ActorAnimation
 extends Node3D
 
 ## Visual-only skeletal presentation. Never writes actor transforms or collisions.
+const CLOSE_CAMERA_DISTANCE := 1.6
 const SOURCE := "res://assets/animations/quaternius_standard.glb"
 const SOURCES := {
 	&"idle": &"Idle", &"walk": &"Walk", &"sprint": &"Sprint",
@@ -242,6 +243,9 @@ func update_actor_presentation(delta: float) -> void:
 		next = player_clip(state, moving)
 		if state == &"Assassinate" and str(_action).begins_with("assassination_"): next = _action
 		visible = state != &"Hidden"
+		var camera := get_viewport().get_camera_3d()
+		if camera != null and _actor.is_ancestor_of(camera):
+			visible = visible and camera.global_position.distance_squared_to(_actor.global_position) >= CLOSE_CAMERA_DISTANCE * CLOSE_CAMERA_DISTANCE
 	else:
 		var brain: EnemyBrain = _actor.brain()
 		var dead: bool = _actor.is_assassinated() or (brain != null and brain.incapacitated_kind() == &"dead")

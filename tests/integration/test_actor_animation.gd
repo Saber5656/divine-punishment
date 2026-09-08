@@ -137,3 +137,19 @@ func test_below_assassination_keeps_the_body_prone() -> void:
 	var head := skeleton.get_bone_global_pose(skeleton.find_bone(&"Head")).origin
 	var foot := skeleton.get_bone_global_pose(skeleton.find_bone(&"foot_l")).origin
 	assert_lt(absf(head.y - foot.y), 0.4, "The below-floor assassination keeps the torso under the floor")
+
+func test_close_player_camera_does_not_look_through_the_players_own_body() -> void:
+	var player = load("res://src/player/player.tscn").instantiate()
+	add_child_autofree(player)
+	player.set_physics_process(false)
+	await get_tree().process_frame
+	var adapter = player.get_node("Visual/Model")
+	adapter.set_process(false)
+	var camera: Camera3D = player.find_children("*", "Camera3D", true, false)[0]
+	camera.make_current()
+	camera.global_position = player.global_position + Vector3(0,-0.7,1.0)
+	adapter.update_actor_presentation(0.0)
+	assert_false(adapter.visible, "A camera pushed under a crawl ceiling must not be covered by the player's rig")
+	camera.global_position = player.global_position + Vector3(0,1,4)
+	adapter.update_actor_presentation(0.0)
+	assert_true(adapter.visible, "Third-person distance restores the animated body")
