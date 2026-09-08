@@ -3,12 +3,12 @@ class_name SamuraiResidence
 extends Node3D
 
 
-## Asset-free graybox for M2 (the Samurai Residence).
+## Deterministic gameplay geometry for M2 (the Samurai Residence).
 ##
 ## The map drawing in docs/maps/m02-yashiki.md is expressed in x/z metres.  This
 ## scene keeps those coordinates in one place and builds only bounded primitive
-## geometry.  Gameplay systems consume the authored marker contracts; the
-## scene does not depend on a model, texture, or external level asset.
+## geometry. Gameplay systems consume the authored marker contracts;
+## ResidenceArt replaces its visual surfaces without editing these contracts.
 
 const MAP_BOUNDS := Rect2(0.0, 0.0, 100.0, 64.0)
 const GROUND_SURFACE_Y := -0.9
