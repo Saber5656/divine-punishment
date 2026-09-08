@@ -43,6 +43,15 @@ func soft_cover_modifier() -> float:
 
 
 func recompute() -> float:
+	if not PerceptionProfile.enabled:
+		return _profiled_recompute()
+	var started := Time.get_ticks_usec()
+	var result := _profiled_recompute()
+	PerceptionProfile.record(Time.get_ticks_usec() - started)
+	return result
+
+
+func _profiled_recompute() -> float:
 	var player := get_parent() as Node3D
 	if player == null or not is_inside_tree():
 		return _visibility

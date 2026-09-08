@@ -1,0 +1,47 @@
+{
+  "enemies": 12,
+  "lights": 20,
+  "renderer": "Apple M4",
+  "resolution": "(1920, 1080)",
+  "views": [
+    {
+      "camera": "(43, 15, 43)",
+      "draw_calls": 910,
+      "frames": 300,
+      "max_ms": 28.737,
+      "mean_ms": 14.7394333333333,
+      "p95_ms": 16.079,
+      "perception_calls": 3224,
+      "perception_max_ms": 1.859,
+      "perception_p95_ms": 0.705,
+      "player_alive": true,
+      "primitives": 2529757
+    },
+    {
+      "camera": "(37, 2.5, 27)",
+      "draw_calls": 1066,
+      "frames": 300,
+      "max_ms": 36.732,
+      "mean_ms": 15.4405333333333,
+      "p95_ms": 16.776,
+      "perception_calls": 3370,
+      "perception_max_ms": 1.813,
+      "perception_p95_ms": 0.701,
+      "player_alive": true,
+      "primitives": 2976101
+    },
+    {
+      "camera": "(60, 2.4, 27)",
+      "draw_calls": 191,
+      "frames": 300,
+      "max_ms": 9.45,
+      "mean_ms": 8.33351,
+      "p95_ms": 9.231,
+      "perception_calls": 1813,
+      "perception_max_ms": 0.788,
+      "perception_p95_ms": 0.689,
+      "player_alive": true,
+      "primitives": 29443
+    }
+  ]
+}

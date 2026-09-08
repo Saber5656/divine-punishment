@@ -56,6 +56,15 @@ func _exit_tree() -> void:
 
 
 func tick(delta: float) -> void:
+	if not PerceptionProfile.enabled:
+		_profiled_tick(delta)
+		return
+	var started := Time.get_ticks_usec()
+	_profiled_tick(delta)
+	PerceptionProfile.record(Time.get_ticks_usec() - started)
+
+
+func _profiled_tick(delta: float) -> void:
 	if not is_finite(delta) or delta < 0.0:
 		return
 	if not _valid_config():
@@ -78,6 +87,15 @@ func tick(delta: float) -> void:
 
 
 func on_noise(event: NoiseEvent) -> void:
+	if not PerceptionProfile.enabled:
+		_profiled_on_noise(event)
+		return
+	var started := Time.get_ticks_usec()
+	_profiled_on_noise(event)
+	PerceptionProfile.record(Time.get_ticks_usec() - started)
+
+
+func _profiled_on_noise(event: NoiseEvent) -> void:
 	# NoiseEventSystem delivers already distance/occlusion-filtered events
 	# directly to this method.  Do not subscribe to EventBus.noise_emitted here:
 	# that signal is telemetry and subscribing would count every noise twice.
@@ -160,6 +178,15 @@ func on_anomaly(anomaly: Anomaly) -> void:
 
 
 func _on_anomaly_registered(anomaly: Anomaly) -> void:
+	if not PerceptionProfile.enabled:
+		_profiled_on_anomaly_registered(anomaly)
+		return
+	var started := Time.get_ticks_usec()
+	_profiled_on_anomaly_registered(anomaly)
+	PerceptionProfile.record(Time.get_ticks_usec() - started)
+
+
+func _profiled_on_anomaly_registered(anomaly: Anomaly) -> void:
 	on_anomaly(anomaly)
 
 
@@ -175,11 +202,13 @@ func _scan_persistent_anomalies() -> void:
 	var owner := get_parent()
 	var groups: Array[StringName] = [&"anomaly_markers", &"lights", &"enemies"]
 	var group_nodes: Array = []
+	var remaining: Array[int] = []
 	for group_name: StringName in groups:
 		# The tree owns these arrays; do not retain or grow a cross-group work
 		# list.  The rotating cursors below keep per-update processing bounded
 		# even when an authored group contains many nodes.
 		group_nodes.append(tree.get_nodes_in_group(group_name))
+		remaining.append(group_nodes[-1].size())
 	var seen_nodes: Dictionary = {}
 	var examined := 0
 	var empty_group_rounds := 0
@@ -188,10 +217,11 @@ func _scan_persistent_anomalies() -> void:
 		_anomaly_scan_group_index = posmod(_anomaly_scan_group_index + 1, groups.size())
 		var group_name: StringName = groups[group_index]
 		var nodes: Array = group_nodes[group_index]
-		if nodes.is_empty():
+		if remaining[group_index] == 0:
 			empty_group_rounds += 1
 			continue
 		empty_group_rounds = 0
+		remaining[group_index] -= 1
 		var offset := int(_anomaly_scan_offsets.get(group_name, 0))
 		if offset >= nodes.size():
 			offset = 0

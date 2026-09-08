@@ -28,13 +28,7 @@ func _apply() -> void:
 	environment.environment = settings
 	add_child(environment)
 	for source in level.get_node("Markers/Lights").get_children():
-		var light := source.render_light as OmniLight3D
-		light.light_color = Color(1.0,.65,.32)
-		light.light_energy = 2.2
-		light.omni_range = source.gameplay_radius
-		light.omni_attenuation = .9
-		light.light_bake_mode = Light3D.BAKE_DISABLED
-		light.shadow_enabled = true
+		configure_gameplay_light(source)
 	# Characters receive the baked probe field while remaining fully movable.
 	for actor in level.get_node("Mission").npcs.values():
 		_enable_probe_lighting(actor)
@@ -47,3 +41,17 @@ func _apply() -> void:
 func _enable_probe_lighting(actor: Node) -> void:
 	for mesh in actor.find_children("*","MeshInstance3D",true,false):
 		mesh.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC
+
+static func configure_gameplay_light(source: LightSource) -> void:
+	var light := source.render_light as OmniLight3D
+	light.light_color = Color(1.0,.65,.32)
+	light.light_energy = 2.2
+	light.omni_range = source.gameplay_radius
+	light.omni_attenuation = .9
+	light.light_bake_mode = Light3D.BAKE_DISABLED
+	light.shadow_enabled = true
+	# Preserve full lighting near gameplay; retire distant shadow work smoothly.
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = source.gameplay_radius * 4.0
+	light.distance_fade_shadow = source.gameplay_radius * 3.0
+	light.distance_fade_length = source.gameplay_radius * 2.0
