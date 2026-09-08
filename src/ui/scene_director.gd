@@ -203,7 +203,11 @@ func show_result() -> void:
 	_page(&"results", &"result.title", &"result.success" if _last_result.flags.get("completed", false) else &"result.failed")
 	if save_manager.last_error != OK:
 		_label(&"settings.save_failed", 16)
-	_label(StringName("result.rank.%s" % _last_result.rank), 52)
+	var rank_label := _label(StringName("result.rank.%s" % _last_result.rank), 52)
+	rank_label.name = "Rank"
+	var reveal := ResultReveal.new()
+	rank_label.add_child(reveal)
+	reveal.start(rank_label)
 	_raw_label(GameText.get_text(&"result.score") % _last_result.score, 22)
 	var cfg := Tuning.scoring()
 	var points := [cfg.shadow_walker_points, cfg.no_traces_points, cfg.one_strike_points, cfg.swift_points, cfg.side_objective_bonus]
@@ -223,7 +227,8 @@ func show_result() -> void:
 	_label(next_goal, 18)
 	_button(&"nav.restart", func() -> void: start_mission(definition))
 	_button(&"nav.to_select", show_mission_select)
-	_focus_first()
+	rank_label.focus_mode = Control.FOCUS_ALL
+	_focus_if_visible.call_deferred(rank_label)
 
 
 func _on_mission_event(event: StringName, _payload: Dictionary) -> void:

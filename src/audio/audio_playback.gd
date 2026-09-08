@@ -32,6 +32,7 @@ func _init(parent: Node) -> void:
 	_ambience.stream=_stream(&"night",true);_ambience.bus=&"SE";_ambience.volume_db=-80
 	parent.add_child(_ambience)
 	_stinger=AudioStreamPlayer.new();_stinger.name="Stinger";_stinger.bus=&"SE"
+	_stinger.process_mode = Node.PROCESS_MODE_ALWAYS
 	parent.add_child(_stinger)
 	_effects=Node3D.new();_effects.name="Effects";parent.add_child(_effects)
 
