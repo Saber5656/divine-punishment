@@ -10,7 +10,7 @@ func emit_footstep(stance: Enums.Stance, material: StringName = floor_material) 
 	var radius := 0.0
 	if config != null:
 		radius = footstep_radius(stance, material, config)
-	return emit_noise(radius, Enums.NoiseKind.FOOTSTEP)
+	return emit_noise(radius, Enums.NoiseKind.FOOTSTEP, StringName("footstep_" + str(material)))
 
 
 func emit_landing() -> NoiseEvent:
@@ -25,10 +25,11 @@ func emit_door(_opening: bool) -> NoiseEvent:
 	return emit_noise(radius, Enums.NoiseKind.DOOR)
 
 
-func emit_noise(radius: float, kind: Enums.NoiseKind) -> NoiseEvent:
+func emit_noise(radius: float, kind: Enums.NoiseKind, audio_cue: StringName = &"") -> NoiseEvent:
 	var source_node := get_parent() as Node3D
 	var source_position := source_node.global_position if source_node != null else Vector3.ZERO
 	var event := NoiseEvent.create(source_position, maxf(radius, 0.0), kind, self)
+	event.audio_cue = audio_cue
 	return NoiseEventSystem.emit(event, get_tree())
 
 

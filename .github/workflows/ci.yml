@@ -76,6 +76,7 @@ jobs:
             cp assets/fonts/OFL.txt "build/$platform/NotoSerifJP-OFL.txt"
             cp assets/characters/QUATERNIUS-LICENSE.txt "build/$platform/Quaternius-Characters-LICENSE.txt"
             cp assets/animations/QUATERNIUS-LICENSE.txt "build/$platform/Quaternius-Animations-LICENSE.txt"
+            cp assets/audio/ORIGINAL-AUDIO-NOTICE.txt "build/$platform/Original-Audio-NOTICE.txt"
           done
 
       - name: Export Windows

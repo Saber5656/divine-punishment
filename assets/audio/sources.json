@@ -1,0 +1,192 @@
+{
+  "license": "Project license",
+  "generator": "tools/audio/build_audio.py",
+  "description": "Original synthesized wind, insect texture, flute-like tones, drum-like percussion and foley. No external recordings or sampled instruments.",
+  "sample_rate": 22050,
+  "assets": [
+    {
+      "id": "night",
+      "file": "night.wav",
+      "seconds": 20.0,
+      "peak": 0.06961101386660887,
+      "loop": true,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "unease",
+      "file": "unease.wav",
+      "seconds": 16.0,
+      "peak": 0.08313460728976828,
+      "loop": true,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "combat",
+      "file": "combat.wav",
+      "seconds": 16.0,
+      "peak": 0.23039112206587947,
+      "loop": true,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_world",
+      "file": "footstep_world.wav",
+      "seconds": 0.42,
+      "peak": 0.1734554171034427,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_wood",
+      "file": "footstep_wood.wav",
+      "seconds": 0.42,
+      "peak": 0.1515262830183007,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_creaky_wood",
+      "file": "footstep_creaky_wood.wav",
+      "seconds": 0.42,
+      "peak": 0.1952557045567129,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_tatami",
+      "file": "footstep_tatami.wav",
+      "seconds": 0.42,
+      "peak": 0.16098197964655345,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_gravel",
+      "file": "footstep_gravel.wav",
+      "seconds": 0.42,
+      "peak": 0.2032898749334242,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_soil",
+      "file": "footstep_soil.wav",
+      "seconds": 0.42,
+      "peak": 0.1823667462100733,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "footstep_shallow_water",
+      "file": "footstep_shallow_water.wav",
+      "seconds": 0.42,
+      "peak": 0.22303475982809173,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "tool_stone",
+      "file": "tool_stone.wav",
+      "seconds": 0.24997732426303854,
+      "peak": 0.1787879870160669,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "tool_dart",
+      "file": "tool_dart.wav",
+      "seconds": 0.18,
+      "peak": 0.17265765795394916,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "tool_smoke",
+      "file": "tool_smoke.wav",
+      "seconds": 0.6499773242630386,
+      "peak": 0.2528433056215916,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "tool_rope",
+      "file": "tool_rope.wav",
+      "seconds": 0.3,
+      "peak": 0.16622832011433547,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "tool_naruko",
+      "file": "tool_naruko.wav",
+      "seconds": 0.44997732426303855,
+      "peak": 0.1534318954862937,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "door",
+      "file": "door.wav",
+      "seconds": 0.6499773242630386,
+      "peak": 0.17482400142480115,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "landing",
+      "file": "landing.wav",
+      "seconds": 0.34997732426303857,
+      "peak": 0.17362363236697156,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "combat_hit",
+      "file": "combat_hit.wav",
+      "seconds": 0.3,
+      "peak": 0.2166991756437745,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "assassination",
+      "file": "assassination.wav",
+      "seconds": 0.5,
+      "peak": 0.16359535781524054,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "detection",
+      "file": "detection.wav",
+      "seconds": 0.5499773242630386,
+      "peak": 0.14756367890610664,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "result",
+      "file": "result.wav",
+      "seconds": 0.8,
+      "peak": 0.14642985388633636,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "water",
+      "file": "water.wav",
+      "seconds": 0.5,
+      "peak": 0.19679959843206665,
+      "loop": false,
+      "source": "Original project synthesis"
+    },
+    {
+      "id": "bell",
+      "file": "bell.wav",
+      "seconds": 1.2,
+      "peak": 0.14836204120602317,
+      "loop": false,
+      "source": "Original project synthesis"
+    }
+  ]
+}

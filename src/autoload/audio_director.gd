@@ -6,6 +6,8 @@ const MAX_OVERFLOW_ALERTS := 64
 
 signal alert_tier_changed(tier: int)
 
+var _playback: AudioPlayback
+
 var current_alert_tier: int = 0
 var current_bgm_set: StringName = &"normal"
 var current_ambience: StringName = &""
@@ -17,6 +19,9 @@ var _overflow_alerts: Dictionary = {}
 
 
 func _ready() -> void:
+	_playback = AudioPlayback.new(self)
+	EventBus.noise_emitted.connect(_on_audio_noise)
+	EventBus.audio_cue_requested.connect(play_effect)
 	_bind_event_bus()
 	set_process(true)
 
@@ -26,6 +31,7 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
+	advance_audio(_delta)
 	if (
 		not _tracked_alerts.is_empty()
 		or not _overflow_alerts.is_empty()
@@ -38,6 +44,7 @@ func set_alert_tier(tier: int) -> void:
 	if current_alert_tier == next_tier:
 		return
 	current_alert_tier = next_tier
+	if _playback != null: _playback.set_tier(current_alert_tier)
 	alert_tier_changed.emit(current_alert_tier)
 
 
@@ -316,16 +323,16 @@ static func _is_incapacitated_enemy(enemy: Node) -> bool:
 
 func play_bgm_set(set_id: StringName) -> void:
 	current_bgm_set = set_id
-	push_warning("AudioDirector.play_bgm_set is a M0 skeleton")
+	_playback.music_active(set_id != &"silence" and not set_id.is_empty())
 
 
 func play_stinger(id: StringName) -> void:
-	push_warning("AudioDirector.play_stinger is a M0 skeleton: %s" % id)
+	_playback.play_stinger(id)
 
 
 func set_ambience(id: StringName) -> void:
 	current_ambience = id
-	push_warning("AudioDirector.set_ambience is a M0 skeleton")
+	_playback.ambience_active(id != &"silence" and not id.is_empty())
 
 
 ## Presentation hooks keep the authored sequence observable even before real
@@ -337,15 +344,35 @@ func begin_assassination_audio(context: StringName) -> void:
 	assassination_context = context
 	assassination_audio_phase = &"silence"
 	current_ambience = &"silence"
+	if _playback != null: _playback.silence(true)
 
 
 func play_assassination_beat(context: StringName) -> void:
 	assassination_context = context
 	assassination_audio_phase = &"beat"
+	if _playback != null: _playback.play_stinger(&"assassination")
 
 
 func restore_assassination_ambient() -> void:
 	assassination_audio_phase = &"ambient"
 	assassination_context = &""
 	current_ambience = _assassination_previous_ambience
+	if _playback != null: _playback.silence(false)
 	_assassination_previous_ambience = &"ambient"
+
+
+func advance_audio(delta: float) -> void:
+	if _playback != null: _playback.advance(delta)
+
+func music_levels() -> Array:
+	return _playback.levels() if _playback != null else []
+
+func play_effect(cue: StringName, point: Vector3) -> bool:
+	return _playback.play_effect(cue,point) if _playback != null else false
+
+func _on_audio_noise(event: NoiseEvent) -> void:
+	if event==null or event.radius<=0.0: return
+	var cue := event.audio_cue
+	if cue.is_empty():
+		cue={Enums.NoiseKind.FOOTSTEP:&"footstep_wood",Enums.NoiseKind.LANDING:&"landing",Enums.NoiseKind.TOOL:&"tool_stone",Enums.NoiseKind.DOOR:&"door",Enums.NoiseKind.COMBAT:&"combat_hit",Enums.NoiseKind.SCREAM:&"detection",Enums.NoiseKind.BELL:&"bell",Enums.NoiseKind.FIREWORK:&"combat_hit"}.get(event.kind,&"")
+	play_effect(cue,event.position)
