@@ -107,6 +107,8 @@ func start_mission(next_definition: MissionDefinition = PRACTICE) -> bool:
 	mission = definition.level_scene.instantiate()
 	mission.name = "Mission"
 	get_parent().add_child(mission)
+	if definition.weather != MissionDefinition.Weather.CLEAR:
+		mission.add_child(WeatherPresentation.new())
 	_apply_mission_loadout()
 	screen = &"playing"
 	_result_pending = false
@@ -252,6 +254,7 @@ func _update_objective() -> void:
 
 
 func _clear_mission() -> void:
+	WeatherSystem.start(MissionDefinition.Weather.CLEAR)
 	_clear_hideout()
 	AudioDirector.play_bgm_set(&"silence")
 	AudioDirector.set_ambience(&"")
