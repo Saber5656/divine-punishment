@@ -15,8 +15,8 @@ enum Weather { CLEAR = 0, RAIN = 1, SNOW = 2, RAIN_THEN_CLEAR = 3 }
 @export var kill_policy: KillPolicy = KillPolicy.NORMAL
 @export var weather: Weather = Weather.CLEAR
 @export var par_time_minutes: float = 0.0
-@export var pre_cutscene: Resource
-@export var post_cutscene: Resource
+@export var pre_cutscene: CutsceneData
+@export var post_cutscene: CutsceneData
 @export var inner_monologue_id: StringName = &""
 @export var shura_rules: Dictionary = {
 	&"nontarget_kill": 1,
