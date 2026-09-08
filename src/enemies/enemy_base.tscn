@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/enemy_base.gd" id="1_enemy"]
 [ext_resource type="Script" path="res://src/enemies/enemy_brain.gd" id="2_brain"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://src/enemies/enemy_combat.gd" id="5_enemy_combat"]
 [ext_resource type="Resource" path="res://data/tuning/combat.tres" id="6_combat_config"]
 [ext_resource type="Resource" path="res://data/tuning/enemy_ashigaru.tres" id="7_enemy_stats"]
+
+[ext_resource type="Script" path="res://src/visuals/actor_animation.gd" id="99_visual_animation"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_enemy"]
 radius = 0.35
@@ -26,6 +28,7 @@ shape = SubResource("CapsuleShape3D_enemy")
 [node name="Visual" type="Node3D" parent="."]
 
 [node name="Model" type="Node3D" parent="Visual"]
+script = ExtResource("99_visual_animation")
 
 [node name="Brain" type="Node" parent="."]
 script = ExtResource("2_brain")

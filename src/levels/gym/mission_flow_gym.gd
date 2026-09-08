@@ -15,7 +15,6 @@ func _ready() -> void:
 func _on_target_defeated(_method: StringName) -> void:
 	$TargetLabel.hide()
 	$ExitLabel.show()
-	$Target/Visual/Model.rotation.z = PI * 0.5
 	for body in $Escape.get_overlapping_bodies():
 		_on_escape_entered(body)
 
