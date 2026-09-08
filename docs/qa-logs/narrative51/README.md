@@ -19,4 +19,8 @@ Self-review checked snapshot ownership, result-save gating, cumulative detection
 
 While preparing #53, its first-clear-only rule was checked and brought into this delivery before PR publication. A replay regression demonstrated incorrect double/triple accumulation, then the receipt/first-clear guard corrected it. Original red logs are retained; earlier intermediate replay accumulation is not the shipped policy.
 
-Final first-clear-aware suite:534 tests/4366 assertions passed, including5 narrative tests/28 assertions. Replays preserve totals even when the caller incorrectly marks an existing mission as a first clear. No script errors.
+The first first-clear-aware full run executed534 tests/4366 assertions, but one stale target-name expectation failed; an initial summary had incorrectly reported the total count as passing. The5 focused narrative tests/28 assertions passed. Replays preserve totals even when the caller incorrectly marks an existing mission as a first clear. No script errors.
+
+CI independently exposed the stale 遠山 assertion after the canonical display-name correction. The assertion was updated to the confirmed 毒山刑部 text, retaining the localized objective check. Final verification below supersedes the earlier mistaken pass summary.
+
+Verified after correcting the stale assertion: exit code0,534 passing tests,4366 assertions, no failing tests or script errors (`narrative51-ci-fix-full.log`).

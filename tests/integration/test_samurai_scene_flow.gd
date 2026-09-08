@@ -19,7 +19,7 @@ func test_mission_selection_offers_residence_with_localized_objectives() -> void
 	for node in director._content.find_children("*","Button",true,false):
 		if node.text == "屋敷へ潜入": found = true
 	assert_true(found,"Residence must be reachable from the production mission selection")
-	assert_eq(GameText.get_text(&"m02.objective.target"),"遠山を討て。庭・屋根・床下から好機を探れ")
+	assert_eq(GameText.get_text(&"m02.objective.target"),"毒山刑部を討て。庭・屋根・床下から好機を探れ")
 
 func test_director_retry_restores_dead_target_escape_goal_and_score() -> void:
 	assert_true(director.start_mission(load("res://data/missions/m02.tres")))
