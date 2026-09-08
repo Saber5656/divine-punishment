@@ -22,3 +22,11 @@ Issue #40 が導入し、#38 のチュートリアルも利用する共通 API�
 ## 護衛の死亡反応（Issue #40）
 
 標的死亡時の護衛のCOMBAT移行とエリア警戒は保持する。視認していないプレイヤーを発見回数に加えず、最初の視認または直接接触時に一度だけ通知する。`brain.combat_detection_pending` とNPCの `escort_reacted` はboolとして保存する。既存snapshotで省略された場合はfalseとし、復元時に標的死亡反応や発見通知を再発行しない。護衛は一度反応した後、視線を失えば通常のSearchへ移行できる。
+
+護衛の未視認の警戒中はEnemyCombatが全プレイヤー検索でtargetを取得しない。援軍への警戒通知は行い、視認または直接攻撃でcontactが確定した後に通常の追跡/攻撃を再開する。
+
+## Playerの保存姿勢
+
+CheckpointSnapshot version 1はoptional `posture`（Ground/Crouch/Crawlspace）を持つ。旧snapshotの省略はGround。任意の文字列は拒否し、復元先にそのcapsuleが収まることを確認してから姿勢・位置・忍具・警戒を変更する。Crawlspaceは移動後に入口依存を解放する既存契約と同じ、現在設定に結びつくcrawl状態を再構築する。
+
+必殺演出・登攀・泳ぎ等の途中状態は新規captureを拒否し、既存checkpointを保持する。屋敷の標的kill checkpointは演出から安定姿勢へ戻ってから保存する。実C経路では床下必殺後のpause→再開でCrawlspace・標的死亡・ESCAPEが保持され、そのまま水路脱出できることを確認する。
