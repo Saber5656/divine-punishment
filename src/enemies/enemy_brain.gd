@@ -791,8 +791,14 @@ func _advance_state_without_stimulus(delta: float) -> void:
 		Enums.AlertState.UNAWARE:
 			_advance_routine(delta)
 		Enums.AlertState.SUSPICIOUS:
-			_set_navigation_target(investigation_position())
-			if _investigation_arrived or _navigation_has_reached(investigation_position()):
+			var target := _investigation_navigation_target()
+			_set_navigation_target(target)
+			var arrived := _investigation_arrived or _navigation_has_reached(target)
+			var enemy := _enemy_node()
+			if not arrived and enemy != null and enemy.has_method(&"advance_navigation"):
+				var result: Variant = enemy.call(&"advance_navigation", minf(delta, MAX_ROUTINE_STEP_DELTA), target, _routine_speed())
+				arrived = result == true
+			if arrived:
 				_investigation_arrived = true
 				_investigation_elapsed += delta
 			if _investigation_arrived and _investigation_elapsed >= INVESTIGATION_DURATION_SEC:
@@ -1829,3 +1835,17 @@ func restore_checkpoint_state(value: Dictionary) -> bool:
 	if _state == Enums.AlertState.SEARCHING:
 		_begin_search_route()
 	return true
+
+
+func _investigation_navigation_target() -> Vector3:
+	var target := investigation_position()
+	var enemy := _enemy_node()
+	if enemy == null: return target
+	var agent := enemy.get_node_or_null("NavigationAgent3D") as NavigationAgent3D
+	if not EnemyBase._navigation_map_ready(agent): return target
+	var closest := NavigationServer3D.map_get_closest_point(agent.get_navigation_map(), target)
+	# A stone lands on the floor; authored routes follow capsule centers.
+	# Only project nearby points, so a distant/unreachable sound stays blocked.
+	if _valid_vector(closest) and closest.distance_to(target) <= SEARCH_NAVIGATION_SNAP_DISTANCE:
+		return closest
+	return target
