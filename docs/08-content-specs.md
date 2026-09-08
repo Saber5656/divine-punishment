@@ -773,3 +773,7 @@ M9 one-strike awards full points when knockouts are at least80% of distinct cont
 ### Weather runtime extension (#55)
 
 `WeatherSystem` is an autoload with configured noise/view multipliers, a simulation clock, a 900-second RAIN_THEN_CLEAR timer and a bounded `FootprintTrail`. `weather_changed` carries `weather` and `previous`; external events update state without re-emitting. SceneDirector adds `WeatherPresentation` to weather-bearing missions and resets weather at teardown. `LightSource.rain_fragile` opts exposed lights into rain extinction. Player tracks are severity-1 anomalies; friendly tracks are visible only and share the 60-entry ring. Ground `floor_material` snow/soil/gravel accepts tracks; other surfaces and airborne samples break the segment.
+
+### Civilian runtime extension (#56)
+
+`CivilianNPC (CharacterBody3D)` has2Hz player-only perception and no guard Brain/Perception. `scream()` dispatches a15m SCREAM and a `civilian_scream` mission event, at most once per5 seconds per civilian. `receive_combat_damage` emits civilian_killed once. `CrowdHideSpot (HideSpot)` owns five civilian colliders and one MultiMesh, with a parent-space Curve3D route. Walking/crouching within2m and without a partition provides visibility exclusion while at least three members live; sprint/drawing a sword breaks cover and reports. It does not lock the player into a Hidden pose or store corpses. Dead members detach from moving groups. The R-bound sword action can draw/sheathe from Ground/Crouch; forbidden mission actions remain gated.

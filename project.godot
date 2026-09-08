@@ -157,7 +157,7 @@ pause={
 }
 sword={
 "deadzone": 0.5,
-"events": []
+"events": [Object(InputEventKey,"physical_keycode":82)]
 }
 assassinate_lethal={
 "deadzone": 0.5,

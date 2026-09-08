@@ -1,7 +1,7 @@
 class_name AudioPlayback
 extends RefCounted
 
-const CUES := [&"footstep_world",&"footstep_wood",&"footstep_creaky_wood",&"footstep_tatami",&"footstep_gravel",&"footstep_soil",&"footstep_shallow_water",&"tool_stone",&"tool_dart",&"tool_smoke",&"tool_rope",&"tool_naruko",&"door",&"landing",&"combat_hit",&"assassination",&"detection",&"result",&"water",&"bell"]
+const CUES := [&"civilian_scream",&"footstep_world",&"footstep_wood",&"footstep_creaky_wood",&"footstep_tatami",&"footstep_gravel",&"footstep_soil",&"footstep_shallow_water",&"tool_stone",&"tool_dart",&"tool_smoke",&"tool_rope",&"tool_naruko",&"door",&"landing",&"combat_hit",&"assassination",&"detection",&"result",&"water",&"bell"]
 const MAX_VOICES := 24
 static var _streams: Dictionary = {}
 var _music: Array[AudioStreamPlayer] = []
