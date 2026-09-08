@@ -171,3 +171,10 @@ func test_waterway_escape_covers_the_real_surface_swim_height() -> void:
 	assert_true(mission.target.begin_assassination(&"below"))
 	mission._physics_process(0.016)
 	assert_null(MissionDirector.current_objective(),"A living swimmer at the water exit must complete the mission")
+
+
+func test_residence_npcs_use_animated_models_without_graybox_overlay() -> void:
+	for npc in mission.npcs.values():
+		assert_true(npc.get_node("Visual/Model") is ActorAnimation)
+		for child in npc.get_node("Visual").get_children():
+			assert_false(child is MeshInstance3D, "Graybox capsules must not cover the production character")

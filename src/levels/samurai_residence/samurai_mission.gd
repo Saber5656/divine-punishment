@@ -168,6 +168,7 @@ func _assign_path(npc: EnemyBase, definitions: Array[Dictionary], period: float)
 
 
 func _add_visual(npc: EnemyBase,color: Color) -> void:
+	if npc.get_node("Visual/Model") is ActorAnimation: return
 	var mesh := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.radius = 0.35
