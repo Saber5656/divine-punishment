@@ -1,0 +1,84 @@
+[gd_resource type="Resource" script_class="HideoutScene" load_steps=17 format=3]
+[ext_resource type="Script" path="res://src/core/narrative/hideout_scene.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/narrative/line_data.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/narrative/hideout_wash.tres" id="3"]
+[ext_resource type="AudioStream" path="res://assets/audio/night.wav" id="4"]
+[sub_resource type="Resource" id="calm_1"]
+script = ExtResource("2")
+speaker_key = &""
+text_key = &"hideout.h6.calm.01"
+style = 0
+
+[sub_resource type="Resource" id="calm_2"]
+script = ExtResource("2")
+speaker_key = &"speaker.oko"
+text_key = &"hideout.h6.calm.02"
+style = 1
+
+[sub_resource type="Resource" id="calm_3"]
+script = ExtResource("2")
+speaker_key = &"speaker.kuroha"
+text_key = &"hideout.h6.calm.03"
+style = 1
+
+[sub_resource type="Resource" id="calm_4"]
+script = ExtResource("2")
+speaker_key = &"speaker.oko"
+text_key = &"hideout.h6.calm.04"
+style = 1
+
+[sub_resource type="Resource" id="calm_5"]
+script = ExtResource("2")
+speaker_key = &""
+text_key = &"hideout.h6.calm.05"
+style = 0
+
+[sub_resource type="Resource" id="calm_6"]
+script = ExtResource("2")
+speaker_key = &"speaker.kuroha"
+text_key = &"hideout.h6.calm.06"
+style = 1
+
+[sub_resource type="Resource" id="blood_1"]
+script = ExtResource("2")
+speaker_key = &""
+text_key = &"hideout.h6.blood.01"
+style = 0
+
+[sub_resource type="Resource" id="blood_2"]
+script = ExtResource("2")
+speaker_key = &"speaker.oko"
+text_key = &"hideout.h6.blood.02"
+style = 1
+
+[sub_resource type="Resource" id="blood_3"]
+script = ExtResource("2")
+speaker_key = &"speaker.kuroha"
+text_key = &"hideout.h6.blood.03"
+style = 1
+
+[sub_resource type="Resource" id="blood_4"]
+script = ExtResource("2")
+speaker_key = &"speaker.oko"
+text_key = &"hideout.h6.blood.04"
+style = 1
+
+[sub_resource type="Resource" id="blood_5"]
+script = ExtResource("2")
+speaker_key = &""
+text_key = &"hideout.h6.blood.05"
+style = 0
+
+[sub_resource type="Resource" id="blood_6"]
+script = ExtResource("2")
+speaker_key = &"speaker.kuroha"
+text_key = &"hideout.h6.blood.06"
+style = 1
+[resource]
+script = ExtResource("1")
+id = &"h6"
+background = ExtResource("3")
+shura_threshold = 10
+lines_calm = Array[ExtResource("2")]([SubResource("calm_1"), SubResource("calm_2"), SubResource("calm_3"), SubResource("calm_4"), SubResource("calm_5"), SubResource("calm_6")])
+lines_blood = Array[ExtResource("2")]([SubResource("blood_1"), SubResource("blood_2"), SubResource("blood_3"), SubResource("blood_4"), SubResource("blood_5"), SubResource("blood_6")])
+ambience = ExtResource("4")
