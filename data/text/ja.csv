@@ -29,7 +29,7 @@ settings.sensitivity,視点の感度
 settings.session,この画面の変更は現在のプレイに反映されます。
 objective.practice_target,背後から修練の標的を討て
 objective.practice_escape,朱の門へ向かい、離脱せよ
-hud.controls,WASD 移動　C しゃがむ　F 必殺　Esc 一服
+hud.controls,{move_forward}{move_left}{move_backward}{move_right} 移動　{stance_toggle} しゃがむ　{assassinate} 必殺　{pause} 一服
 hud.escape,離脱の門が開いた
 hud.mission,修練 ─ 夜の庭
 result.title,任務結果
@@ -114,3 +114,29 @@ settings.back_without_save,保存せず戻る
 settings.recovery_notice,セーブデータを復旧しました。以前のファイルはバックアップとして残しています。
 settings.corrupt_notice,セーブを読み取れませんでした。元のファイルを退避し、新しいデータで開始します。
 select.best,最高評価　%s
+mission.tutorial,山間の関所
+tutorial.summary,月明かりの山道で忍びの基本を学び、密書を奪って関所を抜ける。立哨二人・巡回二人。初見の目安 5〜10 分。
+tutorial.start,山間の関所へ
+tutorial.objective.sneak,一　姿勢を低くして、明かりと木陰の違いを確かめる
+tutorial.objective.hide,二　茂みで巡回をやり過ごし、岩陰から覗く
+tutorial.objective.lure,三　砂利の足音と、石による誘導を覚える
+tutorial.objective.lights,四　番小屋の灯籠を二つ消す
+tutorial.objective.assassinate,番小屋の巡回兵へ、背後から必殺を決める
+tutorial.objective.body,死体を担ぎ、奥の覆いへ隠す
+tutorial.objective.document,奥の密書を手に入れる
+tutorial.objective.escape,五　地上か屋根を選び、関所を抜ける
+tutorial.hint.sneak,{stance_toggle}でしゃがみ、月明かりから左の木陰へ。姿勢を低く保って移動し、姿の見えやすさの変化を確かめよう。
+tutorial.hint.hide,左の茂みで{interact}。巡回兵が通り過ぎるまで隠れ、もう一度{interact}で出る。奥の左岩へ貼り付き、{move_left}／{move_right}で覗こう。
+tutorial.hint.lure,砂利を歩いて足音を確かめよう。朱の目印へ{aim}で狙い、{tool_use}で石を投げる。立哨が音へ動けば東の小屋へ進める。石は手前右の箱で{interact}して補充。
+tutorial.hint.lights,東の小屋の灯籠二つに近づき{interact}。巡回兵の向きに注意し、消えた灯りを戻される前にもう一つを消そう。
+tutorial.hint.assassinate,巡回兵の背後へ静かに近づき、必殺表示が出たら{assassinate}。戦闘で倒すと学習をやり直す。
+tutorial.hint.body,倒した巡回兵のそばで{interact}して担ぐ。小屋の奥左にある低い覆いへ運び、{interact}で収納。
+tutorial.hint.document,覆いの右奥にある明るい紙が密書。近づいて{interact}で手に入れる。
+tutorial.hint.escape,地上は左の灯籠を消し、北側の朱印へ新しい石を投げて立哨を誘導。屋根は右奥の縁で{interact}して{move_forward}で登り、西の切れ目から降りる。石は出口右の箱で補充できる。
+tutorial.retry_fall,足場から落ちた。再開して別の足場を選ぼう。
+tutorial.retry_sentry,誘導を学ぶ立哨が倒れた。再開して石で注意をそらそう。
+tutorial.retry_patrol,隠れる学習の巡回兵が倒れた。再開して茂みでやり過ごそう。
+tutorial.retry_assassinate,消灯後、巡回兵の背後から必殺を決める必要がある。再開して手順を確かめよう。
+input.mouse_left,左クリック
+input.mouse_right,右クリック
+input.mouse_middle,中央クリック
