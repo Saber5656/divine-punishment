@@ -47,4 +47,3 @@ func test_legacy_checkpoint_without_posture_restores_ground_and_transient_captur
 	assert_eq(player.state_machine.current_state(),&"Ground")
 	assert_true(player.state_machine.change_state(&"Assassinate"))
 	assert_true(CheckpointSnapshot.capture(player,level.scene_file_path,&"transient").is_empty())
-
