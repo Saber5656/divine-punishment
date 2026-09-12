@@ -17,6 +17,7 @@ var _restoring := false
 var _entities: Dictionary = {}
 var _npcs: Dictionary = {}
 var _civilians: Dictionary = {}
+var _lights: Dictionary = {}
 
 func _ready() -> void:
 	_level = get_parent() as PortStorehouse
@@ -28,6 +29,7 @@ func _ready() -> void:
 	for civilian: CivilianNPC in _population.get_node("Civilians").get_children(): _civilians[String(civilian.name)] = civilian
 	_entities.merge(_npcs)
 	_entities.merge(_civilians)
+	for light: LightSource in _level.get_node("PortEnvironment/Lights").get_children(): _lights[String(light.name)] = light
 	_ledger = MeshInstance3D.new()
 	_ledger.name = "Ledger"
 	_ledger.mesh = BoxMesh.new()
@@ -141,7 +143,8 @@ func _capture_target_checkpoint() -> void:
 
 func _append_world_snapshot() -> void:
 	if not is_inside_tree() or not _initialized or _restoring or GameState.checkpoint_ref.is_empty() or not PlayerRetryFlow.pending_scene.is_empty(): return
-	var world := {"version":1,"ledger":ledger_collected,"cargo":cargo.capture_checkpoint_state(),"mission":MissionDirector.capture_checkpoint_state(_entities),"npcs":{},"civilians":{}}
+	var world := {"version":2,"ledger":ledger_collected,"cargo":cargo.capture_checkpoint_state(),"mission":MissionDirector.capture_checkpoint_state(_entities),"npcs":{},"civilians":{},"lights":{}}
+	for identity: String in _lights: world["lights"][identity] = (_lights[identity] as LightSource).is_on()
 	for identity: String in _npcs: world["npcs"][identity] = MissionNpcSnapshot.capture(_npcs[identity])
 	for identity: String in _civilians:
 		var civilian := _civilians[identity] as CivilianNPC
@@ -150,7 +153,10 @@ func _append_world_snapshot() -> void:
 
 func restore_checkpoint_world(snapshot: Dictionary) -> bool:
 	var world: Variant = snapshot.get("mission_world")
-	if not world is Dictionary or world.get("version") != 1 or not world.get("ledger") is bool: return false
+	if not world is Dictionary or world.get("version") != 2 or not world.get("ledger") is bool: return false
+	if not world.get("lights") is Dictionary or world["lights"].size() != _lights.size(): return false
+	for identity: String in _lights:
+		if not world["lights"].get(identity) is bool: return false
 	if not world.get("npcs") is Dictionary or world["npcs"].size() != _npcs.size(): return false
 	if not world.get("civilians") is Dictionary or world["civilians"].size() != _civilians.size(): return false
 	if not world.get("mission") is Dictionary or not MissionDirector.checkpoint_state_is_valid(world["mission"],_entities): return false
@@ -170,6 +176,7 @@ func restore_checkpoint_world(snapshot: Dictionary) -> bool:
 	if world["ledger"] != (objective >= 2) or world["cargo"]["disposed"] != world["mission"]["stats"]["side_objective_completed"]: return false
 	if world["cargo"]["carried"] and snapshot.get("posture") not in ["Ground","Crouch"]: return false
 	_restoring = true
+	for identity: String in _lights: (_lights[identity] as LightSource).set_extinguished(not world["lights"][identity])
 	for identity: String in _npcs: MissionNpcSnapshot.restore(world["npcs"][identity],_npcs[identity])
 	for identity: String in _civilians:
 		var civilian := _civilians[identity] as CivilianNPC
