@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://src/player/player_state_machine.gd" id="2_state_machine"]
@@ -22,6 +22,8 @@
 [ext_resource type="Script" path="res://src/visuals/actor_animation.gd" id="99_visual_animation"]
 
 [ext_resource type="Script" path="res://src/player/nonlethal_actions.gd" id="54_nonlethal"]
+
+[ext_resource type="Script" path="res://src/ui/narrative_overlay.gd" id="59_narrative"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.35
@@ -265,3 +267,6 @@ script = ExtResource("17_retry")
 
 [node name="NonlethalActions" type="Node" parent="."]
 script = ExtResource("54_nonlethal")
+
+[node name="NarrativeOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("59_narrative")

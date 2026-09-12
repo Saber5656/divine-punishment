@@ -41,7 +41,7 @@ func _ready() -> void:
 		_slider(key, 0.0, 1.0, 0.05)
 	for key in ["sensitivity_x", "sensitivity_y"]:
 		_slider(key, 0.1, 3.0, 0.1)
-	for key in ["invert_y", "fullscreen", "vsync"]:
+	for key in ["invert_y", "fullscreen", "vsync", "inner_monologue"]:
 		var toggle := CheckButton.new()
 		toggle.text = _text(StringName("settings." + key))
 		toggle.button_pressed = controller.values()[key]

@@ -5,6 +5,8 @@ extends Node3D
 const CLOSE_CAMERA_DISTANCE := 1.6
 const SOURCE := "res://assets/animations/quaternius_standard.glb"
 const SOURCES := {
+	&"assassination_hesitation_back": &"Sword_Attack", &"assassination_hesitation_above": &"Sword_Attack",
+	&"assassination_hesitation_below": &"Swim_Fwd", &"assassination_hesitation_corner": &"Sword_Attack",
 	&"archer_aim": &"Idle", &"archer_shot": &"Idle",
 	&"idle": &"Idle", &"walk": &"Walk", &"sprint": &"Sprint",
 	&"crouch_idle": &"Crouch_Idle", &"crouch_walk": &"Crouch_Fwd",
@@ -17,7 +19,7 @@ const SOURCES := {
 	&"assassination_back": &"Sword_Attack", &"assassination_above": &"Sword_Attack",
 	&"assassination_below": &"Swim_Fwd", &"assassination_corner": &"Sword_Attack",
 }
-const ONESHOTS: Array[StringName] = [&"archer_shot",&"knockout", &"nonlethal_strike", &"death", &"attack", &"dodge", &"assassination_back", &"assassination_above", &"assassination_below", &"assassination_corner"]
+const ONESHOTS: Array[StringName] = [&"assassination_hesitation_back",&"assassination_hesitation_above",&"assassination_hesitation_below",&"assassination_hesitation_corner",&"archer_shot",&"knockout", &"nonlethal_strike", &"death", &"attack", &"dodge", &"assassination_back", &"assassination_above", &"assassination_below", &"assassination_corner"]
 static var _libraries: Dictionary = {}
 static var _models: Dictionary = {}
 var _actor: CharacterBody3D
@@ -89,7 +91,7 @@ func _setup() -> void:
 			combat.connect(&"dodge_started", func(_value): _play_action(&"dodge", 0.6))
 	var presentation := _actor.get_node_or_null("AssassinationResolver/AssassinationPresentation")
 	if presentation != null:
-		presentation.connect(&"animation_requested", func(_context, clip): _play_action(clip, presentation.duration_sec))
+		presentation.connect(&"animation_requested", func(_context, clip): _play_action(clip, presentation.remaining_sec()))
 	if _actor.has_signal(&"arrow_released"):
 		_actor.connect(&"arrow_released",func(): _play_action(&"archer_shot",0.35))
 	show_clip(&"idle")
@@ -136,6 +138,13 @@ func _retarget(animation: Animation, source: Skeleton3D) -> void:
 					animation.track_set_key_value(track, key, target_rest.origin + offset)
 
 func _author_traversal(animation: Animation, name: StringName) -> void:
+	if String(name).begins_with("assassination_hesitation_"):
+		var pivot := animation.length*0.25
+		for track in animation.get_track_count():
+			for key in range(animation.track_get_key_count(track)-1,-1,-1):
+				var time := animation.track_get_key_time(track,key)
+				animation.track_set_key_time(track,key,time*2.0 if time <= pivot else time+pivot)
+		animation.length += pivot
 	# Add original local skeletal rotations to the licensed base motion. These
 	# tracks move bones only; gameplay keeps ownership of climbing and strikes.
 	if name in [&"archer_aim",&"archer_shot"]:

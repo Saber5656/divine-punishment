@@ -25,3 +25,5 @@ level_scene = ExtResource("3")
 objectives = Array[ExtResource("2")]([SubResource("Target"), SubResource("Escape")])
 par_time_minutes = 3.0
 tool_loadout = {&"stone": 10, &"dart": 5, &"smoke": 2}
+inner_monologue_id = &"m02.inner_monologue"
+last_words_id = &"m02.last_words"

@@ -8,6 +8,7 @@ var _current_objective_index: int = 0
 var _failed_reason: StringName = &""
 var _running := false
 var _completed := false
+var _monologue_sent := false
 var _target_kills := 0
 var _all_target_kills_assassinated := true
 var _killed_entities: Dictionary = {}
@@ -55,6 +56,7 @@ func start_mission(def: MissionDefinition) -> void:
 	_failed_reason = &""
 	_running = def != null
 	_completed = false
+	_monologue_sent = false
 	_target_kills = 0
 	_all_target_kills_assassinated = true
 	_killed_entities.clear()
@@ -129,6 +131,11 @@ func _on_enemy_killed(enemy: Node, method: String) -> void:
 	if enemy.is_in_group(&"civilians"):
 		_stats.civilian_kills += 1
 	elif _is_mission_target(enemy):
+		if not _definition.last_words_id.is_empty():
+			EventBus.mission_event.emit(&"target_last_words",{"text_id":_definition.last_words_id})
+		if method == "assassination" and not _monologue_sent and not _definition.inner_monologue_id.is_empty():
+			_monologue_sent = true
+			EventBus.inner_monologue_requested.emit(_definition.inner_monologue_id)
 		_target_kills += 1
 		_all_target_kills_assassinated = _all_target_kills_assassinated and method == "assassination"
 		_stats.one_strike = _target_kills > 0 and _all_target_kills_assassinated
@@ -374,3 +381,7 @@ func _register_contact(enemy: Node) -> void:
 	if not _contact_entities.has(identity):
 		_contact_entities[identity] = true
 		_stats.enemy_contacts += 1
+
+func assassination_variant_for(enemy: Node) -> String:
+	if _definition == null or not is_instance_valid(enemy) or not _is_mission_target(enemy): return ""
+	return _definition.assassination_variant
