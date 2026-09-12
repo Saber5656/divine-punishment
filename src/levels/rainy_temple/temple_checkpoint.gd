@@ -7,13 +7,17 @@ static func entities(duties: Node3D,retainers: Dictionary) -> Dictionary:
 
 static func capture(population: Node3D,duties: Node3D,retainers: Dictionary,side_failed: bool) -> Dictionary:
 	var target := population.get_node("Tetsusenbo") as Tetsusenbo
-	var world := {"version":1,"elapsed":population.schedule_elapsed(),"duties":duties.capture_checkpoint_state(),"side_failed":side_failed,"counter_remaining":target.counter_remaining(),"npcs":{},"retainers":{},"mission":MissionDirector.capture_checkpoint_state(entities(duties,retainers))}
+	var world := {"version":2,"elapsed":population.schedule_elapsed(),"duties":duties.capture_checkpoint_state(),"side_failed":side_failed,"counter_remaining":target.counter_remaining(),"npcs":{},"retainers":{},"lights":{},"mission":MissionDirector.capture_checkpoint_state(entities(duties,retainers))}
+	for light: LightSource in _lights(population): world.lights[String(light.name)] = light.is_on()
 	for actor: EnemyBase in duties.actors(): world.npcs[String(actor.name)] = MissionNpcSnapshot.capture(actor)
 	for identity: String in retainers: world.retainers[identity] = retainers[identity].capture_checkpoint_state()
 	return world
 
 static func is_valid(world: Dictionary,population: Node3D,duties: Node3D,retainers: Dictionary) -> bool:
-	if world.get("version") != 1 or not world.get("side_failed") is bool: return false
+	if world.get("version") != 2 or not world.get("side_failed") is bool: return false
+	if not world.get("lights") is Dictionary or world["lights"].size() != _lights(population).size(): return false
+	for light: LightSource in _lights(population):
+		if not world["lights"].get(String(light.name)) is bool: return false
 	if not _bounded(world.get("elapsed"),86399.0) or not _bounded(world.get("counter_remaining"),Tetsusenbo.COUNTER_WINDOW): return false
 	if not world.get("duties") is Dictionary or not duties.checkpoint_state_is_valid(world["duties"],float(world["elapsed"])): return false
 	var actors: Array = duties.actors()
@@ -37,6 +41,7 @@ static func is_valid(world: Dictionary,population: Node3D,duties: Node3D,retaine
 
 static func restore(world: Dictionary,population: Node3D,duties: Node3D,retainers: Dictionary) -> bool:
 	if not is_valid(world,population,duties,retainers): return false
+	for light: LightSource in _lights(population): light.set_extinguished(not world["lights"][String(light.name)])
 	population.restore_schedule_elapsed(float(world["elapsed"]))
 	duties.restore_checkpoint_state(world["duties"])
 	for actor: EnemyBase in duties.actors():
@@ -50,3 +55,6 @@ static func restore(world: Dictionary,population: Node3D,duties: Node3D,retainer
 
 static func _bounded(value: Variant,maximum: float) -> bool:
 	return CheckpointSnapshot._finite_number(value) and float(value) >= 0.0 and float(value) <= maximum
+
+static func _lights(population: Node3D) -> Array[Node]:
+	return population.get_parent().get_node("TempleEnvironment/Lights").get_children()
