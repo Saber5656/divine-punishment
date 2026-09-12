@@ -11,6 +11,7 @@ Godot4.3, macOS AppleM4,1440×900. Existing character meshes and graybox geometr
 - At18.267s all eight monks have actually moved5.33–11.57m from their start. At3.2s and39.2s all eight face the hall with alignment dot≥0.99. Bell is playing at both chant samples and silent at18.267s.
 - Tetsusenbo remains at(51,8.02,22) through719.2s and walks to(77.63774,5.120001,28.16239) by760.267s. The shared stop includes its end instant; inspection starts on the first tick after720s. No teleport or navigation-free movement is used.
 - Rain particles and ambience are active in the exported replay. Separate normal-speed near-player inspection is recorded alongside this evidence.
+- Review correction: campaign startup owns the sole weather presentation; standalone smoke scaffolding adds it explicitly. A real SceneDirector startup reproduced two emitters/audio players, then verified exactly one of each after the fix. The long AI replay predates this ownership-only refactor; actor schedules, movement, perception and bell code are unchanged.
 
 ## Reproduction
 

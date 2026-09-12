@@ -47,9 +47,6 @@ func _ready() -> void:
 	_sutra_bell.volume_db = -5
 	add_child(_sutra_bell)
 	advance_schedule(0.0)
-	var weather := WeatherPresentation.new()
-	weather.name = "Weather"
-	add_child(weather)
 
 func _physics_process(delta: float) -> void:
 	advance_schedule(delta)

@@ -17,6 +17,10 @@ func _ready() -> void:
 	var level: Node3D = load("res://src/levels/rainy_temple/temple_population.tscn").instantiate()
 	add_child(level)
 	var population := level.get_node("Population")
+	# Campaign startup owns weather; this standalone fixture supplies it once.
+	var weather := WeatherPresentation.new()
+	weather.name = "Weather"
+	level.add_child(weather)
 	var player := level.get_node("Player") as PlayerController
 	player.get_node("CameraRig").process_mode = Node.PROCESS_MODE_DISABLED
 	var camera := Camera3D.new()
@@ -72,7 +76,6 @@ func _ready() -> void:
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png(output+"/phase-"+str(int(timestamp))+".png")
 	Engine.time_scale = 1.0
-	var weather := population.get_node("Weather")
 	if not (weather.get_node("Precipitation") as GPUParticles3D).emitting: failures.append("Rain particles inactive")
 	if not (weather.get_node("RainAudio") as AudioStreamPlayer).playing: failures.append("Rain ambience inactive")
 	var result := {"scope":"Live AI/physics at 8x simulation time; untouched player spawn; inspection cameras; no stealth clear claim", "wall_seconds":float(Time.get_ticks_msec()-started)/1000,"samples":samples,"failures":failures}
