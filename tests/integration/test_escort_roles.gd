@@ -104,3 +104,16 @@ func test_unarmored_civilian_is_defeated_by_one_sword_hit() -> void:
 	add_child_autofree(civilian)
 	civilian.receive_combat_damage(1)
 	assert_true(civilian.is_defeated())
+
+func test_following_companion_does_not_make_player_invulnerable() -> void:
+	var player := load("res://src/player/player.tscn").instantiate() as PlayerController
+	add_child_autofree(player)
+	player.set_physics_process(false)
+	var companion := EscortCompanion.new()
+	add_child_autofree(companion)
+	assert_true(companion.follow(player))
+	var before := player.health()
+	assert_eq(player.receive_combat_damage(1),1)
+	assert_eq(player.health(),before-1)
+	assert_eq(player.state_machine.current_state(),&"Escort")
+	assert_false(player.state_machine.change_state(&"Combat"))

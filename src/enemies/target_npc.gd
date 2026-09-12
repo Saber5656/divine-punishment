@@ -231,3 +231,6 @@ func can_be_assassinated() -> bool:
 
 func receive_combat_damage(amount: int, source: Node = null) -> int:
 	return 0 if inside_palanquin else super.receive_combat_damage(amount,source)
+
+func is_combat_targetable() -> bool:
+	return not inside_palanquin and not is_target_defeated()

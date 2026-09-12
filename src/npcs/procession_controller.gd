@@ -68,7 +68,7 @@ func advance(delta: float) -> void:
 		return
 	if phase == &"resting":
 		_rest_elapsed += delta
-		var exit_position := _palanquin.global_position+Vector3(1.5,0,0)
+		var exit_position := _palanquin.global_position+_palanquin.global_basis.x*1.5
 		if _target.alert_state() == Enums.AlertState.UNAWARE: _target.advance_navigation(minf(delta,0.25),exit_position,1.5)
 		if _rest_elapsed >= rest_seconds and _target.alert_state() == Enums.AlertState.UNAWARE:
 			phase = &"moving"
@@ -89,7 +89,11 @@ func advance(delta: float) -> void:
 
 func _position_carriage() -> void:
 	_palanquin.position = route.sample_baked(_distance)
-	_target.global_position = _palanquin.global_position
+	var tangent := global_basis*(route.sample_baked(minf(route.get_baked_length(),_distance+0.05))-route.sample_baked(maxf(0.0,_distance-0.05)))
+	tangent.y = 0.0
+	if tangent.length_squared() > 0.000001: _palanquin.look_at(_palanquin.global_position+tangent,Vector3.UP)
+	_target.global_transform = _palanquin.global_transform
+	_update_formation(phase == &"moving")
 
 func _set_travel(traveling: bool) -> void:
 	if not is_instance_valid(_target): return
@@ -99,10 +103,13 @@ func _set_travel(traveling: bool) -> void:
 	_target.get_node("AssassinateTarget").set_deferred("monitorable",not traveling)
 	_target.brain().set_physics_process(not traveling)
 	_target.combat().set_physics_process(not traveling)
+	_update_formation(traveling)
+
+func _update_formation(traveling: bool) -> void:
 	for index in _guards.size():
 		if not is_instance_valid(_guards[index]): continue
 		var side := -1.0 if index%2 == 0 else 1.0
-		_guards[index].follow_offset = Vector3(side*(1.2 if traveling else 3.0),0,float(index/2)*(1.2 if traveling else 1.8)+1.5)
+		_guards[index].follow_offset = _palanquin.global_basis*Vector3(side*(1.2 if traveling else 3.0),0,float(index/2)*(1.2 if traveling else 1.8)+1.5)
 
 func _release_target() -> void:
 	if not is_instance_valid(_target): return
