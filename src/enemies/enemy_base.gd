@@ -4,6 +4,7 @@ extends CharacterBody3D
 
 const HideRules := preload("res://src/player/player_hide.gd")
 
+var _initial_collision_layer := 1 << 2
 var _assassination_locked := false
 var _assassinated := false
 var _assassination_context: StringName = &""
@@ -37,6 +38,7 @@ const CARRY_LOCAL_OFFSET := Vector3(0.0, 0.85, 0.35)
 
 
 func _ready() -> void:
+	_initial_collision_layer = collision_layer
 	add_to_group(&"enemies")
 	var enemy_brain := brain()
 	if enemy_brain != null:
@@ -587,3 +589,13 @@ func is_defeated() -> bool:
 		return true
 	var enemy_combat := combat()
 	return enemy_combat != null and enemy_combat.is_defeated()
+
+## Restoring AI/health must also undo transient presentation and corpse flags.
+## This does not emit another kill or replay an assassination animation.
+func restore_checkpoint_lifecycle() -> void:
+	_assassination_locked = false
+	_assassinated = false
+	_assassination_context = &""
+	if _carried_by == null and _stored_by == null:
+		collision_layer = CORPSE_LAYER if brain().incapacitated_kind() in [&"dead",&"restrained"] else _initial_collision_layer
+	if brain().incapacitated_kind() not in [&"dead",&"restrained"]: _clear_corpse_anomaly()

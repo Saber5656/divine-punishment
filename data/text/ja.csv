@@ -349,3 +349,10 @@ m08.inner_monologue,この手は、何を守った。
 m08.last_words,わしを斬っても、席は空かぬ……
 m10.inner_monologue,……帰ろう。
 m10.last_words,……人殺しの顔では、なくなったな……弟よ……
+m03.objective.target,戎屋徳兵衛を暗殺する
+m03.objective.ledger,母屋の裏帳簿を回収する
+m03.objective.escape,来た船着きか裏の水路から脱出する
+m03.objective.opium,蔵三の阿片箱を海に捨てる
+m03.prompt.ledger,{interact} 裏帳簿を取る
+m03.prompt.cargo,{interact} 阿片箱を持つ／置く
+m03.prompt.exit,脱出地点

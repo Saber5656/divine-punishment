@@ -1,11 +1,36 @@
-[gd_resource type="Resource" script_class="MissionDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=7 format=3]
 [ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[sub_resource type="Resource" id="Target"]
+script = ExtResource("2")
+id = &"m03_target"
+text_key = &"m03.objective.target"
+kind = &"KILL_TARGET"
+target_group = &"m03_target"
+[sub_resource type="Resource" id="Ledger"]
+script = ExtResource("2")
+id = &"m03_ledger"
+text_key = &"m03.objective.ledger"
+kind = &"COLLECT"
+[sub_resource type="Resource" id="Escape"]
+script = ExtResource("2")
+id = &"m03_escape"
+text_key = &"m03.objective.escape"
+kind = &"ESCAPE"
+[sub_resource type="Resource" id="Opium"]
+script = ExtResource("2")
+id = &"m03_opium"
+text_key = &"m03.objective.opium"
+kind = &"DISPOSE"
 [resource]
 script = ExtResource("1")
 id = &"m03"
 title_key = &"m03.title"
 weather = 0
 kill_policy = 1
+objectives = Array[ExtResource("2")]([SubResource("Target"),SubResource("Ledger"),SubResource("Escape")])
+side_objective = SubResource("Opium")
+tool_loadout = {&"stone":10,&"dart":5,&"smoke":2}
 par_time_minutes = 16.0
 inner_monologue_id = &"m03.inner_monologue"
 last_words_id = &"m03.last_words"
