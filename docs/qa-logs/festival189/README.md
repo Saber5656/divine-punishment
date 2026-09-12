@@ -11,3 +11,7 @@ Native Godot4.3/macOS fixture passed with explicit roof/ground player placements
 Run `godot --path . res://tests/smoke/festival_fireworks_smoke.tscn -- --output-dir=<evidence-directory>`.
 
 Main-agent self-review: effect lifetime belongs to the scene; no shared global flags; original dispatcher semantics retained outside masking; rooftop test uses transformed physical boxes and feet offset rather than global height; numeric bounds and restoration suppress duplicate events. Full mission objectives/checkpoints and final combined regression remain pending189integration.
+
+## Objectives and lanterns
+
+M5 now composes its real population, effects and objective scene. Target assassination enables southernEescape; successful escape grants the existing+5sidebonus only with zero civilian screams. A masked scream still removes that bonus without blocking main completion. The mission definition preserves20minutepar/civilian-heavy policy/fixedinner/finalwords and adds three naruko charges to its four-tool loadout. Sixteen persistent warm lanterns include two following actual crowds, plus14ground searchpoints. Prospective coordinates are in issue189instruction. Behavior TDD4tests5assertions failed before composition; implementation passes4tests96assertions in1.2seconds. Text catalog0findings. Main-agent self-review verified actual target signal routing, range/posture-gated escape, bonus once, masked-scream handling, nonextinguishable lights and crowd tracking. Checkpoint integration follows before publication.

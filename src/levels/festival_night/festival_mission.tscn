@@ -1,0 +1,12 @@
+[gd_scene load_steps=5 format=3]
+[ext_resource type="PackedScene" path="res://src/levels/festival_night/festival_population.tscn" id="1"]
+[ext_resource type="Script" path="res://src/levels/festival_night/festival_environment.gd" id="2"]
+[ext_resource type="Script" path="res://src/levels/festival_night/festival_fireworks.gd" id="3"]
+[ext_resource type="Script" path="res://src/levels/festival_night/festival_objectives.gd" id="4"]
+[node name="FestivalMission" instance=ExtResource("1")]
+[node name="FestivalEnvironment" type="Node3D" parent="."]
+script = ExtResource("2")
+[node name="Fireworks" type="Node3D" parent="."]
+script = ExtResource("3")
+[node name="Mission" type="Node3D" parent="."]
+script = ExtResource("4")
