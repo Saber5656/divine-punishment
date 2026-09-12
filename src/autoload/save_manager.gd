@@ -135,7 +135,11 @@ func record_mission_result(mission_id: StringName, result: RefCounted, first_cle
 	var score := int(result.get("score"))
 	var previous_rank := RANKS.find(String(previous.get("rank", "")))
 	if previous.is_empty() or RANKS.find(rank) > previous_rank or (RANKS.find(rank) == previous_rank and score > int(previous.get("score", 0))):
-		results[String(mission_id)] = {"score": score, "rank": rank, "flags": result.get("flags").duplicate(true)}
+		var updated := {"score": score, "rank": rank, "flags": result.get("flags").duplicate(true)}
+		if campaign_mission:
+			# Legacy saves can preserve only the outcome they still contain.
+			updated["first_clear_flags"] = previous.get("first_clear_flags",previous.get("flags",result.get("flags"))).duplicate(true)
+		results[String(mission_id)] = updated
 	if campaign_mission and first_clear:
 		campaign()["unlocked_mission"] = mini(11, maxi(int(campaign()["unlocked_mission"]), _mission_number(mission_id) + 1))
 
@@ -184,6 +188,7 @@ static func migrate(data: Dictionary) -> Dictionary:
 		var result = progress.mission_results[id]
 		if not result is Dictionary or not _integer(result.get("score")) or not result.get("rank") is String or not result.get("flags") is Dictionary:
 			return {}
+		if result.has("first_clear_flags") and not result["first_clear_flags"] is Dictionary: return {}
 		result.score = int(result.score)
 		result.rank = LEGACY_RANKS.get(result.rank, result.rank)
 		if result.rank not in RANKS:

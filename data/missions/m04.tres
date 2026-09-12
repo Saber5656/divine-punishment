@@ -1,11 +1,33 @@
-[gd_resource type="Resource" script_class="MissionDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=7 format=3]
 [ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/levels/rainy_temple/temple_mission.tscn" id="3"]
+[sub_resource type="Resource" id="Target"]
+script = ExtResource("2")
+id = &"m04_target"
+text_key = &"m04.objective.target"
+kind = &"KILL_TARGET"
+target_group = &"m04_target"
+[sub_resource type="Resource" id="Escape"]
+script = ExtResource("2")
+id = &"m04_escape"
+text_key = &"m04.objective.escape"
+kind = &"ESCAPE"
+[sub_resource type="Resource" id="Rescue"]
+script = ExtResource("2")
+id = &"m04_retainers"
+text_key = &"m04.objective.retainers"
+kind = &"RESCUE"
 [resource]
 script = ExtResource("1")
 id = &"m04"
 title_key = &"m04.title"
+level_scene = ExtResource("3")
 weather = 1
 kill_policy = 0
+objectives = Array[ExtResource("2")]([SubResource("Target"),SubResource("Escape")])
+side_objective = SubResource("Rescue")
+tool_loadout = {&"stone":10,&"dart":5,&"smoke":2}
 par_time_minutes = 20.0
 inner_monologue_id = &"m04.inner_monologue"
 last_words_id = &"m04.last_words"

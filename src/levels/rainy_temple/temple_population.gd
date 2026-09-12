@@ -6,6 +6,7 @@ const SUTRA_CYCLE := 36.0
 const GUARD := preload("res://src/enemies/enemy_base.tscn")
 const TARGET := preload("res://src/enemies/target_npc.tscn")
 const NAVIGATION := preload("res://src/levels/rainy_temple/temple_navigation.gd")
+@export var target_scene: PackedScene = TARGET
 var _elapsed := 0.0
 var target: TargetNpc
 var monks: Array[EnemyBase] = []
@@ -32,7 +33,7 @@ func _ready() -> void:
 		var monk := _spawn(GUARD,folder,spec[0],spec[1],true)
 		monks.append(monk)
 		_assign(monk,[spec[1],spec[2],spec[1]],[0.0,4.0,20.0],SUTRA_CYCLE,[&"chant",&"walk",&"walk"])
-	target = _spawn(TARGET,self,"Tetsusenbo",HALL) as TargetNpc
+	target = _spawn(target_scene,self,"Tetsusenbo",HALL) as TargetNpc
 	target.add_to_group(&"m04_target")
 	_assign(target,[HALL,CELL],[0.0,720.0],86400.0,[&"train",&"inspect"])
 	var guard := _spawn(GUARD,self,"CellGuard",Vector3(80,5.02,35))
@@ -53,6 +54,11 @@ func _physics_process(delta: float) -> void:
 
 func schedule_elapsed() -> float:
 	return _elapsed
+
+func restore_schedule_elapsed(value: float) -> bool:
+	if not is_finite(value) or value < 0.0 or value > 86399.0: return false
+	_elapsed = value
+	return advance_schedule(0.0)
 
 func advance_schedule(delta: float) -> bool:
 	if not is_finite(delta) or delta < 0.0: return false

@@ -217,6 +217,8 @@ hideout.h3.blood.03,……。
 hideout.h3.blood.04,ここに、座るところあるよ。
 hideout.h3.blood.05,空いた座布団に、灯りだけが落ちた。
 hideout.h3.blood.06,先に休め。
+hideout.h3.rescued,寺の遺臣二人は、無事に逃げ延びた。
+hideout.h3.lost,寺の遺臣二人を、無事に送り出すことはできなかった。
 hideout.h4.calm.01,祭りの音は、もう届かなかった。
 hideout.h4.calm.02,あんた、まだ人の顔をしてるよ
 hideout.h4.calm.03,……。
@@ -356,3 +358,10 @@ m03.objective.opium,蔵三の阿片箱を海に捨てる
 m03.prompt.ledger,{interact} 裏帳簿を取る
 m03.prompt.cargo,{interact} 阿片箱を持つ／置く
 m03.prompt.exit,脱出地点
+m04.objective.target,鉄仙坊を暗殺する
+m04.objective.escape,山寺から脱出する
+m04.objective.retainers,遺臣2名を解放し、無事に逃がす
+m04.prompt.bell,{interact} 集合の鐘を鳴らす（1回）
+m04.prompt.rescue,{interact} 遺臣を解放する
+m04.prompt.exit,{interact} 脱出する・遺臣の脱出
+m04.prompt.counter,受け流した直後に斬り返す
