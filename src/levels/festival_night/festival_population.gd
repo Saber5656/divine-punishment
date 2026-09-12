@@ -2,6 +2,7 @@ extends Node3D
 
 const GUARD := preload("res://src/enemies/enemy_base.tscn")
 const TARGET := preload("res://src/enemies/target_npc.tscn")
+const ESCORT := preload("res://src/levels/festival_night/festival_escort.tscn")
 const NAVIGATION := preload("res://src/levels/festival_night/festival_navigation.gd")
 const DAIS := Vector3(84,3.02,32)
 const PRAYER := Vector3(51,3.02,17)
@@ -41,7 +42,8 @@ func _ready() -> void:
 	var guards := _folder("Escorts")
 	for index in range(2):
 		var point := Vector3(82+index*4,3.02,30)
-		var escort := _spawn(GUARD,guards,"Escort"+str(index),point)
+		var escort := _spawn(ESCORT,guards,"Escort"+str(index),point)
+		(escort as EscortGuard).set_escort_target(target)
 		escorts.append(escort)
 		_assign(escort,[point],RoutineStop.MAX_DWELL_SECONDS)
 	var crowds := _folder("Crowds")
@@ -111,7 +113,7 @@ func _advance_shrine(delta: float) -> void:
 		for index in escorts.size(): _goal(escorts[index],SHRINE_ESCORTS[index],&"escort")
 		if _arrived(target,PRAYER) and _arrived(escorts[0],SHRINE_ESCORTS[0]) and _arrived(escorts[1],SHRINE_ESCORTS[1]): _prayer_stage = 1
 	if _prayer_stage in [1,2]:
-		for index in escorts.size(): _goal(escorts[index],EXTERIOR_ESCORTS[index],&"wait_outside")
+		for index in escorts.size(): _goal(escorts[index],EXTERIOR_ESCORTS[index],&"wait_outside",Vector3.LEFT if index == 0 else Vector3.RIGHT)
 		if _prayer_stage == 1 and _prayer_ready():
 			_prayer_stage = 2
 			_goal(target,PRAYER,&"pray")
@@ -128,13 +130,13 @@ func _prayer_ready() -> bool:
 func _arrived(npc: EnemyBase,point: Vector3) -> bool:
 	return is_instance_valid(npc) and not npc.is_defeated() and not npc.brain().is_incapacitated() and npc.brain().alert_state() == Enums.AlertState.UNAWARE and npc.global_position.distance_to(point) <= tuning.arrival_tolerance
 
-func _goal(npc: EnemyBase,point: Vector3,action: StringName) -> void:
+func _goal(npc: EnemyBase,point: Vector3,action: StringName,facing: Vector3 = Vector3.FORWARD) -> void:
 	if not is_instance_valid(npc): return
 	var stop := npc.current_routine_stop()
 	if stop == null: return
 	stop.global_position = point
 	stop.routine_action = action
-	stop.facing_direction = Vector3.FORWARD
+	stop.facing_direction = facing
 
 func _spawn(scene: PackedScene,parent: Node,label: String,point: Vector3) -> EnemyBase:
 	var npc := scene.instantiate() as EnemyBase

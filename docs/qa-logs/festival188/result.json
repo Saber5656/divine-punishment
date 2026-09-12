@@ -1,4 +1,14 @@
 {
+  "assassination_reaction": [
+    {
+      "name": "Escort0",
+      "state": 3
+    },
+    {
+      "name": "Escort1",
+      "state": 3
+    }
+  ],
   "failures": [],
   "maximum_alert": 0,
   "patrol_max_displacement": {
@@ -11,6 +21,7 @@
     "SouthEast": 15.6631488800049,
     "SouthWest": 9.56618881225586
   },
+  "prayer_approach_exposed": false,
   "prayer_end": 259.066666666662,
   "prayer_start": 228.933333333331,
   "samples": [
@@ -247,6 +258,6 @@
       "prayer_elapsed": 0
     }
   ],
-  "scope": "Live AI/physics at8x time, untouched player spawn, inspection cameras; routine and safe-entry evidence, not a stealth clear or human baseline",
-  "wall_seconds": 53.446
+  "scope": "Live AI/physics at8x time, untouched player spawn, inspection cameras; routine and safe-entry evidence; terminal direct assassination fixture tests escort reaction, not a player stealth clear or human baseline",
+  "wall_seconds": 53.381
 }

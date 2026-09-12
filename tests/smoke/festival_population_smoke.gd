@@ -32,6 +32,7 @@ func _ready() -> void:
 	var prayer_end: float = -1.0
 	var previous_prayer: bool = false
 	var maximum_alert: int = 0
+	var exposed_prayer_approach: bool = false
 	var thresholds: Array[float] = [3.0,179.0,210.0,300.1,340.0,419.0]
 	var sample_index: int = 0
 	Engine.time_scale = 8.0
@@ -43,6 +44,10 @@ func _ready() -> void:
 		for npc: EnemyBase in population.important_actors()+population.doshin:
 			maximum_alert = maxi(maximum_alert,npc.brain().alert_state())
 		var praying: bool = population.prayer_active()
+		if praying:
+			for escort: EnemyBase in population.escorts:
+				for point in [Vector3(51,0.02,33),Vector3(51,3.02,24),Vector3(51,3.02,17)]:
+					if (escort.get_node("Perception") as EnemyPerception).can_see_position(point+Vector3.UP*0.7): exposed_prayer_approach = true
 		if praying and not previous_prayer:
 			prayer_start = elapsed
 			samples.append(_sample(population,"prayer_start"))
@@ -68,7 +73,13 @@ func _ready() -> void:
 		if moved[name_] < 1.0: failures.append(str(name_)+" never made real patrol progress")
 	if maximum_alert != Enums.AlertState.UNAWARE: failures.append("Untouched safe-entry player provoked hostile AI")
 	if population.civilians.size() != 12: failures.append("Festival roster is not twelve civilian actors")
-	var result := {"scope":"Live AI/physics at8x time, untouched player spawn, inspection cameras; routine and safe-entry evidence, not a stealth clear or human baseline","wall_seconds":float(Time.get_ticks_msec()-started)/1000,"prayer_start":prayer_start,"prayer_end":prayer_end,"maximum_alert":maximum_alert,"patrol_max_displacement":moved,"samples":samples,"failures":failures}
+	if exposed_prayer_approach: failures.append("Exterior guards watched the isolated prayer approach")
+	var reaction: Array = []
+	if not population.target.begin_assassination(&"above"): failures.append("Actual target assassination failed")
+	for escort: EnemyBase in population.escorts:
+		reaction.append({"name":str(escort.name),"state":escort.brain().alert_state()})
+		if escort.brain().alert_state() != Enums.AlertState.COMBAT: failures.append("Escort ignored unseen target death")
+	var result := {"scope":"Live AI/physics at8x time, untouched player spawn, inspection cameras; routine and safe-entry evidence; terminal direct assassination fixture tests escort reaction, not a player stealth clear or human baseline","wall_seconds":float(Time.get_ticks_msec()-started)/1000,"prayer_start":prayer_start,"prayer_end":prayer_end,"maximum_alert":maximum_alert,"prayer_approach_exposed":exposed_prayer_approach,"assassination_reaction":reaction,"patrol_max_displacement":moved,"samples":samples,"failures":failures}
 	FileAccess.open(output+"/result.json",FileAccess.WRITE).store_string(JSON.stringify(result,"  "))
 	print("FESTIVAL_POPULATION ",JSON.stringify(result))
 	get_tree().quit(0 if failures.is_empty() else 1)

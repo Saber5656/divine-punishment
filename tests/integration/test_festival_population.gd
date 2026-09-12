@@ -108,6 +108,7 @@ func test_prayer_counts_thirty_seconds_only_after_real_target_and_escort_arrival
 	population.advance_schedule(180.0)
 	var observed := 0.0
 	var invalid_window := false
+	var exposed_approach := false
 	for frame in range(600):
 		for actor: EnemyBase in population.important_actors(): actor.brain().tick(0.2)
 		population.advance_schedule(0.2)
@@ -116,12 +117,33 @@ func test_prayer_counts_thirty_seconds_only_after_real_target_and_escort_arrival
 			if population.target.global_position.distance_to(Vector3(51,3.02,17)) > 0.5: invalid_window = true
 			for escort: EnemyBase in population.escorts:
 				if escort.global_position.distance_to(population.target.global_position) < 8.0: invalid_window = true
+				for point in [Vector3(51,0.02,33),Vector3(51,3.02,24),Vector3(51,3.02,17)]:
+					if (escort.get_node("Perception") as EnemyPerception).can_see_position(point+Vector3.UP*0.7): exposed_approach = true
 		if population.prayer_elapsed() >= 30.0: break
 		await get_tree().physics_frame
 	assert_false(invalid_window, "A prayer window needs the target inside and both escorts outside")
+	assert_false(exposed_approach, "Waiting escorts must leave the central stairs and isolated target outside their actual vision")
 	if observed < 29.5:
 		for actor: EnemyBase in population.important_actors():
 			print("PRAYER_DIAGNOSTIC ",actor.name," position=",actor.global_position," destination=",actor.routine_target()," alert=",actor.brain().alert_state()," phase=",population.phase()," stage=",population._prayer_stage)
 	assert_gt(observed, 29.5, "Do not spend the thirty-second opportunity on approach travel")
 	assert_eq(population.prayer_elapsed(), 30.0)
 	assert_eq(population.phase(), &"shrine", "Real travel plus prayer must fit the two-minute shrine phase")
+
+
+func test_unseen_target_defeat_triggers_escort_combat_without_waking_incapacitated_guard() -> void:
+	var level := _level()
+	if level == null: return
+	var population := level.get_node("Population")
+	population.set_physics_process(false)
+	for escort: EnemyBase in population.escorts:
+		escort.brain().set_physics_process(false)
+		assert_eq(escort.brain().alert_state(),Enums.AlertState.UNAWARE)
+	assert_true(population.escorts[1].set_incapacitated(&"knockout",10.0))
+	assert_true(population.target.begin_assassination(&"above"))
+	assert_eq(population.escorts[0].brain().alert_state(),Enums.AlertState.COMBAT,"Actual assassination reaction is independent of line of sight")
+	assert_true(population.escorts[1].brain().is_incapacitated())
+	assert_eq(population.escorts[1].brain().alert_state(),Enums.AlertState.UNAWARE)
+	assert_true(population.escorts[1].set_incapacitated(&""))
+	for frame in range(3): await get_tree().physics_frame
+	assert_eq(population.escorts[1].brain().alert_state(),Enums.AlertState.COMBAT,"Deferred reaction remains pending until the escort wakes")
