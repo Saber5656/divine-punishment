@@ -375,7 +375,7 @@ func try_surface_from_underwater(forced: bool = false) -> bool:
 
 func try_enter_crawlspace(entrance: CrawlEntrance = null) -> bool:
 	var current := state_machine.current_state()
-	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+	if current not in [PlayerStateMachine.STATE_GROUND,PlayerStateMachine.STATE_CROUCH,PlayerStateMachine.STATE_ESCORT]:
 		return false
 	if not _is_crawl_configuration_valid():
 		return false
@@ -453,7 +453,7 @@ func try_enter_hide_spot(
 	if is_carrying_body():
 		return false
 	var current := state_machine.current_state()
-	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+	if current not in [PlayerStateMachine.STATE_GROUND,PlayerStateMachine.STATE_CROUCH,PlayerStateMachine.STATE_ESCORT]:
 		return false
 	if is_inside_tree() and not is_on_floor():
 		return false
@@ -809,7 +809,7 @@ func _update_state_from_input() -> void:
 
 	if stance_just_pressed:
 		match state_machine.current_state():
-			PlayerStateMachine.STATE_GROUND:
+			PlayerStateMachine.STATE_GROUND, PlayerStateMachine.STATE_ESCORT:
 				state_machine.change_state(PlayerStateMachine.STATE_CROUCH)
 			PlayerStateMachine.STATE_CROUCH:
 				_try_enter_standing_state(PlayerStateMachine.STATE_GROUND)
@@ -826,7 +826,7 @@ func _update_state_from_input() -> void:
 
 func try_extinguish_adjacent_light() -> bool:
 	var current := state_machine.current_state()
-	if current != PlayerStateMachine.STATE_GROUND and current != PlayerStateMachine.STATE_CROUCH:
+	if current not in [PlayerStateMachine.STATE_GROUND,PlayerStateMachine.STATE_CROUCH,PlayerStateMachine.STATE_ESCORT]:
 		return false
 	var candidate := _nearest_light_source()
 	return candidate != null and candidate.try_extinguish(self)

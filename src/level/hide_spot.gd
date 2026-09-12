@@ -19,6 +19,7 @@ var _entry_collision_shape: CollisionShape3D
 var _expected_entry_shape: SphereShape3D
 var _stored_body: Node3D
 
+@export_range(1,2,1) var occupant_capacity := 1
 @export var storage_offset := Vector3.ZERO
 
 @export_range(MIN_ENTRY_RADIUS, MAX_ENTRY_RADIUS, 0.05) var entry_radius := 0.75:
@@ -248,6 +249,9 @@ func is_near_entry(world_position: Vector3) -> bool:
 
 
 func can_enter(body: CollisionObject3D, close_range_seen: bool = false) -> bool:
+	if is_instance_valid(body) and body.has_meta(&"escort_companion"):
+		var companion = body.get_meta(&"escort_companion")
+		if not is_instance_valid(companion) or occupant_capacity < 2 or companion.global_position.distance_to(global_position) > 2.0: return false
 	return can_accept_body(body) and is_near_entry(body.global_position) and not close_range_seen
 
 

@@ -5,6 +5,7 @@ extends Node3D
 const CLOSE_CAMERA_DISTANCE := 1.6
 const SOURCE := "res://assets/animations/quaternius_standard.glb"
 const SOURCES := {
+	&"archer_aim": &"Idle", &"archer_shot": &"Idle",
 	&"idle": &"Idle", &"walk": &"Walk", &"sprint": &"Sprint",
 	&"crouch_idle": &"Crouch_Idle", &"crouch_walk": &"Crouch_Fwd",
 	&"swim_idle": &"Swim_Idle", &"swim": &"Swim_Fwd",
@@ -16,7 +17,7 @@ const SOURCES := {
 	&"assassination_back": &"Sword_Attack", &"assassination_above": &"Sword_Attack",
 	&"assassination_below": &"Swim_Fwd", &"assassination_corner": &"Sword_Attack",
 }
-const ONESHOTS: Array[StringName] = [&"knockout", &"nonlethal_strike", &"death", &"attack", &"dodge", &"assassination_back", &"assassination_above", &"assassination_below", &"assassination_corner"]
+const ONESHOTS: Array[StringName] = [&"archer_shot",&"knockout", &"nonlethal_strike", &"death", &"attack", &"dodge", &"assassination_back", &"assassination_above", &"assassination_below", &"assassination_corner"]
 static var _libraries: Dictionary = {}
 static var _models: Dictionary = {}
 var _actor: CharacterBody3D
@@ -89,6 +90,8 @@ func _setup() -> void:
 	var presentation := _actor.get_node_or_null("AssassinationResolver/AssassinationPresentation")
 	if presentation != null:
 		presentation.connect(&"animation_requested", func(_context, clip): _play_action(clip, presentation.duration_sec))
+	if _actor.has_signal(&"arrow_released"):
+		_actor.connect(&"arrow_released",func(): _play_action(&"archer_shot",0.35))
 	show_clip(&"idle")
 
 func _build_library() -> AnimationLibrary:
@@ -135,7 +138,11 @@ func _retarget(animation: Animation, source: Skeleton3D) -> void:
 func _author_traversal(animation: Animation, name: StringName) -> void:
 	# Add original local skeletal rotations to the licensed base motion. These
 	# tracks move bones only; gameplay keeps ownership of climbing and strikes.
-	if name == &"wall_cling":
+	if name in [&"archer_aim",&"archer_shot"]:
+		_aim_bone(animation,&"upperarm_l",Vector3(0.2,0.1,1.0))
+		_aim_bone(animation,&"upperarm_r",Vector3(-0.6,0.1,0.3))
+		_aim_bone(animation,&"lowerarm_r",Vector3(0.8,0.1,0.2) if name == &"archer_aim" else Vector3(0.8,0.2,-0.2))
+	elif name == &"wall_cling":
 		_offset_rotation(animation, &"upperarm_l", Vector3.FORWARD, -0.65)
 		_offset_rotation(animation, &"upperarm_r", Vector3.FORWARD, 0.65)
 	elif name == &"climb":
@@ -196,6 +203,11 @@ func _build_weapon() -> void:
 	_weapon.name = "Weapon"
 	_weapon.bone_name = "hand_r"
 	_skeleton.add_child(_weapon)
+	if _actor.is_in_group(&"archer_lookouts"):
+		_weapon.name = "Bow"
+		_weapon.bone_name = "hand_l"
+		_build_bow()
+		return
 	# Original simple short blade, bound to the hand rather than gameplay space.
 	for part in [Vector3(0.035, 0.012, 0.6), Vector3(0.12, 0.025, 0.025), Vector3(0.035, 0.035, 0.14)]:
 		var mesh := MeshInstance3D.new()
@@ -258,6 +270,7 @@ func update_actor_presentation(delta: float) -> void:
 		next = &"knockout" if not dead and brain != null and brain.is_incapacitated() else enemy_clip(_actor.alert_state(), moving, dead)
 		if _actor.is_in_group(&"enemy_ninjas") and not dead and brain != null and not brain.is_incapacitated() and absf(displacement.y) > 0.001 and absf(displacement.y) > Vector2(displacement.x,displacement.z).length():
 			next = &"climb"
+		if _actor.is_in_group(&"archer_lookouts") and not dead and brain != null and not brain.is_incapacitated(): next = &"archer_aim"
 	if _action_remaining > 0.0 and next not in [&"death", &"knockout"]: next = _action
 	show_clip(next)
 	advance_visual(delta)
@@ -267,7 +280,7 @@ func show_clip(clip: StringName) -> void:
 	if not SOURCES.has(clip): clip = &"idle"
 	if clip == _clip: return
 	_clip = clip
-	_weapon.visible = clip in [&"combat", &"attack"] or str(clip).begins_with("assassination_")
+	_weapon.visible = clip in [&"combat", &"attack", &"archer_aim", &"archer_shot"] or str(clip).begins_with("assassination_")
 	_tree.set("parameters/state/transition_request", clip)
 
 func advance_visual(delta: float) -> void:
@@ -290,3 +303,29 @@ func _play_action(clip: StringName, duration: float) -> void:
 
 func play_nonlethal_strike() -> void:
 	_play_action(&"nonlethal_strike",0.45)
+
+func _build_bow() -> void:
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("805734")
+	for index in range(12):
+		var a := float(index)/12.0*2.0-1.0
+		var b := float(index+1)/12.0*2.0-1.0
+		var start := Vector3(0,a*0.65,0.2*a*a)
+		var end := Vector3(0,b*0.65,0.2*b*b)
+		var segment := MeshInstance3D.new()
+		var cylinder := CylinderMesh.new()
+		cylinder.top_radius = 0.018
+		cylinder.bottom_radius = 0.018
+		cylinder.height = start.distance_to(end)
+		cylinder.radial_segments = 6
+		cylinder.material = wood
+		segment.mesh = cylinder
+		segment.position = (start+end)*0.5
+		segment.quaternion = Quaternion(Vector3.UP,(end-start).normalized())
+		_weapon.add_child(segment)
+	var string := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.005,1.3,0.005)
+	string.mesh = mesh
+	string.position.z = 0.2
+	_weapon.add_child(string)

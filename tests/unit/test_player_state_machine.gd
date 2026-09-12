@@ -179,6 +179,7 @@ func test_default_profile_matches_schema_and_current_movement_tuning() -> void:
 		&"interact",
 		&"assassinate",
 		&"knockout",
+		&"escort_command",
 		&"tool_use",
 		&"tool_cycle",
 		&"aim",

@@ -243,7 +243,11 @@ func receive_damage(amount: int, source: Node = null) -> int:
 		return 0
 	if _hit_invulnerability_remaining > 0.0:
 		return 0
-	if not _ensure_combat_state():
+	var state := _state_machine() as PlayerStateMachine
+	if state != null and state.escort_active:
+		# Escort forbids drawing the sword, not taking damage.
+		if state.current_state() in [&"Hidden",&"Dead"]: return 0
+	elif not _ensure_combat_state():
 		return 0
 	var applied := mini(bounded_amount, _health)
 	_health -= applied
@@ -401,6 +405,8 @@ func _nearest_enemy() -> Node:
 		if candidate == _player or not is_instance_valid(candidate):
 			continue
 		if candidate.has_method(&"is_defeated") and candidate.call(&"is_defeated"):
+			continue
+		if candidate.has_method(&"is_combat_targetable") and not candidate.is_combat_targetable():
 			continue
 		if not _target_in_range(candidate, nearest_distance):
 			continue
