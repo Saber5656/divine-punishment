@@ -1,0 +1,14 @@
+{
+  "complete_ground_return": false,
+  "failures": [],
+  "fixture": "Explicit canal-entry placement; mapped hatch leg only",
+  "position": "(84.12512, 3.000498, 33.20607)",
+  "route": "C",
+  "seconds": 24.149,
+  "state": "Ground",
+  "states": [
+    "Crawlspace",
+    "Crouch",
+    "Ground"
+  ]
+}

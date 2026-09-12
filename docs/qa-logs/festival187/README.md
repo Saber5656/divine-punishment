@@ -1,0 +1,20 @@
+# M5 festival physical routes (#187)
+
+This stage adds traversable geometry and markers. It has no population or mission objectives and is deliberately not wired into the campaign. Existing player collision, climb, beam, crouch and crawl mechanics are used. Authored coordinates are in `docs/maps/m05-festival.md`.
+
+`tests/smoke/festival_routes_smoke.tscn` drives actual mapped movement and E/Shift/C inputs at ordinary time, steering heading only. Each full route starts at the southern entry and returns by ordinary stairs and ground. The separate `--route=C --leg=hatch` diagnosis explicitly places the actor at the canal entrance; its result is never substituted for a full route. The presentation camera does not drive the actor. Images inspect graybox geometry, not finished festival art.
+
+## Observed results
+
+The committed player repair64f639f applies the same existing5mm supporting-floor tolerance to swept and endpoint capsules. Standalone settled-floor regression first failed19/20tests, then passed20/171assertions; existing swim4/24 and swim traversal32/354 also pass. The festival integration suite passes4/46 with actual floor/roof-hole raycasts,4m beam reach and a settled public crawl exit. Geometry revision corrected a real stair-side obstruction and placed the hatch marker on its flat landing within the existing interaction radius. Full native Godot4.3/macOS routes completed without failures or player death: A66.361s (shrine arrival33.206s), B81.508s (actual Beam arrival42.061s), C118.069s (dais arrival80.157s). All return to Ground at the southern entry, with no actor placement. JSON records are adjacent. These are automated traversal times, not first-time player baselines.
+
+Full regression passed684tests/5577assertions in164.892s before the final undercroft support-floor addition; no Script/Parse errors. Self-review then found the open undercroft lacked a floor away from the narrow canal ramp: a real support ray first failed3/4tests47assertions, the floor atY-3.9 was added, and the focused suite passed4/48. That floor is below all accepted A/B surfaces and below C's existing ramp; the final actual hatch leg verifies the affected ramp (24.149s, exit0, Ground, no failures or engine errors). Earlier full routes remain valid geometry evidence with this limitation disclosed. CI reruns the combined final suite. Art contracts7tests passed; catalog lint0findings. Known headless dummy-mesh warnings and shutdown orphan warnings are retained in private full logs.
+
+Reproduce from the project: `godot --path . res://tests/smoke/festival_routes_smoke.tscn -- --route=A --output-dir=<evidence-directory>`; repeat B/C. Isolated diagnosis adds `--route=C --leg=hatch`. No additional installation or gameplay tuning is needed.
+
+Remaining work: live enemies/twelve civilians and six-minute routines188; fireworks/naruko/zero-scream objective/checkpoints189; active-AI exported completion190; original festival art/music65; authored Post79 and external timing49/84. This is not human playtest timing, a G3 decision, undetected completion, final art or a release.
+
+
+## Adopted PR192 review: enclosed foundation
+
+The review found that the dais perimeter still allowed falling into the undercroft from ground level and stepping beneath the surrounding land slab. Five actual horizontal boundary rays reproduced it. Foundation sides now encloseY-3.9to1.9, with only the low northern canal opening belowY-1.1. The western stair remains above the foundation at its deck arrival. Focused suite passes5tests55assertions; no Script/Parse errors. Final native B81.511s (Beam arrival42.058s) and C118.070s (Ground arrival80.132s) both return normally with no failures/deaths. Their adjacent JSON/photos replace the earlier pre-foundation versions. A66.361s remains unchanged shrine/ground geometry evidence. Earlier full684/5577 and final pre-foundation CI684/5579 are retained as baselines; fresh CI runs the complete reviewed change. This addresses review threadPRRT_kwDOTMWvxM6hz8pE without changing shared traversal tuning.

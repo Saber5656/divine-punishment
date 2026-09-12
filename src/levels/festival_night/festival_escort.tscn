@@ -1,0 +1,6 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="PackedScene" path="res://src/enemies/escort_guard.tscn" id="1"]
+[ext_resource type="Script" path="res://src/levels/festival_night/festival_escort.gd" id="2"]
+[node name="FestivalEscort" instance=ExtResource("1")]
+script = ExtResource("2")
+target_path = NodePath("../../Kurosawa")
