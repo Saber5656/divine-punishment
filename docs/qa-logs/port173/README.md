@@ -99,3 +99,11 @@ thresholds, result/save limitations and private-path/secret hygiene.
 ![Above assassination and authored text](roof-assassination.png)
 ![Water route result](water-route-result.png)
 ![Live perception debug](live-perception.png)
+
+The first CI run found the new board-launch fixture configured the board as
+unlocked but left SceneDirector reading the machine's actual campaign store.
+A clean CI account correctly rejected that launch. The fixture now injects the
+same isolated third-night store into the production board/director path, avoiding
+local save-state dependence. The focused campaign suite passes 3 tests / 17
+assertions. A null objective is asserted explicitly so a rejected start cannot
+produce a misleading secondary script error.

@@ -1,5 +1,9 @@
 extends GutTest
 
+class ThirdNightStore extends Node:
+	func campaign() -> Dictionary:
+		return {"unlocked_mission":3,"mission_results":{}}
+
 func test_scroll_slots_lock_and_crest_contract() -> void:
 	var path := "res://src/ui/campaign_selection.gd"
 	assert_true(FileAccess.file_exists(path))
@@ -39,9 +43,11 @@ func test_unlocked_third_night_launches_the_port_from_the_mission_board() -> voi
 	var main: Node = load("res://src/ui/main.tscn").instantiate()
 	add_child_autofree(main)
 	var director := main.get_node("SceneDirector") as SceneDirector
+	var store := ThirdNightStore.new()
+	add_child_autofree(store)
+	director.save_manager = store
 	director.show_mission_select()
 	var board := director.find_children("*","CampaignSelection",true,false)[0] as CampaignSelection
-	board.configure({"unlocked_mission":3,"mission_results":{}})
 	board.select_mission(2)
 	assert_false(board.start_button.disabled,"A completed port gameplay loop can launch from its unlocked slot")
 	if board.start_button.disabled: return
@@ -49,5 +55,6 @@ func test_unlocked_third_night_launches_the_port_from_the_mission_board() -> voi
 	for frame in range(5): await get_tree().physics_frame
 	assert_eq(director.screen,&"playing")
 	assert_true(director.mission is PortStorehouse)
-	assert_eq(MissionDirector.current_objective().id,&"m03_target")
+	assert_not_null(MissionDirector.current_objective())
+	if MissionDirector.current_objective() != null: assert_eq(MissionDirector.current_objective().id,&"m03_target")
 	director.show_title()
