@@ -1,0 +1,252 @@
+{
+  "failures": [],
+  "maximum_alert": 0,
+  "patrol_max_displacement": {
+    "DaisEast": 9.64587020874023,
+    "MiddleEast": 9.60055732727051,
+    "MiddleWest": 9.70188140869141,
+    "RearAlley": 7.6513032913208,
+    "ShrineEast": 4.6677508354187,
+    "ShrineWest": 3.56959652900696,
+    "SouthEast": 15.6631488800049,
+    "SouthWest": 9.56618881225586
+  },
+  "prayer_end": 259.066666666662,
+  "prayer_start": 228.933333333331,
+  "samples": [
+    {
+      "actors": [
+        {
+          "action": "watch",
+          "alert": 0,
+          "goal": "(84, 3.02, 32)",
+          "name": "Kurosawa",
+          "position": "(84, 3.02, 32)"
+        },
+        {
+          "action": "guard",
+          "alert": 0,
+          "goal": "(82, 3.02, 30)",
+          "name": "Escort0",
+          "position": "(82, 3.02, 30)"
+        },
+        {
+          "action": "guard",
+          "alert": 0,
+          "goal": "(86, 3.02, 30)",
+          "name": "Escort1",
+          "position": "(86, 3.02, 30)"
+        }
+      ],
+      "elapsed": 3.06666666666667,
+      "label": "3",
+      "phase": "dais",
+      "prayer_elapsed": 0
+    },
+    {
+      "actors": [
+        {
+          "action": "watch",
+          "alert": 0,
+          "goal": "(84, 3.02, 32)",
+          "name": "Kurosawa",
+          "position": "(84, 3.02, 32)"
+        },
+        {
+          "action": "guard",
+          "alert": 0,
+          "goal": "(82, 3.02, 30)",
+          "name": "Escort0",
+          "position": "(82, 3.02, 30)"
+        },
+        {
+          "action": "guard",
+          "alert": 0,
+          "goal": "(86, 3.02, 30)",
+          "name": "Escort1",
+          "position": "(86, 3.02, 30)"
+        }
+      ],
+      "elapsed": 179.066666666667,
+      "label": "179",
+      "phase": "dais",
+      "prayer_elapsed": 0
+    },
+    {
+      "actors": [
+        {
+          "action": "approach_shrine",
+          "alert": 0,
+          "goal": "(51, 3.02, 17)",
+          "name": "Kurosawa",
+          "position": "(51.72724, 3.12, 22.22293)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(48, 3.02, 19)",
+          "name": "Escort0",
+          "position": "(49.9691, 3.12, 24.22569)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(54, 3.02, 19)",
+          "name": "Escort1",
+          "position": "(53.2, 1.526517, 29.32895)"
+        }
+      ],
+      "elapsed": 210.133333333332,
+      "label": "210",
+      "phase": "shrine",
+      "prayer_elapsed": 0
+    },
+    {
+      "actors": [
+        {
+          "action": "pray",
+          "alert": 0,
+          "goal": "(51, 3.02, 17)",
+          "name": "Kurosawa",
+          "position": "(51.06527, 3.12, 17.46877)"
+        },
+        {
+          "action": "wait_outside",
+          "alert": 0,
+          "goal": "(47, 0.02, 31)",
+          "name": "Escort0",
+          "position": "(47.20718, 0.120284, 31.32126)"
+        },
+        {
+          "action": "wait_outside",
+          "alert": 0,
+          "goal": "(55, 0.02, 31)",
+          "name": "Escort1",
+          "position": "(54.79498, 0.120231, 31.30544)"
+        }
+      ],
+      "elapsed": 228.933333333331,
+      "label": "prayer_start",
+      "phase": "shrine",
+      "prayer_elapsed": 0
+    },
+    {
+      "actors": [
+        {
+          "action": "leave_prayer",
+          "alert": 0,
+          "goal": "(51, 3.02, 24)",
+          "name": "Kurosawa",
+          "position": "(51.06327, 3.12, 17.66876)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(48, 3.02, 24)",
+          "name": "Escort0",
+          "position": "(47.31256, 0.120247, 31.49124)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(54, 3.02, 24)",
+          "name": "Escort1",
+          "position": "(54.68415, 0.120206, 31.47193)"
+        }
+      ],
+      "elapsed": 259.066666666662,
+      "label": "prayer_end",
+      "phase": "shrine",
+      "prayer_elapsed": 30
+    },
+    {
+      "actors": [
+        {
+          "action": "browse",
+          "alert": 0,
+          "goal": "(48, 0.02, 56)",
+          "name": "Kurosawa",
+          "position": "(50.98339, 3.12, 23.82847)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(46, 0.02, 56)",
+          "name": "Escort0",
+          "position": "(48.45858, 3.12, 24.45858)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(50, 0.02, 56)",
+          "name": "Escort1",
+          "position": "(53.54142, 3.12, 24.45858)"
+        }
+      ],
+      "elapsed": 300.133333333327,
+      "label": "300.1",
+      "phase": "stalls",
+      "prayer_elapsed": 0
+    },
+    {
+      "actors": [
+        {
+          "action": "browse",
+          "alert": 0,
+          "goal": "(58, 0.02, 42)",
+          "name": "Kurosawa",
+          "position": "(56.8953, 0.12, 43.50657)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(56, 0.02, 42)",
+          "name": "Escort0",
+          "position": "(54.93864, 0.12, 43.45737)"
+        },
+        {
+          "action": "escort",
+          "alert": 0,
+          "goal": "(60, 0.02, 42)",
+          "name": "Escort1",
+          "position": "(58.97195, 0.12, 43.40394)"
+        }
+      ],
+      "elapsed": 340.133333333324,
+      "label": "340",
+      "phase": "stalls",
+      "prayer_elapsed": 0
+    },
+    {
+      "actors": [
+        {
+          "action": "watch",
+          "alert": 0,
+          "goal": "(84, 3.02, 32)",
+          "name": "Kurosawa",
+          "position": "(83.58734, 3.12, 31.97518)"
+        },
+        {
+          "action": "guard",
+          "alert": 0,
+          "goal": "(82, 3.02, 30)",
+          "name": "Escort0",
+          "position": "(81.69367, 3.12, 30.06543)"
+        },
+        {
+          "action": "guard",
+          "alert": 0,
+          "goal": "(86, 3.02, 30)",
+          "name": "Escort1",
+          "position": "(85.59036, 3.12, 30.05529)"
+        }
+      ],
+      "elapsed": 419.066666666653,
+      "label": "419",
+      "phase": "dais",
+      "prayer_elapsed": 0
+    }
+  ],
+  "scope": "Live AI/physics at8x time, untouched player spawn, inspection cameras; routine and safe-entry evidence, not a stealth clear or human baseline",
+  "wall_seconds": 53.446
+}
