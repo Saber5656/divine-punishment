@@ -92,6 +92,8 @@ func _build() -> void:
 	_target_model._weapon.add_child(weapon)
 	coverage[&"target"] = 1
 	_flush()
+	for child in level.get_children():
+		if child is WeatherPresentation: apply_rain_cover(child)
 
 func _area(label: String) -> StringName:
 	if label.begins_with("Gate"): return &"gate"
@@ -310,3 +312,28 @@ func _flush() -> void:
 		mesh.name = key
 		mesh.multimesh = batch
 		add_child(mesh)
+
+func apply_rain_cover(weather: WeatherPresentation) -> void:
+	var rectangles: Array[Vector4] = []
+	var heights: Array[float] = []
+	var level := get_parent()
+	for body: StaticBody3D in level.get_node("Geometry/Roofs").get_children():
+		var role := String(body.get_meta(&"art_role",""))
+		if not role.contains("Roof") or role.contains("Bridge"): continue
+		var shape := body.get_child(0) as CollisionShape3D
+		var size := (shape.shape as BoxShape3D).size
+		var centre := body.global_position
+		rectangles.append(Vector4(centre.x-size.x/2,centre.z-size.z/2,centre.x+size.x/2,centre.z+size.z/2))
+		heights.append(centre.y+size.y/2)
+	assert(rectangles.size() <= 16,"M4 precipitation roof uniform capacity exceeded")
+	var count := rectangles.size()
+	while rectangles.size() < 16:
+		rectangles.append(Vector4.ZERO)
+		heights.append(0.0)
+	var material := ShaderMaterial.new()
+	material.shader = load("res://src/levels/rainy_temple/temple_rain.gdshader")
+	material.set_shader_parameter("roof_count",count)
+	material.set_shader_parameter("roof_rects",rectangles)
+	material.set_shader_parameter("roof_heights",heights)
+	# Each weather owner has its own QuadMesh; outdoor particles/audio stay intact.
+	weather._particles.draw_pass_1.material = material

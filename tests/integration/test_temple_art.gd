@@ -60,3 +60,27 @@ func test_retainer_art_preserves_death_and_checkpoint_restoration() -> void:
 	assert_true(npc.restore_checkpoint_health(1))
 	assert_almost_eq(body.rotation.z,0.0,0.001)
 	assert_almost_eq(body.position.y,0.825,0.001)
+
+func test_rain_shader_uses_actual_roof_pieces_and_preserves_the_open_beam_hole() -> void:
+	var level := await _scene()
+	var art := level.get_node("TempleArt")
+	assert_true(art.has_method("apply_rain_cover"),"Rain must stop under solid roofs without sealing the real hole")
+	if not art.has_method("apply_rain_cover"): return
+	var weather := WeatherPresentation.new()
+	level.add_child(weather)
+	art.apply_rain_cover(weather)
+	var material := weather._particles.draw_pass_1.material as ShaderMaterial
+	assert_not_null(material)
+	if material == null: return
+	var count := int(material.get_shader_parameter("roof_count"))
+	var rectangles: Array = material.get_shader_parameter("roof_rects")
+	var heights: Array = material.get_shader_parameter("roof_heights")
+	assert_eq(count,9,"Only the nine physical roof pieces mask precipitation")
+	for spec in [[Vector3(51,8,22),false],[Vector3(51,8,25),true],[Vector3(82,5,35),true],[Vector3(48,4,50),false],[Vector3(51,12,25),false]]:
+		var point: Vector3 = spec[0]
+		var covered := false
+		for index in count:
+			var rect: Vector4 = rectangles[index]
+			covered = covered or (point.x >= rect.x and point.z >= rect.y and point.x <= rect.z and point.z <= rect.w and point.y < heights[index])
+		assert_eq(covered,spec[1],"Rain/roof contract at "+str(point))
+	assert_eq(weather._particles.amount,600,"Keep the existing outdoor rainfall")
