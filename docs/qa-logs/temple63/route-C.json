@@ -1,0 +1,109 @@
+{
+  "campaign": {
+    "mission_results": {
+      "m04": {
+        "first_clear_flags": {
+          "completed": true,
+          "failed_reason": "",
+          "no_traces": false,
+          "one_strike": true,
+          "shadow_walker": true,
+          "side_objective": true,
+          "swift": true
+        },
+        "flags": {
+          "completed": true,
+          "failed_reason": "",
+          "no_traces": false,
+          "one_strike": true,
+          "shadow_walker": true,
+          "side_objective": true,
+          "swift": true
+        },
+        "rank": "okuden",
+        "score": 80
+      }
+    },
+    "seen_cutscenes": [],
+    "shura": 0,
+    "total_civilian_kills": 0,
+    "total_detections": 0,
+    "total_nontarget_kills": 0,
+    "unlocked_mission": 5
+  },
+  "civilian_kills": 0,
+  "detections": 0,
+  "failures": [],
+  "flags": {
+    "completed": true,
+    "failed_reason": "",
+    "no_traces": false,
+    "one_strike": true,
+    "shadow_walker": true,
+    "side_objective": true,
+    "swift": true
+  },
+  "max_visibility": 0.490426957607269,
+  "min_breath": 20,
+  "narrative": {
+    "inner": "……答えは、出ない。",
+    "last_words": "同業よ……俺とお前の、何が違う"
+  },
+  "nontarget_kills": 0,
+  "roof_checkpoint": {
+
+  },
+  "roof_retry_ms": 0,
+  "route": "C",
+  "scope": "Unlocked campaign board; mapped normal-time movement/traversal/F assassination/E rescue and escape; heading steering, no actor placement, AI changes or direct kill; volatile save; not human timing",
+  "score": 80,
+  "screen": "results",
+  "seconds": 208.57,
+  "stages": [
+    {
+      "alert": 0,
+      "detections": 0,
+      "position": "(12, 0.000596, 88)",
+      "seconds": 0,
+      "stage": "start"
+    },
+    {
+      "alert": 0,
+      "detections": 0,
+      "position": "(81.85256, 4.99971, 36.29988)",
+      "seconds": 98.409,
+      "stage": "rescue"
+    },
+    {
+      "alert": 0,
+      "detections": 0,
+      "position": "(50.95756, 8.000898, 23.3265)",
+      "seconds": 140.906,
+      "stage": "approach"
+    },
+    {
+      "alert": 1,
+      "detections": 0,
+      "position": "(50.95756, 8.000898, 23.3265)",
+      "seconds": 142.715,
+      "stage": "assassination"
+    },
+    {
+      "alert": 1,
+      "detections": 0,
+      "position": "(12.14985, 0.000311, 87.99929)",
+      "seconds": 207.477,
+      "stage": "finish"
+    }
+  ],
+  "states": [
+    "SwimSurface",
+    "Ground",
+    "Crawlspace",
+    "Crouch",
+    "Assassinate",
+    "Ground",
+    "Crouch",
+    "Hidden"
+  ]
+}

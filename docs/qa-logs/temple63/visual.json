@@ -1,0 +1,23 @@
+{
+  "coverage": {
+    "bell": 20,
+    "boundary": 200,
+    "cell": 287,
+    "court": 498,
+    "gate": 26,
+    "graves": 312,
+    "hall": 579,
+    "lamps": 8,
+    "lodging": 104,
+    "mill": 79,
+    "monks": 8,
+    "retainers": 2,
+    "roofs": 278,
+    "steps": 114,
+    "target": 1
+  },
+  "draw_calls": 1749,
+  "objects": 1763,
+  "physical_contract_unchanged": true,
+  "scope": "Visual camera plus two explicit player placements for covered/outdoor rain inspection; active AI and normal clock; not route proof"
+}
