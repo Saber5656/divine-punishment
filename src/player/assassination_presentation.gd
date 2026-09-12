@@ -68,7 +68,7 @@ func begin(enemy: EnemyBase, context: StringName) -> bool:
 	if not is_finite(_duration_sec):
 		_duration_sec = DEFAULT_DURATION_SEC
 	_enemy = enemy
-	if MissionDirector.assassination_variant_for(enemy) == "hesitation": _duration_sec = minf(MAX_DURATION_SEC,_duration_sec+0.35)
+	if MissionDirector.assassination_variant_for(enemy) == "hesitation": _duration_sec = minf(MAX_DURATION_SEC,_duration_sec+0.5)
 	_context = context
 	_audio_phase = &""
 	_camera_rig = _resolve_camera_rig()

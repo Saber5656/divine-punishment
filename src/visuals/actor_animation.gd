@@ -138,13 +138,6 @@ func _retarget(animation: Animation, source: Skeleton3D) -> void:
 					animation.track_set_key_value(track, key, target_rest.origin + offset)
 
 func _author_traversal(animation: Animation, name: StringName) -> void:
-	if String(name).begins_with("assassination_hesitation_"):
-		var pivot := animation.length*0.25
-		for track in animation.get_track_count():
-			for key in range(animation.track_get_key_count(track)-1,-1,-1):
-				var time := animation.track_get_key_time(track,key)
-				animation.track_set_key_time(track,key,time*2.0 if time <= pivot else time+pivot)
-		animation.length += pivot
 	# Add original local skeletal rotations to the licensed base motion. These
 	# tracks move bones only; gameplay keeps ownership of climbing and strikes.
 	if name in [&"archer_aim",&"archer_shot"]:
@@ -174,6 +167,15 @@ func _author_traversal(animation: Animation, name: StringName) -> void:
 			for key in range(animation.track_get_key_count(track)):
 				animation.track_set_key_time(track, key, animation.track_get_key_time(track, key) * scale_time)
 		animation.length = 1.25
+	if String(name).begins_with("assassination_hesitation_"):
+		for track in animation.get_track_count():
+			if animation.track_get_key_count(track) == 0: continue
+			if animation.track_get_type(track) not in [Animation.TYPE_POSITION_3D,Animation.TYPE_ROTATION_3D,Animation.TYPE_SCALE_3D]: continue
+			var first_pose = animation.track_get_key_value(track,0)
+			for key in range(animation.track_get_key_count(track)-1,-1,-1):
+				animation.track_set_key_time(track,key,animation.track_get_key_time(track,key)+0.5)
+			animation.track_insert_key(track,0.0,first_pose)
+		animation.length += 0.5
 
 func _offset_rotation(animation: Animation, bone: StringName, axis: Vector3, angle: float) -> void:
 	var path := NodePath(str(get_path_to(_skeleton)) + ":" + str(bone))

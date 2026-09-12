@@ -226,7 +226,7 @@ func show_result() -> void:
 			_raw_label(GameText.get_text(&"result.flag_pass") % [label, points[index]] if achieved else GameText.get_text(&"result.flag_fail") % label, 18)
 			if not achieved and next_goal == &"result.all_done":
 				next_goal = StringName("result.next.%s" % flag)
-	var non_target_kills := MissionDirector.stats().nontarget_kills+MissionDirector.stats().civilian_kills
+	var non_target_kills := MissionDirector.stats().nontarget_kills
 	_raw_label(GameText.get_text(&"result.nontarget") % non_target_kills, 16)
 	var report := _raw_label(NarrativeText.oko_report(non_target_kills),20)
 	report.name = "OkoReport"

@@ -20,8 +20,9 @@ class Column extends Control:
 		for i in text.length():
 			var character := text.substr(i,1)
 			var point := Vector2(4.0,float(i)*step+font.get_ascent(font_size))
-			if character in ["。","、"]: point += Vector2(font_size*0.4,-font_size*0.4)
-			if character in ["…","ー","—"]:
+			if character.unicode_at(0) in [0x3002,0x3001]: point += Vector2(font_size*0.4,-font_size*0.4)
+			# Unicode vertical-layout classes, not localizable dialogue strings.
+			if character.unicode_at(0) in [0x2026,0x30fc,0x2014]:
 				draw_set_transform(point+Vector2(font_size*0.5,-font_size*0.5),PI/2)
 				point = Vector2(-font_size*0.5,font_size*0.5)
 			draw_string_outline(font,point,character,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size,4,Color(0.04,0.035,0.025,0.9))
@@ -110,3 +111,7 @@ func last_words_text() -> String:
 
 func remaining_time() -> float:
 	return maxf(_inner_left,_last_left)
+
+func refresh_settings() -> void:
+	# Explicit settings application must work while normal processing is paused.
+	advance(0.0)

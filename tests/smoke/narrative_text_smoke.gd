@@ -44,9 +44,10 @@ func _ready() -> void:
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(output+"/dialogue-%d.png"%dimensions.x)
 	var settings := get_tree().get_first_node_in_group(&"settings_controller") as SettingsController
+	get_tree().paused = true
 	if not settings.apply_value("inner_monologue",false): failures += 1
-	overlay.advance(0.0)
 	if not overlay.monologue_text().is_empty() or overlay.last_words_text().is_empty(): failures += 1
+	get_tree().paused = false
 	settings.apply_value("inner_monologue",true)
 	overlay.advance(4.0)
 	if not overlay.last_words_text().is_empty(): failures += 1

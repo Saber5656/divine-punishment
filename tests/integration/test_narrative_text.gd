@@ -86,7 +86,11 @@ func test_m6_target_assassination_requests_hesitation_motion() -> void:
 	presentation.animation_requested.connect(func(_context,clip): clips.append(clip))
 	presentation.begin(enemy,&"back")
 	assert_eq(clips,[&"assassination_hesitation_back"])
-	assert_almost_eq(presentation.remaining_sec(),1.6,0.001)
+	assert_almost_eq(presentation.remaining_sec(),1.75,0.001)
+	presentation.cancel()
+	presentation.duration_sec = 1.0
+	presentation.begin(enemy,&"back")
+	assert_almost_eq(presentation.remaining_sec(),1.5,0.001)
 	presentation.cancel()
 
 func test_monologue_setting_migrates_and_rejects_non_boolean_values() -> void:
@@ -118,3 +122,46 @@ func test_final_dialogue_remains_visible_before_result_and_retry_cancels_old_tra
 	await get_tree().create_timer(4.1).timeout
 	assert_eq(director.screen,&"playing","A timer owned by the old mission must not finish the retry")
 	director._clear_mission()
+
+func test_settings_disable_clears_visible_inner_text_while_tree_is_paused() -> void:
+	var overlay := NarrativeOverlay.new()
+	add_child_autofree(overlay)
+	var settings := SettingsController.new()
+	add_child_autofree(settings)
+	EventBus.inner_monologue_requested.emit(&"m02.inner_monologue")
+	assert_false(overlay.monologue_text().is_empty())
+	get_tree().paused = true
+	assert_true(settings.apply_value("inner_monologue",false))
+	assert_eq(overlay.monologue_text(),"","Paused overlays must observe the toggle immediately")
+	get_tree().paused = false
+
+func test_oko_report_does_not_merge_civilian_and_enemy_kill_counters() -> void:
+	var main := load("res://src/ui/main.tscn").instantiate() as Node
+	var director := main.get_node("SceneDirector") as SceneDirector
+	var store := VolatileStore.new()
+	add_child_autofree(store)
+	director.save_manager = store
+	add_child_autofree(main)
+	director.start_mission(SceneDirector.PRACTICE)
+	await get_tree().process_frame
+	MissionDirector.stats().nontarget_kills = 0
+	MissionDirector.stats().civilian_kills = 5
+	director.show_result()
+	var report := director.find_child("OkoReport",true,false) as Label
+	assert_eq(report.text,NarrativeText.oko_report(0))
+	director._clear_mission()
+
+func test_hesitation_motion_holds_its_first_pose_for_half_a_second() -> void:
+	var animation := Animation.new()
+	animation.length = 1.0
+	var track := animation.add_track(Animation.TYPE_ROTATION_3D)
+	animation.track_set_path(track,NodePath("Skeleton:spine"))
+	animation.rotation_track_insert_key(track,0.0,Quaternion.IDENTITY)
+	animation.rotation_track_insert_key(track,1.0,Quaternion(Vector3.UP,1.0))
+	var visual := ActorAnimation.new()
+	add_child_autofree(visual)
+	visual._author_traversal(animation,&"assassination_hesitation_back")
+	assert_almost_eq(animation.length,1.75,0.001)
+	assert_eq(animation.track_get_key_count(track),3)
+	assert_almost_eq(animation.track_get_key_time(track,1),0.5,0.001)
+	assert_eq(animation.track_get_key_value(track,0),animation.track_get_key_value(track,1))
