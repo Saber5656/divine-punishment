@@ -1,0 +1,28 @@
+{
+  "generator": "tools/art/build_temple_modules.py",
+  "blender_version": "5.2.1 LTS",
+  "units": "metres",
+  "source": "Project-authored original geometry and materials",
+  "license": "Project license",
+  "external_assets": [],
+  "modules": [
+    "wet_paving_2m",
+    "stone_wall_2m",
+    "stone_tread_2m",
+    "cedar_wall_2m",
+    "temple_post",
+    "temple_beam_2m",
+    "temple_roof_2m",
+    "eave_trim_2m",
+    "bronze_bell",
+    "grave_stone",
+    "temple_lantern",
+    "temple_brazier",
+    "temple_retainer",
+    "monk_umbrella",
+    "naginata",
+    "boundary_rock",
+    "cell_lattice_2m",
+    "waterwheel"
+  ]
+}
