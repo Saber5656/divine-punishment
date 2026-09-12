@@ -35,6 +35,7 @@ static func restore(value: Dictionary, npc: EnemyBase) -> bool:
 	npc.brain().restore_checkpoint_state(value["brain"])
 	(npc.get_node("Combat") as EnemyCombat).restore_checkpoint_state(value["combat"])
 	(npc.get_node("Perception") as EnemyPerception).restore_checkpoint_meter(float(value["meter"]))
+	npc.restore_checkpoint_lifecycle()
 	if npc is EscortGuard: (npc as EscortGuard).restore_checkpoint_reaction(value.get("escort_reacted",false))
 	if npc is TargetNpc: (npc as TargetNpc).restore_checkpoint_defeat(npc.brain().incapacitated_kind() == &"dead")
 	if npc.brain().incapacitated_kind() == &"dead": npc.collision_layer = EnemyBase.CORPSE_LAYER
