@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="FestivalTuning" load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/levels/festival_night/festival_tuning.gd" id="1"]
+[resource]
+script = ExtResource("1")
+dais_seconds = 180.0
+shrine_seconds = 120.0
+stalls_seconds = 60.0
+prayer_seconds = 30.0
+arrival_tolerance = 0.5
+crowd_speed = 0.4
+patrol_dwell_seconds = 4.0

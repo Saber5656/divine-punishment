@@ -18,6 +18,8 @@ Stalls: first half target(48,0.02,56), second half(58,0.02,42); escorts offset b
 
 Civilian origin is feetY-0.9, unlike player/enemy capsule centres. Closed continuous crowd curves avoid wrap teleportation; first loop leads from(24,80) to central street, second loops northern stalls. Use existing automatic conceal and sprint/sword disruption, not locked Hide state or disabled perception. Keep stable ids for actors and checkpoint preparation.
 
+Observed integration dependency: PatrolPath requires at least two stops or a valid multi-point curve. Keep the single dynamic important-actor stop, but back it with a real authored preview curve through dais stairs, street and shrine stairs. Place the path origin near map centre to keep preview points within the existing100m local bound. Do not weaken PatrolPath validation. Roster tests now assert all eleven paths are valid; the initial three important-actor paths failed this assertion and the prayer test correctly observed no movement.
+
 ## Verification and delivery
 
 TDD: missing scene/roster; actual navigable shrine/dais/ground paths and no roof shortcut; clock transition without actor placement; genuine arrival-gated30second prayer with guards outside; combat state preserved; closed crowd curves and conceal/disruption event; fresh reload. Native accelerated schedule fixture is explicitly timing-system evidence, not normal-time mission/human completion. Focused tests then one combined full suite, main-agent self-review, meaningful commits, privacy scan, PRCloses188onlyafteracceptance, CI/findings/expected-head merge and merged-main exports/Linux boot. Keep64/190open. Record evidence in canonical Vault; no retired harness or unnecessary subagents.
