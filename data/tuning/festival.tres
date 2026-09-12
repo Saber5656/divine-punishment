@@ -9,3 +9,6 @@ prayer_seconds = 30.0
 arrival_tolerance = 0.5
 crowd_speed = 0.4
 patrol_dwell_seconds = 4.0
+firework_period_seconds = 45.0
+firework_burst_seconds = 3.0
+roof_visibility_multiplier = 2.0

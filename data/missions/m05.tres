@@ -1,9 +1,31 @@
-[gd_resource type="Resource" script_class="MissionDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=7 format=3]
 [ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
+[ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/levels/festival_night/festival_mission.tscn" id="3"]
+[sub_resource type="Resource" id="Target"]
+script = ExtResource("2")
+id = &"m05_target"
+text_key = &"m05.objective.target"
+kind = &"KILL_TARGET"
+target_group = &"m05_target"
+[sub_resource type="Resource" id="Escape"]
+script = ExtResource("2")
+id = &"m05_escape"
+text_key = &"m05.objective.escape"
+kind = &"ESCAPE"
+[sub_resource type="Resource" id="Quiet"]
+script = ExtResource("2")
+id = &"m05_no_screams"
+text_key = &"m05.objective.no_screams"
+kind = &"CUSTOM"
 [resource]
 script = ExtResource("1")
 id = &"m05"
 title_key = &"m05.title"
+level_scene = ExtResource("3")
+objectives = Array[ExtResource("2")]([SubResource("Target"),SubResource("Escape")])
+side_objective = SubResource("Quiet")
+tool_loadout = {&"stone":10,&"dart":5,&"smoke":2,&"naruko":3}
 weather = 0
 kill_policy = 1
 par_time_minutes = 20.0

@@ -341,6 +341,19 @@ func visibility() -> float                            # 最後に計算した V 
 func recompute() -> float                             # 内部 10 Hz タイマーが呼ぶ。テストから直接呼び可
 static func light_contribution(dist: float, gameplay_radius: float, occluded: bool) -> float   # pure
 static func combine(light_sum: float, stance_mod: float, move_mod: float, cover_mod: float) -> float  # pure, §GDD 2.1
+static func apply_environment_multiplier(base: float, multiplier: float) -> float # pure; bounded V0..1, valid factor1..4
+# Optional scene-owned mission_visibility_effects providers:
+# func visibility_multiplier_at(world_position: Vector3) -> float
+# Apply after ordinary light/stance/movement/cover; Hide/crowd exclusion stays0.
+# Invalid factor is neutral. Provider lifetime is the mission scene lifetime.
+
+# ── src/stealth/noise_event_system.gd (single gameplay noise dispatcher)
+# Optional scene-owned mission_noise_masks providers:
+# func masks_gameplay_noise() -> bool
+# Active masks suppress raw noise telemetry and direct enemy delivery for all kinds.
+# Explicit SceneTree, source SceneTree, then main SceneTree resolve scope.
+# Unmasked behavior/signatures/input events stay unchanged; no persistent global flag.
+# Scream objective events are independent of whether their sound is audible.
 
 # ── src/core/perception_formulas.gd (RefCounted; pure shared formulas)
 class_name PerceptionFormulas
@@ -365,7 +378,7 @@ static func resolve(player_state: StringName, to_enemy_local: Vector3,
 class_name EnemyPerception
 signal stimulus(stim: PerceptionStimulus)
 func tick(delta: float) -> void                       # Brain が 10 Hz/LOD で呼ぶ（自走しない）
-func on_noise(event: NoiseEvent) -> void              # EventBus.noise_emitted に接続
+func on_noise(event: NoiseEvent) -> void              # NoiseEventSystem から一度受信。raw EventBus は購読しない
 func meter() -> float                                 # 発見メーター現在値（閾値は §2.3: 1.0/2.0/3.0）
 static func vision_gain(v: float, dist: float, view_dist: float,
         central: bool, base_gain: float) -> float     # pure, §2.3 の式そのもの
