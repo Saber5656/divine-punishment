@@ -1,0 +1,52 @@
+{
+  "failures": [],
+  "samples": [
+    {
+      "living_retainers": 2,
+      "party": {
+        "CourtEast": {
+          "action": "walk",
+          "position": "(60, 4.120001, 55.62611)"
+        },
+        "CourtWest": {
+          "action": "walk",
+          "position": "(40, 4.120001, 53.64213)"
+        }
+      },
+      "side_failed": false,
+      "time": 719.066666666636
+    },
+    {
+      "living_retainers": 2,
+      "party": {
+        "CourtEast": {
+          "action": "execute",
+          "position": "(60.16325, 4.120001, 55.04875)"
+        },
+        "CourtWest": {
+          "action": "execute",
+          "position": "(40.48433, 4.120001, 53.28797)"
+        }
+      },
+      "side_failed": false,
+      "time": 720.533333333303
+    },
+    {
+      "living_retainers": 0,
+      "party": {
+        "CourtEast": {
+          "action": "execute",
+          "position": "(81.5755, 5.120001, 34.92203)"
+        },
+        "CourtWest": {
+          "action": "execute",
+          "position": "(75.59775, 5.120001, 34.80946)"
+        }
+      },
+      "side_failed": true,
+      "time": 820.133333333297
+    }
+  ],
+  "scope": "8x live clock and AI, untouched entry player, inspection camera; soft-deadline failure fixture, not route or human timing",
+  "wall_seconds": 103.766
+}
