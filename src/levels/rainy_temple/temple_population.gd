@@ -55,6 +55,11 @@ func _physics_process(delta: float) -> void:
 func schedule_elapsed() -> float:
 	return _elapsed
 
+func restore_schedule_elapsed(value: float) -> bool:
+	if not is_finite(value) or value < 0.0 or value > 86399.0: return false
+	_elapsed = value
+	return advance_schedule(0.0)
+
 func advance_schedule(delta: float) -> bool:
 	if not is_finite(delta) or delta < 0.0: return false
 	_elapsed = minf(_elapsed+delta,86399.0)

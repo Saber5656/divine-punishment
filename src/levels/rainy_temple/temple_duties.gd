@@ -41,6 +41,26 @@ func _physics_process(_delta: float) -> void:
 func actors() -> Array[EnemyBase]:
 	return _actors.duplicate()
 
+func capture_checkpoint_state() -> Dictionary:
+	return {"gather_used":_gather_used,"gather_until":_gather_until}
+
+func checkpoint_state_is_valid(value: Dictionary,elapsed: float) -> bool:
+	if not value.get("gather_used") is bool or not CheckpointSnapshot._finite_number(value.get("gather_until")): return false
+	var until := float(value["gather_until"])
+	return (until >= GATHER_SECONDS and until <= minf(elapsed+GATHER_SECONDS,86400.0)) if value["gather_used"] else until == 0.0
+
+func restore_checkpoint_state(value: Dictionary) -> bool:
+	if not checkpoint_state_is_valid(value,_elapsed()): return false
+	_gather_used = value["gather_used"]
+	_gather_until = float(value["gather_until"])
+	_bell.stop()
+	# Restore route gates even when the currently dead actor will be revived.
+	for actor in _actors:
+		_routes[actor].mode = &""
+		var mode: StringName = &"gather" if _gather_used and _elapsed() < _gather_until else (&"execute" if execution_started() and actor.name in PARTY_NAMES else &"normal")
+		_apply_mode(actor,mode)
+	return true
+
 func gathering_point(actor: EnemyBase) -> Vector3:
 	var index := _actors.find(actor)
 	return Vector3(39+(index%5)*5,8.02,25+(index/5)*4)

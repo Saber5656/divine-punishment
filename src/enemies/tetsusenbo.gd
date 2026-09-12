@@ -4,6 +4,14 @@ extends TargetNpc
 const COUNTER_WINDOW := 1.2
 var _counter_remaining := 0.0
 
+func counter_remaining() -> float:
+	return _counter_remaining
+
+func restore_counter_remaining(value: float) -> bool:
+	if not is_finite(value) or value < 0.0 or value > COUNTER_WINDOW: return false
+	_counter_remaining = value
+	return true
+
 func _ready() -> void:
 	super._ready()
 	EventBus.combat_parried.connect(_on_parried)

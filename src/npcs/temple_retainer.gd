@@ -7,6 +7,33 @@ var escaped := false
 var _anchor: Node3D
 var _agent: NavigationAgent3D
 
+func capture_checkpoint_state() -> Dictionary:
+	var point := global_position
+	return {"health":health(),"rescued":rescued,"escaped":escaped,"position":[point.x,point.y,point.z],"yaw":global_rotation.y}
+
+func checkpoint_state_is_valid(value: Dictionary) -> bool:
+	if not CheckpointSnapshot._whole_number(value.get("health"),0,1): return false
+	if not value.get("rescued") is bool or not value.get("escaped") is bool: return false
+	if not CheckpointSnapshot._finite_number(value.get("yaw")): return false
+	if not value.get("position") is Array or value["position"].size() != 3: return false
+	for coordinate in value["position"]:
+		if not CheckpointSnapshot._finite_number(coordinate) or absf(float(coordinate)) > 10000: return false
+	var point: Array = value["position"]
+	return not value["escaped"] or (value["rescued"] and int(value["health"]) == 1 and (Vector3(point[0],point[1],point[2])+Vector3.UP*0.9).distance_to(ESCAPE) < 0.5)
+
+func restore_checkpoint_state(value: Dictionary) -> bool:
+	if not checkpoint_state_is_valid(value): return false
+	restore_checkpoint_health(int(value["health"]))
+	rescued = value["rescued"]
+	escaped = value["escaped"]
+	var point: Array = value["position"]
+	global_position = Vector3(point[0],point[1],point[2])
+	global_rotation.y = float(value["yaw"])
+	visible = not escaped
+	if escaped: collision_layer = 0
+	_agent.target_position = ESCAPE
+	return true
+
 func _ready() -> void:
 	super._ready()
 	soft_deadline_seconds = 0.0

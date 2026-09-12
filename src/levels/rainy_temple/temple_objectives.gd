@@ -2,6 +2,7 @@ extends Node3D
 
 const DUTIES := preload("res://src/levels/rainy_temple/temple_duties.gd")
 const RETAINER := preload("res://src/npcs/temple_retainer.tscn")
+const CHECKPOINT := preload("res://src/levels/rainy_temple/temple_checkpoint.gd")
 const BELL := Vector3(26,4.02,54)
 const EXIT := Vector3(12,0.02,88)
 const RETAINER_IDS := ["retainer_a","retainer_b"]
@@ -15,6 +16,7 @@ var _retainers: Dictionary = {}
 var _prompts: Dictionary = {}
 var _boss_hint: Label3D
 var _initialized := false
+var _restoring := false
 
 func _ready() -> void:
 	process_priority = 30
@@ -54,10 +56,22 @@ func _ready() -> void:
 	bronze.metallic = 0.7
 	bell.material_override = bronze
 	add_child(bell)
+	for definition in [[&"temple_courtyard",Vector3(38,4.02,62)],[&"temple_cell",Vector3(72,5.02,28)]]:
+		var checkpoint := CheckpointArea.new()
+		checkpoint.checkpoint_id = definition[0]
+		checkpoint.position = definition[1]
+		var bounds := CollisionShape3D.new()
+		bounds.shape = BoxShape3D.new()
+		(bounds.shape as BoxShape3D).size = Vector3(2,2,2)
+		checkpoint.add_child(bounds)
+		add_child(checkpoint)
 	EventBus.mission_event.connect(_on_mission_event)
+	var retained := GameState.checkpoint_ref.duplicate(true) if PlayerRetryFlow.pending_scene == _level.scene_file_path else {}
 	MissionDirector.attach_mission_scene(_level,load("res://data/missions/m04.tres") as MissionDefinition)
+	if not retained.is_empty(): GameState.checkpoint_ref = retained
 	_initialized = true
 	advance_mission()
+	_append_world_snapshot.call_deferred()
 
 func _exit_tree() -> void:
 	if EventBus.mission_event.is_connected(_on_mission_event): EventBus.mission_event.disconnect(_on_mission_event)
@@ -66,7 +80,7 @@ func _physics_process(_delta: float) -> void:
 	advance_mission()
 
 func advance_mission() -> void:
-	if not _initialized: return
+	if not _initialized or _restoring: return
 	_duties.call("advance_duties")
 	for index in RETAINER_IDS.size():
 		var npc := _retainers[RETAINER_IDS[index]] as ProtectedNPC
@@ -110,11 +124,36 @@ func _can_reach(point: Vector3) -> bool:
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func _on_mission_event(event: StringName,payload: Dictionary) -> void:
-	if event == &"protected_target_lost" and _retainers.has(String(payload.get("id",""))):
+	if _restoring: return
+	if event == EventBus.EV_CHECKPOINT_REACHED: _append_world_snapshot()
+	elif event == EventBus.EV_TARGET_KILLED and payload.get("target") == target: _capture_target_checkpoint.call_deferred()
+	elif event == &"protected_target_lost" and _retainers.has(String(payload.get("id",""))):
 		side_failed = true
 		MissionDirector.stats().side_objective_completed = false
 	elif event == &"temple_retainer_escaped":
 		_sync_side_objective()
+
+func _capture_target_checkpoint() -> void:
+	if not is_inside_tree() or not target.is_target_defeated(): return
+	var deadline := Time.get_ticks_msec()+3000
+	while _player.checkpoint_posture().is_empty() and not _player.state_machine.is_dead():
+		if Time.get_ticks_msec() >= deadline: return
+		await get_tree().physics_frame
+		if not is_instance_valid(_player) or not is_inside_tree(): return
+	(_player.get_node("RetryFlow") as PlayerRetryFlow).capture_checkpoint(&"assassination_complete")
+
+func _append_world_snapshot() -> void:
+	if not is_inside_tree() or not _initialized or _restoring or GameState.checkpoint_ref.is_empty() or not PlayerRetryFlow.pending_scene.is_empty(): return
+	GameState.checkpoint_ref["mission_world"] = CHECKPOINT.capture(_population,_duties,_retainers,side_failed)
+
+func restore_checkpoint_world(snapshot: Dictionary) -> bool:
+	var world: Variant = snapshot.get("mission_world")
+	if not world is Dictionary or not CHECKPOINT.is_valid(world,_population,_duties,_retainers): return false
+	_restoring = true
+	CHECKPOINT.restore(world,_population,_duties,_retainers)
+	side_failed = world["side_failed"]
+	_restoring = false
+	return true
 
 func _sync_side_objective() -> void:
 	if not _initialized or side_failed: return
