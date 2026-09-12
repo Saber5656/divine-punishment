@@ -356,3 +356,10 @@ m03.objective.opium,蔵三の阿片箱を海に捨てる
 m03.prompt.ledger,{interact} 裏帳簿を取る
 m03.prompt.cargo,{interact} 阿片箱を持つ／置く
 m03.prompt.exit,脱出地点
+m04.objective.target,鉄仙坊を暗殺する
+m04.objective.escape,山寺から脱出する
+m04.objective.retainers,遺臣2名を解放し、無事に逃がす
+m04.prompt.bell,{interact} 集合の鐘を鳴らす（1回）
+m04.prompt.rescue,{interact} 遺臣を解放する
+m04.prompt.exit,{interact} 脱出する・遺臣の脱出
+m04.prompt.counter,受け流した直後に斬り返す
