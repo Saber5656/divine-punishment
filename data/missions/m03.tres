@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="MissionDefinition" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="MissionDefinition" load_steps=8 format=3]
 [ext_resource type="Script" path="res://src/core/mission/mission_definition.gd" id="1"]
 [ext_resource type="Script" path="res://src/core/mission/objective_data.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/levels/port_storehouse/port_mission.tscn" id="3"]
 [sub_resource type="Resource" id="Target"]
 script = ExtResource("2")
 id = &"m03_target"
@@ -26,6 +27,7 @@ kind = &"DISPOSE"
 script = ExtResource("1")
 id = &"m03"
 title_key = &"m03.title"
+level_scene = ExtResource("3")
 weather = 0
 kill_policy = 1
 objectives = Array[ExtResource("2")]([SubResource("Target"),SubResource("Ledger"),SubResource("Escape")])

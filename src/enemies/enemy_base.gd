@@ -63,6 +63,22 @@ func brain() -> EnemyBrain:
 	return get_node_or_null(NodePath("Brain")) as EnemyBrain
 
 
+## Read-only debug data uses the same eye, range and meter as live perception.
+func debug_vision_cone() -> Dictionary:
+	var perception := get_node_or_null("Perception") as EnemyPerception
+	var eye := get_node_or_null("Perception/EyePoint") as Node3D
+	if perception == null or eye == null or perception.perception_config == null:
+		return {}
+	if brain() != null and brain().is_incapacitated(): return {}
+	return {
+		&"origin":eye.global_position,
+		&"forward":-global_basis.z,
+		&"fov_degrees":perception.perception_config.fov_degrees,
+		&"view_distance":perception.effective_view_distance(),
+		&"meter":perception.meter(),
+	}
+
+
 func configured_routine_type() -> StringName:
 	return routine_type
 

@@ -41,8 +41,16 @@ func _ready() -> void:
 		Input.action_release(&"move_forward")
 		if remaining <= 0.0: failures.append("Ladder/beam passage failed at "+str(player.global_position)+" state="+str(player.state_machine.current_state()))
 		await _key(KEY_SHIFT)
-		for destination in route.slice(6):
+		for destination in route.slice(6,-1):
 			if not await _walk_to(player,destination): break
+		await _key(KEY_E)
+		remaining = 10.0
+		while remaining > 0.0 and player.global_position.distance_to(route[-1]) > 0.08:
+			Input.action_press(&"move_forward")
+			await get_tree().physics_frame
+			remaining -= get_physics_process_delta_time()
+		Input.action_release(&"move_forward")
+		if remaining <= 0.0: failures.append("Counting-room beam approach failed")
 	elif route_id == "C":
 		for destination in [Vector3(12,0,60),Vector3(12,0,64),Vector3(20,-1.65,64),Vector3(88,-1.65,64),Vector3(88,-1.65,60)]:
 			if not await _walk_to(player,destination): break

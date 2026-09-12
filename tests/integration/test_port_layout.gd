@@ -27,6 +27,8 @@ func _check_capsule_route(id: StringName) -> void:
 	player.set_physics_process(false)
 	for frame in range(3): await get_tree().physics_frame
 	var route: Array[Vector3] = level.route_waypoints(id)
+	# The final segment uses the production climb/beam posture, covered below.
+	if id == &"B_roofs": route = route.slice(0,10)
 	player.global_position = route[0]
 	for target in route.slice(1):
 		for step in range(2000):
@@ -34,6 +36,26 @@ func _check_capsule_route(id: StringName) -> void:
 			if difference.length() < 0.06: break
 			player.move_and_collide(difference.normalized()*minf(0.03,difference.length()),false,0.001)
 		assert_lt(player.global_position.distance_to(target),0.1,"Continuous capsule passage at "+str(target))
+
+func test_port_overhead_finish_enters_a_real_beam_and_exposes_the_above_prompt() -> void:
+	var level: PortStorehouse = load(SCENE).instantiate()
+	add_child_autofree(level)
+	var player := level.get_node("Player") as PlayerController
+	var target: TargetNpc = load("res://src/enemies/target_npc.tscn").instantiate()
+	target.position = Vector3(66,3.02,14)
+	level.add_child(target)
+	for frame in range(3): await get_tree().physics_frame
+	player.global_position = Vector3(66,6.7,16)
+	assert_true(player.try_enter_climb(level.get_node("Markers/Traversal/CountingBeamEntry")))
+	for frame in range(180):
+		Input.action_press(&"move_forward")
+		await get_tree().physics_frame
+		if player.global_position.distance_to(Vector3(66,7,14)) < 0.08: break
+	Input.action_release(&"move_forward")
+	assert_eq(player.state_machine.current_state(),&"Beam")
+	assert_lt(player.global_position.distance_to(Vector3(66,7,14)),0.1)
+	for frame in range(3): await get_tree().process_frame
+	assert_eq((player.get_node("AssassinationResolver") as AssassinationResolver).prompt_context(),&"above")
 
 func test_port_rear_shore_leaves_swimming_before_the_rising_bank() -> void:
 	var level = load(SCENE).instantiate()

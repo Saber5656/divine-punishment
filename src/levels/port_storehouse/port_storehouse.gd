@@ -3,7 +3,7 @@ extends Node3D
 
 const ROUTES := {
 	&"A_pier": [Vector3(8,0.02,60),Vector3(14,0.02,54),Vector3(58,0.02,54),Vector3(58,0.12,30),Vector3(58,3.12,22),Vector3(62,3.02,17),Vector3(66,3.02,14)],
-	&"B_roofs": [Vector3(8,0.02,60),Vector3(24,0.02,44),Vector3(24,0.02,40),Vector3(18,0.02,40),Vector3(18,5.02,40),Vector3(24,5.02,36),Vector3(48,5.02,36),Vector3(48,5.02,30),Vector3(66,6.72,22),Vector3(66,6.72,15.2)],
+	&"B_roofs": [Vector3(8,0.02,60),Vector3(24,0.02,44),Vector3(24,0.02,40),Vector3(18,0.02,40),Vector3(18,5.02,40),Vector3(24,5.02,36),Vector3(48,5.02,36),Vector3(48,5.02,30),Vector3(66,6.72,22),Vector3(66,6.72,16),Vector3(66,7,14)],
 	&"C_water": [Vector3(8,0.02,60),Vector3(12,0.02,60),Vector3(12,0.02,64),Vector3(20,-1.65,64),Vector3(88,-1.65,64),Vector3(88,-1.65,60),Vector3(88,-3.7,60),Vector3(88,-3.7,40),Vector3(88,-1.65,40),Vector3(88,-1.65,18),Vector3(80,0.02,18),Vector3(80,0.02,16),Vector3(85,0.02,16),Vector3(85,0.02,14),Vector3(78.5,1.72,14),Vector3(77,1.72,14),Vector3(66,1.72,14)]
 }
 var _built := false
@@ -83,6 +83,22 @@ func _enter_tree() -> void:
 	beam.path_curve = curve
 	beam.start_climb_edge = NodePath("../RoofLadder")
 	traversal.add_child(beam)
+	var kill_edge := ClimbEdge.new()
+	kill_edge.name = "CountingBeamEntry"
+	kill_edge.position = Vector3(66,6.7,16)
+	kill_edge.top_offset = Vector3(0,0.3,-0.6)
+	kill_edge.connected_beam_path = NodePath("../CountingBeam")
+	traversal.add_child(kill_edge)
+	var kill_beam := BeamPath.new()
+	kill_beam.name = "CountingBeam"
+	kill_beam.position = Vector3(66,7,15.4)
+	var kill_curve := Curve3D.new()
+	kill_curve.add_point(Vector3.ZERO)
+	kill_curve.add_point(Vector3(0,0,-1.4))
+	kill_beam.path_curve = kill_curve
+	kill_beam.start_climb_edge = NodePath("../CountingBeamEntry")
+	traversal.add_child(kill_beam)
+	_box(roofs,"CountingBeamBoard",Vector3(66,6.025,14.7),Vector3(0.25,0.15,1.4),Color("66543c"))
 	var crawl := CrawlEntrance.new()
 	crawl.name = "RearCrawl"
 	crawl.position = Vector3(78.5,1.72,14)
