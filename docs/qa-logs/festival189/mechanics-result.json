@@ -1,0 +1,22 @@
+{
+  "failures": [],
+  "samples": {
+    "burst_retry_ms": 138.367,
+    "checkpoint_elapsed": 43.0333333333333,
+    "flags": {
+      "completed": true,
+      "failed_reason": "",
+      "no_traces": true,
+      "one_strike": true,
+      "shadow_walker": true,
+      "side_objective": true,
+      "swift": true
+    },
+    "naruko_remaining": 2,
+    "restored_elapsed": 43.2666666666667,
+    "score": 105,
+    "target_retry_ms": 124.261
+  },
+  "scope": "Native campaign mechanics fixture: mapped Q/tool mouse/C/E, untouched entry player, live AI, actual scene replacements and result UI; explicit43second clock offset, civilian scream, remote target assassination and stock mutations test rewind; volatile save; not a stealth route or human baseline",
+  "wall_seconds": 5.937
+}

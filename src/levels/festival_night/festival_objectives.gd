@@ -1,5 +1,6 @@
 extends Node3D
 
+const CHECKPOINT := preload("res://src/levels/festival_night/festival_checkpoint.gd")
 const EXIT := Vector3(12,0.02,88)
 var scream_count: int = 0
 var target: TargetNpc
@@ -26,6 +27,16 @@ func _ready() -> void:
 	MissionDirector.attach_mission_scene(_level,load("res://data/missions/m05.tres") as MissionDefinition)
 	if not retained.is_empty(): GameState.checkpoint_ref = retained
 	_initialized = true
+	for spec in [[&"festival_roof",Vector3(28,4.02,60)],[&"festival_well",Vector3(69,0.02,16)]]:
+		var checkpoint := CheckpointArea.new()
+		checkpoint.checkpoint_id = spec[0]
+		checkpoint.position = spec[1]
+		var bounds := CollisionShape3D.new()
+		bounds.shape = BoxShape3D.new()
+		(bounds.shape as BoxShape3D).size = Vector3(2,2,2)
+		checkpoint.add_child(bounds)
+		add_child(checkpoint)
+	_append_world_snapshot.call_deferred()
 
 func _exit_tree() -> void:
 	if EventBus.mission_event.is_connected(_on_mission_event): EventBus.mission_event.disconnect(_on_mission_event)
@@ -41,8 +52,32 @@ func try_escape() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if _initialized and event.is_action_pressed(&"interact") and not event.is_echo() and try_escape(): get_viewport().set_input_as_handled()
 
-func _on_mission_event(event: StringName,_payload: Dictionary) -> void:
+func _on_mission_event(event: StringName,payload: Dictionary) -> void:
 	if not _initialized or _restoring or MissionDirector.current_objective() == null: return
-	if event == &"civilian_scream":
+	if event == EventBus.EV_CHECKPOINT_REACHED: _append_world_snapshot()
+	elif event == EventBus.EV_TARGET_KILLED and payload.get("target") == target: _capture_target_checkpoint.call_deferred()
+	elif event == &"civilian_scream":
 		scream_count = mini(scream_count+1,1000000)
 		MissionDirector.stats().side_objective_completed = false
+
+func _capture_target_checkpoint() -> void:
+	if not is_inside_tree() or not target.is_target_defeated(): return
+	var deadline := Time.get_ticks_msec()+3000
+	while _player.checkpoint_posture().is_empty() and not _player.state_machine.is_dead():
+		if Time.get_ticks_msec() >= deadline: return
+		await get_tree().physics_frame
+		if not is_instance_valid(_player) or not is_inside_tree(): return
+	(_player.get_node("RetryFlow") as PlayerRetryFlow).capture_checkpoint(&"assassination_complete")
+
+func _append_world_snapshot() -> void:
+	if not is_inside_tree() or not _initialized or _restoring or GameState.checkpoint_ref.is_empty() or not PlayerRetryFlow.pending_scene.is_empty(): return
+	GameState.checkpoint_ref["mission_world"] = CHECKPOINT.capture(_level,scream_count)
+
+func restore_checkpoint_world(snapshot: Dictionary) -> bool:
+	var world: Variant = snapshot.get("mission_world")
+	if not world is Dictionary or not CHECKPOINT.is_valid(world,_level): return false
+	_restoring = true
+	var restored := CHECKPOINT.restore(world,_level)
+	if restored: scream_count = int(world.scream_count)
+	_restoring = false
+	return restored
