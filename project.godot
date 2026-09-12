@@ -173,6 +173,11 @@ knockout={
 "events": [Object(InputEventKey,"physical_keycode":71)]
 }
 
+escort_command={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":84)]
+}
+
 [rendering]
 
 renderer/rendering_method="forward_plus"

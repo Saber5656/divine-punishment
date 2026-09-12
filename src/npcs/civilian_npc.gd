@@ -6,7 +6,7 @@ const SCREAM_RADIUS := 15.0
 @export_range(1.0,20.0,0.5) var view_distance := 8.0
 var _scan_elapsed := 0.0
 var _scream_cooldown := 0.0
-var _health := 40
+var _health := 1
 var _body: MeshInstance3D
 
 func _ready() -> void:
@@ -14,6 +14,7 @@ func _ready() -> void:
 	collision_layer = 1 << 3
 	collision_mask = 1
 	var shape := CollisionShape3D.new()
+	shape.name = "BodyCollision"
 	shape.shape = CapsuleShape3D.new()
 	(shape.shape as CapsuleShape3D).height = 1.65
 	(shape.shape as CapsuleShape3D).radius = 0.25
@@ -72,7 +73,7 @@ func health() -> int:
 func is_defeated() -> bool:
 	return _health <= 0
 
-func receive_combat_damage(amount: int, _source: Node = null) -> int:
+func receive_combat_damage(amount: int, source: Node = null) -> int:
 	if amount <= 0 or is_defeated(): return 0
 	var applied := mini(amount,_health)
 	_health -= applied
@@ -81,6 +82,9 @@ func receive_combat_damage(amount: int, _source: Node = null) -> int:
 		if _body != null:
 			_body.rotation.z = PI/2
 			_body.position.y = 0.25
-		EventBus.civilian_killed.emit(self)
+		_report_death(source)
 	else: scream()
 	return applied
+
+func _report_death(_source: Node) -> void:
+	EventBus.civilian_killed.emit(self)

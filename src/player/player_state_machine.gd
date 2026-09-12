@@ -15,13 +15,14 @@ const STATE_SWIM_SURFACE: StringName = &"SwimSurface"
 const STATE_SWIM_UNDERWATER: StringName = &"SwimUnderwater"
 const STATE_HIDDEN: StringName = &"Hidden"
 const STATE_ASSASSINATE: StringName = &"Assassinate"
+const STATE_ESCORT: StringName = &"Escort"
 const STATE_COMBAT: StringName = &"Combat"
 const STATE_DEAD: StringName = &"Dead"
 const DEFAULT_PROFILE_PATH := "res://data/profiles/default.tres"
 
 const TRANSITIONS: Dictionary = {
-	STATE_GROUND: [STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE, STATE_HIDDEN, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
-	STATE_CROUCH: [STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE, STATE_HIDDEN, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
+	STATE_GROUND: [STATE_ESCORT, STATE_CROUCH, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE, STATE_HIDDEN, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
+	STATE_CROUCH: [STATE_ESCORT, STATE_GROUND, STATE_SPRINT, STATE_WALL_CLING, STATE_CLIMB, STATE_CRAWLSPACE, STATE_SWIM_SURFACE, STATE_HIDDEN, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
 	STATE_SPRINT: [STATE_GROUND, STATE_CROUCH, STATE_SWIM_SURFACE, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
 	STATE_WALL_CLING: [STATE_GROUND, STATE_CLIMB, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
 	STATE_CLIMB: [STATE_GROUND, STATE_BEAM, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
@@ -32,11 +33,13 @@ const TRANSITIONS: Dictionary = {
 	STATE_HIDDEN: [STATE_CROUCH, STATE_ASSASSINATE, STATE_COMBAT, STATE_DEAD],
 	STATE_ASSASSINATE: [STATE_GROUND, STATE_CRAWLSPACE, STATE_DEAD],
 	STATE_COMBAT: [STATE_GROUND, STATE_CROUCH, STATE_SPRINT, STATE_DEAD],
+	STATE_ESCORT: [STATE_GROUND, STATE_CROUCH, STATE_CRAWLSPACE, STATE_HIDDEN, STATE_DEAD],
 	STATE_DEAD: [],
 }
 
 @export var player_profile: PlayerProfile
 
+var escort_active := false
 var _state: StringName = STATE_GROUND
 var _sprint_origin: StringName = STATE_GROUND
 var _tuning_profile: PlayerProfile
@@ -68,6 +71,7 @@ func is_visibility_excluded() -> bool:
 
 
 func can_enter(next: StringName) -> bool:
+	if escort_active and next in [STATE_SPRINT,STATE_WALL_CLING,STATE_CLIMB,STATE_BEAM,STATE_SWIM_SURFACE,STATE_SWIM_UNDERWATER,STATE_ASSASSINATE,STATE_COMBAT]: return false
 	if next == _state:
 		return true
 	var allowed: Array = TRANSITIONS.get(_state, [])
@@ -75,6 +79,7 @@ func can_enter(next: StringName) -> bool:
 
 
 func change_state(next: StringName, _ctx: Dictionary = {}) -> bool:
+	if escort_active and next == STATE_GROUND: next = STATE_ESCORT
 	if not can_enter(next):
 		return false
 	if next == _state:
@@ -117,7 +122,7 @@ func movement_params() -> Dictionary:
 
 	var key := stance()
 	return {
-		&"speed": float(profile.move_speeds.get(key, 0.0)),
+		&"speed": minf(float(profile.move_speeds.get(key, 0.0)),2.0) if escort_active else float(profile.move_speeds.get(key, 0.0)),
 		&"noise_radius": float(profile.noise_radii.get(key, 0.0)),
 		&"visibility_mod": (
 			0.0
