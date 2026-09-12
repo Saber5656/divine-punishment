@@ -1,0 +1,14 @@
+{
+  "arrival": {
+    "position": "(50.99998, 3.000502, 17.14469)",
+    "seconds": 33.206,
+    "state": "Ground"
+  },
+  "failures": [],
+  "position": "(12.09971, 0.000384, 87.98543)",
+  "route": "A",
+  "scope": "Normal-time mapped movement/E climb/crawl/Shift beam release, heading steering, no actor placement; NPC-free graybox route and ground return only",
+  "seconds": 66.361,
+  "state": "Ground",
+  "states": []
+}
