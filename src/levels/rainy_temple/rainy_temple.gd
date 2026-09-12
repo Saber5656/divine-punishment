@@ -21,6 +21,7 @@ func _enter_tree() -> void:
 	_box(water,"Seabed",Vector3(92,-5.2,50),Vector3(8,0.4,100),Color("152e35"))
 	_box(terraces,"Graveyard",Vector3(20,1.1,56),Vector3(24,4,32),Color("48504c"))
 	_box(terraces,"Courtyard",Vector3(52,1.1,49),Vector3(36,4,34),Color("48504c"))
+	_box(terraces,"GraveBridge",Vector3(33,3,58),Vector3(2,0.2,4),Color("48504c"))
 	_ramp(ground,"FrontSteps",Vector3(40,0,84),Vector3(40,4,66),4)
 	_ramp(terraces,"HallSteps",Vector3(48,4,40),Vector3(48,8,32),4)
 	_box(terraces,"HallBase",Vector3(51,3.1,23),Vector3(30,8,18),Color("394542"))
