@@ -56,3 +56,30 @@ func test_first_residence_result_continues_to_hideout_then_selection() -> void:
 	assert_true(director.continue_from_result())
 	assert_eq(director.screen, &"select", "Repeat clears do not replay first-clear conversations")
 	director.show_title()
+
+func test_first_temple_clear_continues_with_the_saved_rescue_outcome() -> void:
+	var main = load("res://src/ui/main.tscn").instantiate()
+	var director = main.get_node("SceneDirector")
+	var store := Store.new()
+	add_child_autofree(store)
+	director.save_manager = store
+	add_child_autofree(main)
+	director.start_mission(load("res://data/missions/m04.tres"))
+	for frame in range(5): await get_tree().physics_frame
+	var temple: Node3D = director.mission
+	for npc: TempleRetainer in temple.get_node("Mission/Retainers").get_children():
+		npc.rescue()
+		npc.global_position = TempleRetainer.ESCAPE-Vector3.UP*0.9
+		npc.advance_escape(0.1)
+	(temple.get_node("Population/Tetsusenbo") as TargetNpc).begin_assassination(&"back")
+	for overlay: NarrativeOverlay in get_tree().get_nodes_in_group(&"narrative_overlays"):
+		if temple.is_ancestor_of(overlay): overlay.advance(NarrativeOverlay.DURATION)
+	assert_true(temple.get_node("Mission").call("try_escape"))
+	for frame in range(2): await get_tree().process_frame
+	assert_eq(director.screen,&"results")
+	assert_true(director.continue_from_result())
+	assert_eq(director.screen,&"hideout")
+	var player := director.get_node_or_null("HideoutPlayer") as CutscenePlayer
+	assert_not_null(player)
+	if player != null: assert_eq(player._data.slides[0].lines[-1].text_key,&"hideout.h3.rescued")
+	director.show_title()

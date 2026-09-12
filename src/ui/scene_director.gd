@@ -408,7 +408,9 @@ func continue_from_result() -> bool:
 	if screen != &"results": return false
 	if _first_clear_result and _last_result.flags.get("completed",false) and HIDEOUTS.has(definition.id):
 		var scene: HideoutScene = HIDEOUTS[definition.id]
-		var data := scene.to_cutscene(int(save_manager.campaign().get("shura",0)))
+		var saved: Dictionary = save_manager.campaign().get("mission_results",{}).get(String(definition.id),{})
+		var story_flags: Dictionary = saved.get("first_clear_flags",saved.get("flags",_last_result.flags))
+		var data := scene.to_cutscene(int(save_manager.campaign().get("shura",0)),story_flags)
 		_hideout_player = CutscenePlayer.new()
 		_hideout_player.name = "HideoutPlayer"
 		add_child(_hideout_player)

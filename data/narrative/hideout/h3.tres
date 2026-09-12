@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="HideoutScene" load_steps=17 format=3]
+[gd_resource type="Resource" script_class="HideoutScene" load_steps=19 format=3]
 [ext_resource type="Script" path="res://src/core/narrative/hideout_scene.gd" id="1"]
 [ext_resource type="Script" path="res://src/core/narrative/line_data.gd" id="2"]
 [ext_resource type="Texture2D" path="res://assets/narrative/hideout_wash.tres" id="3"]
@@ -74,11 +74,24 @@ script = ExtResource("2")
 speaker_key = &"speaker.kuroha"
 text_key = &"hideout.h3.blood.06"
 style = 1
+
+[sub_resource type="Resource" id="rescued"]
+script = ExtResource("2")
+text_key = &"hideout.h3.rescued"
+style = 0
+
+[sub_resource type="Resource" id="lost"]
+script = ExtResource("2")
+text_key = &"hideout.h3.lost"
+style = 0
 [resource]
 script = ExtResource("1")
 id = &"h3"
 background = ExtResource("3")
 shura_threshold = 6
+outcome_flag = &"side_objective"
+lines_success = Array[ExtResource("2")]([SubResource("rescued")])
+lines_failure = Array[ExtResource("2")]([SubResource("lost")])
 lines_calm = Array[ExtResource("2")]([SubResource("calm_1"), SubResource("calm_2"), SubResource("calm_3"), SubResource("calm_4"), SubResource("calm_5"), SubResource("calm_6")])
 lines_blood = Array[ExtResource("2")]([SubResource("blood_1"), SubResource("blood_2"), SubResource("blood_3"), SubResource("blood_4"), SubResource("blood_5"), SubResource("blood_6")])
 ambience = ExtResource("4")
