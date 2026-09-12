@@ -23,3 +23,9 @@ The generic floor helper subtracts the well and dais-undercroft rectangles befor
 5. Record results and concrete remaining work in the canonical Vault task. No artifact from this stage is human timing, undetected active-AI proof, art completion or G3 acceptance.
 
 No unrelated checkpoint/narrative/audio/lighting changes, paid service, release publication or original checkout cleanup. Main-agent self-review is appropriate; no authority/secret/data-loss change requiring independent review.
+
+## Observed dependency: settled crawl exit
+
+The native canal route and a physics-settled integration fixture exposed an inconsistent shared collision query: endpoint clearance lifts its capsule by the existing 5mm support tolerance, while the swept path starts directly against the supporting floor and rejects an otherwise clear exit. Before implementing the repair, add a standalone settled-floor regression. Align the sweep with the existing support tolerance, preserving capsule size, wall checks, range limits and movement tuning. Run existing blocked-crawl and swim-traversal regressions because both use this query, then replay the real festival hatch and full routes. This necessary route dependency belongs in a separate reviewed commit.
+
+The branch now includes merged temple art from main `2d59c192a11c5c0daaa6a3f79fa627169d8d2b90`; the earlier baseline above records the original design start.

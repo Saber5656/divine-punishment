@@ -36,6 +36,20 @@ func test_player_enters_and_exits_crawlspace_through_explicit_entrance() -> void
 	assert_almost_eq(player.camera_rig.posture_drop(), 0.0, 0.0001)
 
 
+func test_settled_crawl_exit_does_not_treat_supporting_floor_as_a_wall() -> void:
+	_add_world_blocker(Vector3(84, 0.72, 34.5), Vector3(2, 0.2, 1))
+	var entrance := _add_entrance(Vector3(84, 1.74, 34.5), Vector3(0, 0, -0.5))
+	var player := _add_player(Vector3(84, 1.74, 34.25))
+	assert_true(player.restore_checkpoint_posture(&"Crawlspace", player.global_position))
+	for frame in range(10):
+		await get_tree().physics_frame
+	assert_true(player.is_on_floor(), "Exercise an actual settled body, not a suspended capsule")
+	assert_true(entrance.is_near_inside(player.global_position))
+	assert_true(player.try_exit_crawlspace(entrance), "Support contact must not block a clear exit")
+	assert_eq(player.state_machine.current_state(), PlayerStateMachine.STATE_CROUCH)
+	assert_eq(player.global_position, entrance.outside_world_position())
+
+
 func test_crawlspace_uses_crawl_tuning_for_planar_movement_and_keeps_camera_look() -> void:
 	var entrance := _add_entrance(Vector3.ZERO, Vector3(0.0, 0.0, -1.0))
 	var player := _add_player(entrance.outside_world_position())

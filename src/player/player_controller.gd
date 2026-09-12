@@ -1004,6 +1004,8 @@ func _has_capsule_path_clear(
 	requested_capsule.height = height
 	var local_collision_transform := _standing_collision_transform
 	local_collision_transform.origin.y -= (_standing_capsule_height - height) * 0.5
+	# Match endpoint clearance so settled floor contact is not a sweep obstacle.
+	local_collision_transform.origin.y += CAPSULE_CLEARANCE_SUPPORT_EPSILON
 	var source_body_transform := global_transform
 	source_body_transform.origin = from
 	var query := PhysicsShapeQueryParameters3D.new()
