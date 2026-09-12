@@ -33,15 +33,38 @@ samples V plus the center image's luminance. It is separate from route testing:
 
 | Case | V | Image luminance |
 |---|---:|---:|
-| Near pier lamp, on | 0.663758 | 0.228108 |
-| Same position, off | 0.040000 | 0.187165 |
-| Outside lamp range | 0.040000 | 0.184193 |
-| Under solid counting floor | 0.012000 | 0.095937 |
+| Near pier lamp, on | 0.663758 | 0.228107 |
+| Same position, off | 0.040000 | 0.187167 |
+| Outside lamp range | 0.040000 | 0.184070 |
+| Under solid counting floor | 0.012000 | 0.095943 |
 
 The lamp visibly darkens when extinguished, and V falls with it. The overhead
 lamp does not expose the crawlspace through the solid floor. These values
 measure the tested cases, not every possible camera/occlusion combination.
 
-Exported route A and B have passed with active AI at normal time; final C replay
-is pending at this revision. The final acceptance report will replace this
-paragraph with all three route outcomes before closing #61.
+All three exported routes passed via the actual unlocked campaign board, normal
+mapped player input, active AI/perception/physics and normal time. The replay
+never places an actor, calls a kill directly or grants invincibility. B consumes
+two smoke bombs through mapped inventory/aim/throw input. C traverses the ship's
+underwater clearance and the rear crawlspace before collecting the ledger.
+
+| Route | Seconds | Detections | Civilian / non-target kills | Civilian screams |
+|---|---:|---:|---:|---:|
+| A | 108.599 | 0 | 0 / 0 | 3 |
+| B | 85.723 | 0 | 0 / 0 | 1 |
+| C | 292.639 | 0 | 0 / 0 | 0 |
+
+Each reached the result screen with score 75 and the completed/one-strike/swift/
+shadow-walker flags. No-traces and cargo side-objective were false; those are
+not claimed by these routes. C finished without a civilian scream and retained
+3.233 seconds of air at its lowest point. The saved result uses an isolated
+in-memory store, not a new disk-persistence proof. The 16-minute authored par
+and human baseline remain tracked separately in #173/#60.
+
+Reproduce with a Godot 4.3 macOS release executable and an exported PCK. Run
+`res://tests/smoke/port_art_smoke.tscn` for the four inspection cameras,
+`res://tests/smoke/port_lighting_smoke.tscn` for controlled light comparisons,
+and `res://tests/smoke/port_clear_smoke.tscn` with `-- --route=A|B|C` for gameplay.
+Each accepts `--output-dir=...` and writes PNGs plus result.json; inspect the
+process exit, failures array, reached screen and counters together. Do not
+substitute an editor parse-success line for the replay results.
