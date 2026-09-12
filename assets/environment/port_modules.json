@@ -1,0 +1,24 @@
+{
+  "generator": "tools/art/build_port_modules.py",
+  "blender_version": "5.2.1 LTS",
+  "units": "metres",
+  "source": "Project-authored original geometry and materials",
+  "license": "Project license",
+  "external_assets": [],
+  "modules": [
+    "quay_planks_2m",
+    "quay_pile",
+    "storehouse_panel_2m",
+    "port_roof_2m",
+    "house_shoji_2m",
+    "house_post",
+    "port_crate",
+    "port_barrel",
+    "coiled_rope",
+    "cargo_ship_hull",
+    "cargo_ship_rig",
+    "port_lantern",
+    "counting_desk",
+    "port_worker"
+  ]
+}
