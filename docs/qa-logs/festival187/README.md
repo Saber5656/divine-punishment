@@ -13,3 +13,8 @@ Full regression passed684tests/5577assertions in164.892s before the final underc
 Reproduce from the project: `godot --path . res://tests/smoke/festival_routes_smoke.tscn -- --route=A --output-dir=<evidence-directory>`; repeat B/C. Isolated diagnosis adds `--route=C --leg=hatch`. No additional installation or gameplay tuning is needed.
 
 Remaining work: live enemies/twelve civilians and six-minute routines188; fireworks/naruko/zero-scream objective/checkpoints189; active-AI exported completion190; original festival art/music65; authored Post79 and external timing49/84. This is not human playtest timing, a G3 decision, undetected completion, final art or a release.
+
+
+## Adopted PR192 review: enclosed foundation
+
+The review found that the dais perimeter still allowed falling into the undercroft from ground level and stepping beneath the surrounding land slab. Five actual horizontal boundary rays reproduced it. Foundation sides now encloseY-3.9to1.9, with only the low northern canal opening belowY-1.1. The western stair remains above the foundation at its deck arrival. Focused suite passes5tests55assertions; no Script/Parse errors. Final native B81.511s (Beam arrival42.058s) and C118.070s (Ground arrival80.132s) both return normally with no failures/deaths. Their adjacent JSON/photos replace the earlier pre-foundation versions. A66.361s remains unchanged shrine/ground geometry evidence. Earlier full684/5577 and final pre-foundation CI684/5579 are retained as baselines; fresh CI runs the complete reviewed change. This addresses review threadPRRT_kwDOTMWvxM6hz8pE without changing shared traversal tuning.

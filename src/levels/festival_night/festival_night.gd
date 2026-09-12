@@ -45,6 +45,12 @@ func _enter_tree() -> void:
 	_box(canal,"CanalWestFloor",Vector3(76,-4,13),Vector3(18,0.2,4),Color("3f4a45"))
 	_box(canal,"CanalNorthFloor",Vector3(84,-4,19),Vector3(4,0.2,12),Color("3f4a45"))
 	_box(canal,"UndercroftFloor",Vector3(84,-4,32),Vector3(16,0.2,16),Color("3f4a45"))
+	# Seal the ground cutout up to the deck underside; only the low canal
+	# opening remains. The western stair surface stays above this foundation.
+	for x in [76.0,92.0]: _box(canal,"DaisFoundationSide",Vector3(x,-1,32),Vector3(0.3,5.8,16),Color("3f4a45"))
+	_box(canal,"DaisFoundationSouth",Vector3(84,-1,40),Vector3(16,5.8,0.3),Color("3f4a45"))
+	for x in [79.0,89.0]: _box(canal,"DaisFoundationNorth",Vector3(x,-1,24),Vector3(6,5.8,0.3),Color("3f4a45"))
+	_box(canal,"CanalLintel",Vector3(84,0.4,24),Vector3(4,3,0.3),Color("3f4a45"))
 	for x in [66.85,86.15]: _box(canal,"CanalEnd",Vector3(x,-2.5,13),Vector3(0.3,2.8,4),Color("444b43"))
 	_box(canal,"CanalWall",Vector3(76,-2.5,10.85),Vector3(18,2.8,0.3),Color("444b43"))
 	_box(canal,"CanalWall",Vector3(74.5,-2.5,15.15),Vector3(15,2.8,0.3),Color("444b43"))

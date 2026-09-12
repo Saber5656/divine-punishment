@@ -49,6 +49,15 @@ func _floor(level: Node3D,point: Vector3) -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(point+Vector3.UP*0.1,point+Vector3.DOWN*1.2,1)
 	return level.get_world_3d().direct_space_state.intersect_ray(query)
 
+func test_undercroft_perimeter_blocks_ground_bypasses_and_below_ground_escape() -> void:
+	var level := await _level()
+	if level == null: return
+	for segment in [[Vector3(75,0,28),Vector3(77,0,28)],[Vector3(93,0,32),Vector3(91,0,32)],[Vector3(84,0,41),Vector3(84,0,39)],[Vector3(84,0,23),Vector3(84,0,25)],[Vector3(78,-2,38),Vector3(78,-2,41)]]:
+		var query := PhysicsRayQueryParameters3D.create(segment[0],segment[1],1)
+		assert_false(level.get_world_3d().direct_space_state.intersect_ray(query).is_empty(), "Enclose the dais foundation at "+str(segment[0]))
+	var canal := PhysicsRayQueryParameters3D.create(Vector3(84,-2.5,23),Vector3(84,-2.5,25),1)
+	assert_true(level.get_world_3d().direct_space_state.intersect_ray(canal).is_empty(), "Keep the actual underground canal opening")
+
 func test_actual_crawl_exit_reaches_a_clear_flat_landing() -> void:
 	var level := await _level()
 	if level == null: return
