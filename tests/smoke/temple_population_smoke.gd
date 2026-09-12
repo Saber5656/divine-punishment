@@ -5,10 +5,12 @@ extends Node3D
 var output := "user://temple179"
 var failures: Array[String] = []
 var samples: Array[Dictionary] = []
+var weather_only := false
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--output-dir="): output = arg.trim_prefix("--output-dir=")
+		if arg == "--weather-only": weather_only = true
 	DirAccess.make_dir_recursive_absolute(output)
 	DisplayServer.window_set_size(Vector2i(1440,900))
 	var started := Time.get_ticks_msec()
@@ -20,6 +22,14 @@ func _ready() -> void:
 	var camera := Camera3D.new()
 	add_child(camera)
 	camera.current = true
+	if weather_only:
+		camera.position = player.global_position+Vector3(0,2,3)
+		camera.look_at(player.global_position+Vector3(0,1,-8))
+		await get_tree().create_timer(2.0).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(output+"/rain.png")
+		get_tree().quit()
+		return
 	var initial := {}
 	for monk in population.get_node("Monks").get_children(): initial[monk.name] = monk.global_position
 	Engine.time_scale = 8.0
