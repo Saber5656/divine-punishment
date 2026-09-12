@@ -83,3 +83,13 @@ A の通常歩行と重力による実測は32.368秒で帳場へ到達。B はE
 300秒は既存RoutineStopの時刻窓（0–180帳場、180–240検分、240–300密談）として実装する。各窓には次の場所までの実移動時間を含める。3分+1分+1分の完全停止に別途移動を加えて5分と称したり、瞬間移動で辻褄を合わせたりはしない。4倍速のnative検証では検分到着213.533秒、桟橋258.667秒。桟橋で警戒を上げた後、20.8秒の実移動（simulation time）で母屋へ戻り、予備護衛が合流した。
 
 帳場の算盤は元の録音を使わず、木の珠の短い打音を決定的に合成した位置音源。SE設定を使い、帳場にいる健在の標的がcount中だけ鳴る。警戒・移動・無力化時は止める。最終サウンドは #82、NPCの最終アートは #61。
+
+## Ledger, cargo and checkpoint mechanics (#172)
+
+The development mission now orders target death → reachable ledger pickup in the
+counting room → physical entry/rear-water exit. E carries or releases the opium
+crate in storehouse three; complete submersion grants the one-shot +5 reward.
+The ship hull blocks disposal, so the clear shoreline north of its bow is a
+valid route. Checkpoints preserve NPC/civilian life, objectives, cargo and bonus
+together across a fresh scene. See [mechanics QA](../qa-logs/port172/README.md).
+Campaign entry and full-route acceptance remain under #173 and its dependencies.

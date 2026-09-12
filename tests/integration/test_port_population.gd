@@ -1,5 +1,12 @@
 extends GutTest
 
+var _prior_alert := 0
+func before_each() -> void:
+	_prior_alert = GameState.area_alert_level
+	GameState.area_alert_level = 0
+func after_each() -> void:
+	GameState.area_alert_level = _prior_alert
+
 const POPULATION := "res://src/levels/port_storehouse/port_population.gd"
 
 func test_port_population_has_authored_roles_and_target_schedule() -> void:

@@ -88,3 +88,14 @@ func receive_combat_damage(amount: int, source: Node = null) -> int:
 
 func _report_death(_source: Node) -> void:
 	EventBus.civilian_killed.emit(self)
+
+## Restore without reporting a fresh death or changing mission counters.
+func restore_checkpoint_health(value: int) -> bool:
+	if value < 0 or value > 1 or _body == null: return false
+	_health = value
+	_scream_cooldown = 0.0
+	_scan_elapsed = 0.0
+	collision_layer = (1 << 8) if value == 0 else (1 << 3)
+	_body.rotation.z = PI/2 if value == 0 else 0.0
+	_body.position.y = 0.25 if value == 0 else 0.825
+	return true
