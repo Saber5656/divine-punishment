@@ -409,6 +409,15 @@ func routine_clock() -> float:
 	return clampf(_routine_clock, 0.0, _routine_cycle_seconds)
 
 
+## Align authored schedules while preserving movement, dwell and alert state.
+func synchronize_routine_clock(value: float) -> bool:
+	if not is_finite(value) or value < 0.0 or value > MAX_ROUTINE_CLOCK_SECONDS:
+		return false
+	_routine_clock = fmod(value, _routine_cycle_seconds)
+	_sync_routine_alert_level()
+	return true
+
+
 func set_routine_cycle_seconds(value: float) -> bool:
 	if (
 		not is_finite(value)
