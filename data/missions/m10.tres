@@ -7,3 +7,5 @@ title_key = &"m10.title"
 weather = 2
 kill_policy = 0
 par_time_minutes = 0.0
+inner_monologue_id = &"m10.inner_monologue"
+last_words_id = &"m10.last_words"

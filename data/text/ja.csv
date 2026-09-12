@@ -329,3 +329,23 @@ nonlethal.failed,殺めてはならない。直前の地点からやり直す。
 input.knockout,当身
 input.escort_command,同行・待機
 npc.escort_command,{escort_command} 同行・待機
+settings.inner_monologue,暗殺後の内語を表示
+result.oko.quiet,静かな仕事だったね
+result.oko.some,……余計な灯りも、消えたようだね
+result.oko.many,……ずいぶん、殺したね
+m02.inner_monologue,同じことだ、と言った。……本当にそうか。
+m02.last_words,わ、わしは書いただけだ……金は、戎屋が……
+m03.inner_monologue,これも、務めだ。……務め、か
+m03.last_words,銭は罪かい……忍風情が、人を裁くか
+m04.inner_monologue,……答えは、出ない。
+m04.last_words,同業よ……俺とお前の、何が違う
+m05.inner_monologue,囃子は、まだ続いている。
+m05.last_words,俺は、判を押しただけだ……
+m06.inner_monologue,ただの、御用。……俺と同じだ。
+m06.last_words,私はただ、御用を……母上……
+m07.inner_monologue,里の名を、誰が残す。
+m07.last_words,宗玄様は里を救った……お前は里を、殺しに来た
+m08.inner_monologue,この手は、何を守った。
+m08.last_words,わしを斬っても、席は空かぬ……
+m10.inner_monologue,……帰ろう。
+m10.last_words,……人殺しの顔では、なくなったな……弟よ……

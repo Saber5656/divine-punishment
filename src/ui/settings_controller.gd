@@ -72,6 +72,7 @@ func apply_all() -> bool:
 	if DisplayServer.get_name() != "headless":
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if config.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if config.vsync else DisplayServer.VSYNC_DISABLED)
+	get_tree().call_group(&"narrative_overlays",&"refresh_settings")
 	return _apply_bindings(config.input_overrides)
 
 

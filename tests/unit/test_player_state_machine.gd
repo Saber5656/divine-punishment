@@ -234,7 +234,8 @@ func test_player_scene_matches_the_contracted_skeleton() -> void:
 
 	assert_eq(player.collision_layer, 2)
 	assert_eq(player.collision_mask, 1)
-	assert_eq(player.get_child_count(), 12)
+	assert_eq(player.get_child_count(), 13)
+	assert_true(player.get_child(12) is NarrativeOverlay)
 	assert_true(player.get_child(11) is NonlethalActions)
 	assert_eq(player.get_child(0).name, &"CollisionShape3D")
 	assert_eq(player.get_child(1).name, &"Visual")

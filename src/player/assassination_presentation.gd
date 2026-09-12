@@ -68,6 +68,7 @@ func begin(enemy: EnemyBase, context: StringName) -> bool:
 	if not is_finite(_duration_sec):
 		_duration_sec = DEFAULT_DURATION_SEC
 	_enemy = enemy
+	if MissionDirector.assassination_variant_for(enemy) == "hesitation": _duration_sec = minf(MAX_DURATION_SEC,_duration_sec+0.5)
 	_context = context
 	_audio_phase = &""
 	_camera_rig = _resolve_camera_rig()
@@ -148,6 +149,8 @@ func audio_phase() -> StringName:
 
 
 func animation_clip_for(context: StringName) -> StringName:
+	if context in CONTEXTS and MissionDirector.assassination_variant_for(_enemy) == "hesitation":
+		return StringName("assassination_hesitation_"+String(context))
 	match context:
 		CONTEXT_BACK:
 			return &"assassination_back"

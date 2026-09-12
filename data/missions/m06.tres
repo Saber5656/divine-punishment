@@ -7,3 +7,6 @@ title_key = &"m06.title"
 weather = 2
 kill_policy = 0
 par_time_minutes = 15.0
+inner_monologue_id = &"m06.inner_monologue"
+last_words_id = &"m06.last_words"
+assassination_variant = "hesitation"

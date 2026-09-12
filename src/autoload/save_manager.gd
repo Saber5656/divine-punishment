@@ -195,7 +195,7 @@ static func migrate(data: Dictionary) -> Dictionary:
 	for key in ["sensitivity_x", "sensitivity_y"]:
 		if not _number(config[key]) or config[key] < 0.1 or config[key] > 3.0:
 			return {}
-	for key in ["invert_y", "fullscreen", "vsync"]:
+	for key in ["invert_y", "fullscreen", "vsync", "inner_monologue"]:
 		if not config[key] is bool:
 			return {}
 	if config.quality_preset not in ["low", "medium", "high"] or not config.locale is String or not config.input_overrides is Dictionary:
@@ -214,7 +214,7 @@ static func default_save() -> Dictionary:
 	return {
 		"version": CURRENT_VERSION,
 		"campaign": {"unlocked_mission": 1, "shura": 0, "total_nontarget_kills": 0, "total_civilian_kills": 0, "total_detections": 0, "mission_results": {}, "seen_cutscenes": []},
-		"settings": {"volume_master": 1.0, "volume_bgm": 0.8, "volume_se": 1.0, "sensitivity": 0.5, "sensitivity_x": 1.0, "sensitivity_y": 1.0, "invert_y": false, "quality_preset": "high", "fullscreen": false, "vsync": true, "input_overrides": {}, "locale": "ja"},
+		"settings": {"volume_master": 1.0, "volume_bgm": 0.8, "volume_se": 1.0, "sensitivity": 0.5, "sensitivity_x": 1.0, "sensitivity_y": 1.0, "inner_monologue": true, "invert_y": false, "quality_preset": "high", "fullscreen": false, "vsync": true, "input_overrides": {}, "locale": "ja"},
 		"checkpoint": null,
 	}
 

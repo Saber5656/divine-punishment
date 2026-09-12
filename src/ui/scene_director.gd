@@ -42,6 +42,7 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"pause") or event.is_action_pressed(&"ui_cancel"):
+		if _result_pending and screen == &"playing": return
 		if screen == &"playing":
 			var player := mission.get_node_or_null("Player") if is_instance_valid(mission) else null
 			if player != null and not (player.get_node("StateMachine") as PlayerStateMachine).is_dead():
@@ -225,7 +226,10 @@ func show_result() -> void:
 			_raw_label(GameText.get_text(&"result.flag_pass") % [label, points[index]] if achieved else GameText.get_text(&"result.flag_fail") % label, 18)
 			if not achieved and next_goal == &"result.all_done":
 				next_goal = StringName("result.next.%s" % flag)
-	_raw_label(GameText.get_text(&"result.nontarget") % MissionDirector.stats().nontarget_kills, 16)
+	var non_target_kills := MissionDirector.stats().nontarget_kills
+	_raw_label(GameText.get_text(&"result.nontarget") % non_target_kills, 16)
+	var report := _raw_label(NarrativeText.oko_report(non_target_kills),20)
+	report.name = "OkoReport"
 	_label(&"result.next", 16)
 	_label(next_goal, 18)
 	_button(&"nav.restart", func() -> void: start_mission(definition))
@@ -245,7 +249,7 @@ func _on_mission_event(event: StringName, payload: Dictionary) -> void:
 		_update_objective()
 		if MissionDirector.current_objective() == null and not _result_pending:
 			_result_pending = true
-			show_result.call_deferred()
+			_show_result_after_narrative.call_deferred()
 
 
 func _update_objective() -> void:
@@ -463,3 +467,16 @@ func _retry_forbidden_kill() -> void:
 	if not request_checkpoint_retry():
 		start_mission(definition)
 	set_mission_hint(GameText.get_text(&"nonlethal.failed"))
+
+func _show_result_after_narrative() -> void:
+	var completed_mission := mission
+	var delay := 0.0
+	for overlay in get_tree().get_nodes_in_group(&"narrative_overlays"):
+		if is_instance_valid(mission) and mission.is_ancestor_of(overlay):
+			delay = maxf(delay,overlay.remaining_time())
+			overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	if delay > 0.0:
+		# Preserve the existing victory freeze while letting the final words finish.
+		get_tree().paused = true
+		await get_tree().create_timer(delay,true).timeout
+	if is_instance_valid(completed_mission) and mission == completed_mission and _result_pending: show_result()
