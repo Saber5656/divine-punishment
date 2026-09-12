@@ -27,6 +27,21 @@ class EnemyDebugProvider:
 		return detection_meter
 
 
+func test_production_guard_exposes_its_live_perception_to_the_overlay() -> void:
+	var enemy := load("res://src/enemies/enemy_base.tscn").instantiate() as EnemyBase
+	add_child_autofree(enemy)
+	var overlay := OverlayScript.new()
+	add_child_autofree(overlay)
+	var samples := overlay.enemy_debug_snapshot()
+	assert_eq(samples.size(),1,"The production guard must expose a vision cone, not only test doubles")
+	if samples.is_empty(): return
+	var perception := enemy.get_node("Perception") as EnemyPerception
+	assert_eq(samples[0][&"fov_degrees"],perception.perception_config.fov_degrees)
+	assert_eq(samples[0][&"view_distance"],perception.effective_view_distance())
+	assert_eq(samples[0][&"meter"],perception.meter())
+	assert_eq(samples[0][&"origin"],enemy.get_node("Perception/EyePoint").global_position)
+
+
 func test_toggle_is_explicit_and_input_action_is_bound_to_f3() -> void:
 	var overlay := OverlayScript.new()
 	add_child_autofree(overlay)
