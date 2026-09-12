@@ -365,3 +365,5 @@ m04.prompt.bell,{interact} 集合の鐘を鳴らす（1回）
 m04.prompt.rescue,{interact} 遺臣を解放する
 m04.prompt.exit,{interact} 脱出する・遺臣の脱出
 m04.prompt.counter,受け流した直後に斬り返す
+m05.fireworks.countdown,花火まで {seconds} 秒
+m05.fireworks.active,花火の轟音　屋根では姿が目立つ

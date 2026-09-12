@@ -1,0 +1,12 @@
+{
+  "boom_playing": true,
+  "failures": [],
+  "final_elapsed": 45.233333333333,
+  "ground_burst": 0.04,
+  "paused_elapsed": 42.4333333333332,
+  "roof_after": 0.04,
+  "roof_baseline": 0.04,
+  "roof_burst": 0.08,
+  "scope": "Native fireworks fixture: explicit roof and ground player placements, disabled player movement/camera rig, live population with40second clock offset, normal-time burst and30render-frame pause; not a mission clear or human baseline",
+  "unmasked_sounds": 1
+}
