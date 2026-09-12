@@ -1,0 +1,128 @@
+{
+  "campaign": {
+    "mission_results": {
+      "m04": {
+        "first_clear_flags": {
+          "completed": true,
+          "failed_reason": "",
+          "no_traces": false,
+          "one_strike": true,
+          "shadow_walker": true,
+          "side_objective": false,
+          "swift": true
+        },
+        "flags": {
+          "completed": true,
+          "failed_reason": "",
+          "no_traces": false,
+          "one_strike": true,
+          "shadow_walker": true,
+          "side_objective": false,
+          "swift": true
+        },
+        "rank": "okuden",
+        "score": 75
+      }
+    },
+    "seen_cutscenes": [],
+    "shura": 0,
+    "total_civilian_kills": 0,
+    "total_detections": 0,
+    "total_nontarget_kills": 0,
+    "unlocked_mission": 5
+  },
+  "civilian_kills": 0,
+  "detections": 0,
+  "failures": [],
+  "flags": {
+    "completed": true,
+    "failed_reason": "",
+    "no_traces": false,
+    "one_strike": true,
+    "shadow_walker": true,
+    "side_objective": false,
+    "swift": true
+  },
+  "max_visibility": 0.490373849868774,
+  "min_breath": 20,
+  "narrative": {
+    "inner": "……答えは、出ない。",
+    "last_words": "同業よ……俺とお前の、何が違う"
+  },
+  "nontarget_kills": 0,
+  "roof_checkpoint": {
+    "id": "assassination_complete",
+    "position": [
+      51,
+      11.8999996185303,
+      22.1484222412109
+    ],
+    "posture": "Ground",
+    "restored_position": "(51, 11.9, 22.14842)",
+    "restored_posture": "Ground"
+  },
+  "roof_retry_ms": 219.619,
+  "route": "B",
+  "scope": "Unlocked campaign board; mapped normal-time movement/traversal/F assassination/E rescue and escape; heading steering, no actor placement, AI changes or direct kill; volatile save; not human timing",
+  "score": 75,
+  "screen": "results",
+  "seconds": 127.79,
+  "stages": [
+    {
+      "alert": 0,
+      "detections": 0,
+      "position": "(12, 0.000596, 88)",
+      "seconds": 0,
+      "stage": "start"
+    },
+    {
+      "alert": 0,
+      "detections": 0,
+      "position": "(51, 11.9, 22.14842)",
+      "seconds": 58.935,
+      "stage": "approach"
+    },
+    {
+      "alert": 1,
+      "detections": 0,
+      "position": "(51, 11.9, 22.14842)",
+      "seconds": 60.758,
+      "stage": "assassination"
+    },
+    {
+      "alert": 1,
+      "detections": 0,
+      "position": "(51, 11.9, 22.14842)",
+      "seconds": 61.167,
+      "stage": "roof_retry"
+    },
+    {
+      "alert": 1,
+      "detections": 0,
+      "position": "(12.14985, 0.000111, 87.99924)",
+      "seconds": 126.73,
+      "stage": "finish"
+    }
+  ],
+  "states": [
+    "Crouch",
+    "Climb",
+    "Beam",
+    "Ground",
+    "Sprint",
+    "Ground",
+    "Crouch",
+    "Climb",
+    "Beam",
+    "Ground",
+    "Sprint",
+    "Ground",
+    "Crouch",
+    "Climb",
+    "Beam",
+    "Assassinate",
+    "Ground",
+    "Crouch",
+    "Hidden"
+  ]
+}
