@@ -15,6 +15,8 @@ const MAX_OCCLUSION_HITS := 16
 static func emit(event: NoiseEvent, tree: SceneTree = null) -> NoiseEvent:
 	if not _valid_event(event):
 		return event
+	if _gameplay_noise_masked(_event_tree(event, tree)):
+		return event
 	EventBus.noise_emitted.emit(event)
 	if tree != null:
 		deliver_to_enemies(tree, event)
@@ -23,6 +25,8 @@ static func emit(event: NoiseEvent, tree: SceneTree = null) -> NoiseEvent:
 
 static func deliver_to_enemies(tree: SceneTree, event: NoiseEvent) -> void:
 	if tree == null or not _valid_event(event):
+		return
+	if _gameplay_noise_masked(tree):
 		return
 	for listener in tree.get_nodes_in_group("enemies"):
 		if not listener.has_method("on_noise"):
@@ -41,6 +45,27 @@ static func deliver_to_enemies(tree: SceneTree, event: NoiseEvent) -> void:
 			continue
 		var delivered := NoiseEvent.create(event.position, effective_radius, event.kind, event.source)
 		listener.on_noise(delivered)
+
+
+static func _event_tree(event: NoiseEvent, explicit_tree: SceneTree) -> SceneTree:
+	if explicit_tree != null:
+		return explicit_tree
+	if is_instance_valid(event.source) and event.source.is_inside_tree():
+		return event.source.get_tree()
+	return Engine.get_main_loop() as SceneTree
+
+
+static func _gameplay_noise_masked(tree: SceneTree) -> bool:
+	if tree == null:
+		return false
+	for provider in tree.get_nodes_in_group(&"mission_noise_masks"):
+		if not provider.has_method(&"masks_gameplay_noise"):
+			continue
+		# Scene-owned providers are optional; malformed responses stay neutral.
+		var response: Variant = provider.call(&"masks_gameplay_noise")
+		if response is bool and response:
+			return true
+	return false
 
 
 static func radius_at_listener(

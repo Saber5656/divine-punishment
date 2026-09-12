@@ -83,3 +83,37 @@ func _add_occluder(at: Vector3) -> StaticBody3D:
 	blocker.add_child(collision)
 	add_child_autofree(blocker)
 	return blocker
+
+
+class MissionVisibilityEffect:
+	extends Node
+	var factor: float = 2.0
+	func _init() -> void: add_to_group(&"mission_visibility_effects")
+	func visibility_multiplier_at(_point: Vector3) -> float: return factor
+
+func test_mission_effect_doubles_real_visibility_but_preserves_crowd_exclusion_and_unload() -> void:
+	var player := load(PLAYER_SCENE_PATH).instantiate() as PlayerController
+	add_child_autofree(player)
+	player.set_physics_process(false)
+	var visibility := player.get_node("Visibility") as PlayerVisibility
+	visibility.set_process(false)
+	var baseline := visibility.recompute()
+	var effect := MissionVisibilityEffect.new()
+	add_child_autofree(effect)
+	assert_almost_eq(visibility.recompute(),baseline*2.0,0.000001)
+	effect.factor = NAN
+	assert_almost_eq(visibility.recompute(),baseline,0.000001,"Invalid effects are neutral")
+	effect.factor = 2.0
+	var crowd := CrowdHideSpot.new()
+	add_child_autofree(crowd)
+	assert_eq(visibility.recompute(),0.0,"Fireworks cannot expose a player concealed in a crowd")
+	crowd.free()
+	effect.free()
+	assert_almost_eq(visibility.recompute(),baseline,0.000001,"No cross-mission multiplier leak")
+
+func test_environment_multiplier_is_bounded_and_handles_invalid_factors() -> void:
+	var script: Script = PlayerVisibilityScript
+	assert_true(script.has_method(&"apply_environment_multiplier"))
+	if not script.has_method(&"apply_environment_multiplier"): return
+	for spec in [[0.2,2.0,0.4],[0.4,4.0,1.0],[0.4,0.0,0.4],[0.4,5.0,0.4],[0.4,NAN,0.4]]:
+		assert_almost_eq(float(script.call(&"apply_environment_multiplier",spec[0],spec[1])),float(spec[2]),0.000001)

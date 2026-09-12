@@ -215,3 +215,33 @@ func _add_floor(at: Vector3, material: StringName) -> StaticBody3D:
 	floor_body.add_child(collision)
 	add_child_autofree(floor_body)
 	return floor_body
+
+
+class MissionNoiseMask:
+	extends Node
+	var active: bool = true
+	func _init() -> void: add_to_group(&"mission_noise_masks")
+	func masks_gameplay_noise() -> bool: return active
+
+func test_mission_mask_blocks_every_kind_and_direct_dispatch_until_scene_owner_leaves() -> void:
+	var mask := MissionNoiseMask.new()
+	var source := Node3D.new()
+	var listener := NoiseListener.new()
+	add_child_autofree(mask)
+	add_child_autofree(source)
+	add_child_autofree(listener)
+	var telemetry: Array[NoiseEvent] = []
+	var capture := func(event: NoiseEvent) -> void: telemetry.append(event)
+	EventBus.noise_emitted.connect(capture)
+	for kind in Enums.NoiseKind.values():
+		var event := NoiseEvent.create(Vector3.ZERO,5,kind,source)
+		assert_eq(NoiseEventSystem.emit(event,get_tree()),event,"Masking preserves the input event")
+		NoiseEventSystem.emit(event)
+		NoiseEventSystem.deliver_to_enemies(get_tree(),event)
+	assert_eq(telemetry.size(),0,"Mask before raw telemetry, including source-derived tree")
+	assert_eq(listener.events.size(),0,"All gameplay kinds and direct dispatch must be inaudible")
+	mask.free()
+	NoiseEventSystem.emit(NoiseEvent.create(Vector3.ZERO,5,Enums.NoiseKind.FOOTSTEP,source),get_tree())
+	assert_eq(telemetry.size(),1,"Leaving the mission removes its mask")
+	assert_eq(listener.events.size(),1)
+	EventBus.noise_emitted.disconnect(capture)

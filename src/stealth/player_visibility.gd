@@ -7,6 +7,7 @@ const UPDATE_INTERVAL := 0.1
 const MAX_LIGHTS := 3
 const DETECTION_POINT_NAMES: Array[StringName] = [&"Head", &"Chest", &"Hips"]
 const DARKNESS_FLOOR := 0.05
+const MAX_ENVIRONMENT_MULTIPLIER := 4.0
 # Collision layers are numbered from one in the design docs, while Godot
 # expects a bit mask (layer N is represented by 1 << (N - 1)).
 const LIGHT_OCCLUSION_MASK := (1 << 0) | (1 << 4)
@@ -103,6 +104,7 @@ func _profiled_recompute() -> float:
 			is_moving = bool(player.call(&"is_traversing"))
 		move_mod = 1.0 if is_moving else _stationary_modifier(state_machine)
 	_visibility = combine(light_sum, stance_mod, move_mod, _soft_cover_modifier)
+	_visibility = apply_environment_multiplier(_visibility, _environment_multiplier(player.global_position))
 	visibility_changed.emit(_visibility)
 	return _visibility
 
@@ -113,6 +115,28 @@ static func light_contribution(dist: float, gameplay_radius: float, occluded: bo
 
 static func combine(light_sum: float, stance_mod: float, move_mod: float, cover_mod: float) -> float:
 	return PerceptionFormulasScript.combine(light_sum, stance_mod, move_mod, cover_mod)
+
+
+static func apply_environment_multiplier(base: float, multiplier: float) -> float:
+	if not is_finite(base):
+		return 0.0
+	if not is_finite(multiplier) or multiplier < 1.0 or multiplier > MAX_ENVIRONMENT_MULTIPLIER:
+		multiplier = 1.0
+	return clampf(base * multiplier, 0.0, 1.0)
+
+
+func _environment_multiplier(point: Vector3) -> float:
+	var multiplier := 1.0
+	for provider in get_tree().get_nodes_in_group(&"mission_visibility_effects"):
+		if not provider.has_method(&"visibility_multiplier_at"):
+			continue
+		# Optional scene effects must not introduce nonnumeric or unbounded V.
+		var response: Variant = provider.call(&"visibility_multiplier_at", point)
+		if (response is float or response is int) and is_finite(float(response)):
+			var factor := float(response)
+			if factor >= 1.0 and factor <= MAX_ENVIRONMENT_MULTIPLIER:
+				multiplier = minf(multiplier * factor, MAX_ENVIRONMENT_MULTIPLIER)
+	return multiplier
 
 
 func _stationary_modifier(state_machine: PlayerStateMachine) -> float:
