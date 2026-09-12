@@ -19,6 +19,7 @@ signal target_defeated_event(method: StringName)
 		routine_cycle_seconds = clampf(value, MIN_ROUTINE_CYCLE_SECONDS, MAX_ROUTINE_CYCLE_SECONDS) if is_finite(value) else 360.0
 @export var target_routine_enabled := true
 
+var inside_palanquin := false
 var _target_defeat_event_emitted := false
 var _last_seen_stop_index := -1
 var _last_non_separation_position := Vector3.ZERO
@@ -223,3 +224,10 @@ func restore_checkpoint_defeat(value: bool) -> void:
 	_target_defeat_event_emitted = value
 	_last_seen_stop_index = -1
 	_sync_separation_state()
+
+
+func can_be_assassinated() -> bool:
+	return not inside_palanquin and super.can_be_assassinated()
+
+func receive_combat_damage(amount: int, source: Node = null) -> int:
+	return 0 if inside_palanquin else super.receive_combat_damage(amount,source)

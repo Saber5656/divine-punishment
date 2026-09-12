@@ -104,4 +104,3 @@ func test_unarmored_civilian_is_defeated_by_one_sword_hit() -> void:
 	add_child_autofree(civilian)
 	civilian.receive_combat_damage(1)
 	assert_true(civilian.is_defeated())
-
