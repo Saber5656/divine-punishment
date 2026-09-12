@@ -141,6 +141,7 @@ func _folder(parent: Node,name_: String) -> Node3D:
 func _box(parent: Node,name_: String,point: Vector3,size_: Vector3,color: Color) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = name_
+	body.set_meta(&"art_role",name_)
 	body.position = point
 	body.collision_layer = 1|16|32
 	body.set_meta(&"floor_material",&"wood")
